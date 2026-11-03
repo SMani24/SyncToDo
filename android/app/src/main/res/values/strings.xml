@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SyncToDo</string>
+    <string name="title_activity_main">SyncToDo</string>
+    <string name="package_name">com.synctodo.app</string>
+    <string name="custom_url_scheme">com.synctodo.app</string>
+</resources>

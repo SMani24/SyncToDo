@@ -1,0 +1,32 @@
+{
+  "name": "synctodo",
+  "version": "1.0.0",
+  "description": "Decentralized offline-first P2P sync todo application for Android Phone, Tablet, and Laptop Web",
+  "scripts": {
+    "build": "cd client && npm run build",
+    "sync": "npm run build && npx cap sync android",
+    "android:build": "npm run sync && cd android && ./gradlew assembleDebug",
+    "android:open": "npx cap open android",
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "start": "npm run build && cd server && node server.js"
+  },
+  "keywords": [
+    "todo",
+    "android",
+    "p2p",
+    "offline-first",
+    "crdt",
+    "cross-platform",
+    "phone",
+    "tablet",
+    "laptop"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4"
+  }
+}

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>SyncToDo · Phone, Tablet & Laptop Sync</title>
+  <link rel="manifest" href="/manifest.json" />
+  <style>
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+
+    html, body, #root {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      /* Emoji-safe font stack: system emoji → Noto → Segoe → fallback */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji",
+        "Apple Color Emoji", "Noto Color Emoji", Roboto, "Inter", Helvetica, Arial,
+        "Twemoji Mozilla", sans-serif;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.25);
+      border-radius: 999px;
+    }
+
+    /* ================================================= */
+    /* 8 BALANCED THEMES (4 Dark, 4 Light)               */
+    /* ================================================= */
+
+    /* 1. DARK: Nordic Glass (Default) */
+    body[data-theme="nordic"] {
+      --bg: #090e17;
+      --bg-subtle: #0f172a;
+      --surface: #1e293b;
+      --surface-elevated: #334155;
+      --border: rgba(148, 163, 184, 0.15);
+      --border-strong: rgba(148, 163, 184, 0.3);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      --accent: #10b981;
+      --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --tag-bg: rgba(99, 102, 241, 0.15);
+      --tag-text: #c7d2fe;
+    }
+
+    /* 2. DARK: Cyber Matrix */
+    body[data-theme="cyber"] {
+      --bg: #030712;
+      --bg-subtle: #090d16;
+      --surface: #111827;
+      --surface-elevated: #1f2937;
+      --border: #1f293d;
+      --border-strong: #374151;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --primary-gradient: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      --accent: #06b6d4;
+      --card-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+      --tag-bg: rgba(16, 185, 129, 0.15);
+      --tag-text: #34d399;
+    }
+
+    /* 3. DARK: Midnight Monolith */
+    body[data-theme="monolith"] {
+      --bg: #121214;
+      --bg-subtle: #18181b;
+      --surface: #202024;
+      --surface-elevated: #27272a;
+      --border: #333338;
+      --border-strong: #4f4f56;
+      --text: #fafafa;
+      --text-muted: #a1a1aa;
+      --primary: #e4e4e7;
+      --primary-hover: #ffffff;
+      --primary-gradient: linear-gradient(135deg, #71717a 0%, #d4d4d8 100%);
+      --accent: #38bdf8;
+      --card-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+      --tag-bg: rgba(228, 228, 231, 0.12);
+      --tag-text: #e4e4e7;
+    }
+
+    /* 4. DARK: Dracula Velvet */
+    body[data-theme="dracula"] {
+      --bg: #0f0c1b;
+      --bg-subtle: #161226;
+      --surface: #1e1933;
+      --surface-elevated: #2b2347;
+      --border: rgba(192, 132, 252, 0.2);
+      --border-strong: rgba(192, 132, 252, 0.35);
+      --text: #f5f3ff;
+      --text-muted: #a78bfa;
+      --primary: #c084fc;
+      --primary-hover: #a855f7;
+      --primary-gradient: linear-gradient(135deg, #c084fc 0%, #fb7185 100%);
+      --accent: #38bdf8;
+      --card-shadow: 0 8px 32px rgba(15, 12, 27, 0.7);
+      --tag-bg: rgba(192, 132, 252, 0.18);
+      --tag-text: #e9d5ff;
+    }
+
+    /* 5. LIGHT: Clean Studio */
+    body[data-theme="minimal"] {
+      --bg: #f8fafc;
+      --bg-subtle: #f1f5f9;
+      --surface: #ffffff;
+      --surface-elevated: #f8fafc;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      --accent: #059669;
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      --tag-bg: #eff6ff;
+      --tag-text: #1d4ed8;
+    }
+
+    /* 6. LIGHT: Warm Journal */
+    body[data-theme="editorial"] {
+      --bg: #fcf9f2;
+      --bg-subtle: #f5efe3;
+      --surface: #ffffff;
+      --surface-elevated: #faf5eb;
+      --border: #e8ded0;
+      --border-strong: #d4c5b3;
+      --text: #292524;
+      --text-muted: #78716c;
+      --primary: #c2410c;
+      --primary-hover: #9a3412;
+      --primary-gradient: linear-gradient(135deg, #c2410c 0%, #ea580c 100%);
+      --accent: #0284c7;
+      --card-shadow: 0 6px 24px rgba(194, 65, 12, 0.08);
+      --tag-bg: #ffedd5;
+      --tag-text: #9a3412;
+    }
+
+    /* 7. LIGHT: Matcha Botanical */
+    body[data-theme="matcha"] {
+      --bg: #f2f7f3;
+      --bg-subtle: #e5eee7;
+      --surface: #ffffff;
+      --surface-elevated: #f4f8f4;
+      --border: #d0e0d3;
+      --border-strong: #b1cbb6;
+      --text: #132a17;
+      --text-muted: #4e6b53;
+      --primary: #15803d;
+      --primary-hover: #166534;
+      --primary-gradient: linear-gradient(135deg, #15803d 0%, #0d9488 100%);
+      --accent: #b45309;
+      --card-shadow: 0 6px 24px rgba(21, 128, 61, 0.08);
+      --tag-bg: #dcfce7;
+      --tag-text: #166534;
+    }
+
+    /* 8. LIGHT: Tokyo Sakura */
+    body[data-theme="sakura"] {
+      --bg: #fdf7f9;
+      --bg-subtle: #f9edf1;
+      --surface: #ffffff;
+      --surface-elevated: #fcf1f5;
+      --border: #f2d4df;
+      --border-strong: #e5b3c4;
+      --text: #2e1020;
+      --text-muted: #835269;
+      --primary: #db2777;
+      --primary-hover: #be185d;
+      --primary-gradient: linear-gradient(135deg, #db2777 0%, #f43f5e 100%);
+      --accent: #6366f1;
+      --card-shadow: 0 6px 24px rgba(219, 39, 119, 0.09);
+      --tag-bg: #fce7f3;
+      --tag-text: #be185d;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-D6TR0OLj.js"></script>
+</head>
+<body data-theme="nordic">
+  <div id="root"></div>
+</body>
+</html>

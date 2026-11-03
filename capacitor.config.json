@@ -1,0 +1,12 @@
+{
+  "appId": "com.synctodo.app",
+  "appName": "SyncToDo",
+  "webDir": "client/dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
