@@ -1612,7 +1612,7 @@ export default function App() {
                               WebkitBoxOrient: 'vertical',
                               overflow: 'hidden',
                               unicodeBidi: 'plaintext',
-                              textAlign: hasPersianChar(todo.notes) ? 'right' : 'left'
+                              textAlign: detectBidiDirection(todo.title) === 'rtl' ? 'right' : 'left'
                             }}
                           >
                             {todo.notes}
@@ -1654,7 +1654,14 @@ export default function App() {
                         )}
 
                         {/* Clean Metadata Badges */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: '6px',
+                          marginTop: '6px',
+                          justifyContent: detectBidiDirection(todo.title) === 'rtl' ? 'flex-end' : 'flex-start'
+                        }}>
                           {listObj && (activeView !== 'list' || selectedListId !== listObj.id) && (
                             <span style={{
                               fontSize: '10.5px',

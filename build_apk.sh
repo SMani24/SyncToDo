@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="/home/smani24/.android-build-env"
 mkdir -p "$BASE_DIR"
 cd "$BASE_DIR"
@@ -29,31 +30,42 @@ fi
 
 export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 
-echo "=== 3. Accepting Licenses & Installing Platforms / Build-Tools ==="
-yes | sdkmanager --licenses > /dev/null 2>&1 || true
-
+echo "=== 3. Checking Platforms & Build-Tools ==="
 if [ ! -d "$ANDROID_HOME/platforms/android-34" ]; then
-  echo "Installing Android platform 34 and build-tools 34.0.0..."
+  echo "Accepting licenses & installing platform 34..."
+  yes | sdkmanager --licenses > /dev/null 2>&1 || true
   sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 fi
 
-echo "=== 4. Configuring local.properties ==="
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="${SCRIPT_DIR:-/home/smani24/Desktop/Repositories/SyncToDo}"
+echo "=== 4. Configuring local.properties & Building Web Assets ==="
 echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/android/local.properties"
+
+# Build production web client
+echo "Building web client with latest changes..."
+cd "$PROJECT_DIR/client"
+npm run build
+
+# Sync assets to server public and android assets
+echo "Syncing assets to Android assets & server public..."
+mkdir -p "$PROJECT_DIR/server/public" "$PROJECT_DIR/android/app/src/main/assets/public"
+cp -rf "$PROJECT_DIR/client/dist/"* "$PROJECT_DIR/server/public/"
+rm -rf "$PROJECT_DIR/android/app/src/main/assets/public/"*
+cp -rf "$PROJECT_DIR/client/dist/"* "$PROJECT_DIR/android/app/src/main/assets/public/"
 
 echo "=== 5. Building APK with Gradle ==="
 cd "$PROJECT_DIR/android"
-./gradlew assembleDebug
+./gradlew assembleDebug --offline || ./gradlew assembleDebug
 
-echo "=== 6. Copying generated APK ==="
+echo "=== 6. Deploying generated APK across all download paths ==="
 APK_SOURCE="$PROJECT_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
 APK_DEST="$PROJECT_DIR/SyncToDo.apk"
-cp "$APK_SOURCE" "$APK_DEST"
+cp -f "$APK_SOURCE" "$APK_DEST"
 
-# Also copy to client public/dist so it can be downloaded directly from browser
-mkdir -p "$PROJECT_DIR/client/dist/download"
-cp "$APK_SOURCE" "$PROJECT_DIR/client/dist/download/SyncToDo.apk"
+mkdir -p "$PROJECT_DIR/server/public/download" "$PROJECT_DIR/client/dist/download" "$PROJECT_DIR/client/public/download"
+cp -f "$APK_SOURCE" "$PROJECT_DIR/server/public/SyncToDo.apk"
+cp -f "$APK_SOURCE" "$PROJECT_DIR/server/public/download/SyncToDo.apk"
+cp -f "$APK_SOURCE" "$PROJECT_DIR/client/dist/download/SyncToDo.apk"
+cp -f "$APK_SOURCE" "$PROJECT_DIR/client/public/download/SyncToDo.apk"
 
 echo "=========================================================="
 echo "SUCCESS! APK built successfully at:"

@@ -205,18 +205,50 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Serve built frontend client
+// Serve built frontend client with proper no-cache for index.html to prevent stale mobile cache
 const CLIENT_DIST = path.join(__dirname, '../client/dist');
 if (fs.existsSync(CLIENT_DIST)) {
-  app.use(express.static(CLIENT_DIST));
+  app.use(express.static(CLIENT_DIST, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      } else if (filePath.includes('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    }
+  }));
+}
+
+function getLatestApkPath() {
+  const candidates = [
+    path.join(__dirname, 'public/SyncToDo.apk'),
+    path.join(__dirname, 'public/download/SyncToDo.apk'),
+    path.join(__dirname, '../SyncToDo.apk'),
+    path.join(__dirname, '../android/app/build/outputs/apk/debug/app-debug.apk')
+  ];
+  let newest = null;
+  let newestMtime = 0;
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      const st = fs.statSync(c);
+      if (st.mtimeMs > newestMtime) {
+        newestMtime = st.mtimeMs;
+        newest = c;
+      }
+    }
+  }
+  return newest;
 }
 
 // Direct APK download route for phone and tablet
-const APK_PATH = path.join(__dirname, 'public/SyncToDo.apk');
 app.get(['/download/app.apk', '/download/SyncToDo.apk', '/SyncToDo.apk', '/app.apk'], (req, res) => {
-  if (fs.existsSync(APK_PATH)) {
+  const apkPath = getLatestApkPath();
+  if (apkPath) {
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    res.download(APK_PATH, 'SyncToDo.apk');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.download(apkPath, 'SyncToDo.apk');
   } else {
     res.status(404).send('APK not found. Please build it first.');
   }
@@ -224,10 +256,11 @@ app.get(['/download/app.apk', '/download/SyncToDo.apk', '/SyncToDo.apk', '/app.a
 
 // Friendly mobile download landing page at /download
 app.get(['/download', '/download/'], (req, res) => {
-  if (!fs.existsSync(APK_PATH)) {
+  const apkPath = getLatestApkPath();
+  if (!apkPath) {
     return res.status(404).send('APK not found. Please build it first.');
   }
-  const stats = fs.statSync(APK_PATH);
+  const stats = fs.statSync(apkPath);
   const sizeMb = (stats.size / (1024 * 1024)).toFixed(1);
   res.send(`<!DOCTYPE html>
 <html lang="en">
