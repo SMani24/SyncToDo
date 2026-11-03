@@ -8,6 +8,9 @@
   <meta name="theme-color" content="#0f172a" />
   <title>SyncToDo · Phone, Tablet & Laptop Sync</title>
   <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     /* Reset & Base */
     *, *::before, *::after {
@@ -28,14 +31,23 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      /* Emoji-safe font stack: system emoji → Noto → Segoe → fallback */
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Emoji",
-        "Apple Color Emoji", "Noto Color Emoji", Roboto, "Inter", Helvetica, Arial,
-        "Twemoji Mozilla", sans-serif;
+      /* Typography font stack: text & Persian fonts first, emoji fonts at the very end to prevent wide whitespace glitch */
+      font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Noto Sans Arabic", "Inter", "Helvetica Neue", Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
       text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
       background-color: var(--bg);
       color: var(--text);
+    }
+
+    /* BiDi / RTL text helpers */
+    .bidi-text {
+      unicode-bidi: plaintext;
+      text-align: start;
+    }
+    .bidi-isolate {
+      unicode-bidi: isolate;
     }
 
     /* Scrollbars */
@@ -207,7 +219,7 @@
       --tag-text: #be185d;
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-D6TR0OLj.js"></script>
+  <script type="module" crossorigin src="/assets/index-DUOl_qRX.js"></script>
 </head>
 <body data-theme="nordic">
   <div id="root"></div>

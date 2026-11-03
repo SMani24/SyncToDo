@@ -5,16 +5,12 @@ BASE_DIR="/home/smani24/.android-build-env"
 mkdir -p "$BASE_DIR"
 cd "$BASE_DIR"
 
-echo "=== 1. Checking / Installing JDK 17 ==="
-if [ ! -d "$BASE_DIR/jdk17/bin" ]; then
-  echo "Downloading OpenJDK 17..."
-  curl -fsSL -o jdk17.tar.gz "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.12%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.12_7.tar.gz"
-  mkdir -p "$BASE_DIR/jdk17"
-  tar -xzf jdk17.tar.gz -C "$BASE_DIR/jdk17" --strip-components=1
-  rm jdk17.tar.gz
+echo "=== 1. Checking JDK 21 / JDK 17 ==="
+if [ -d "$BASE_DIR/jdk21/bin" ]; then
+  export JAVA_HOME="$BASE_DIR/jdk21"
+elif [ -d "$BASE_DIR/jdk17/bin" ]; then
+  export JAVA_HOME="$BASE_DIR/jdk17"
 fi
-
-export JAVA_HOME="$BASE_DIR/jdk17"
 export PATH="$JAVA_HOME/bin:$PATH"
 java -version
 

@@ -22,14 +22,77 @@ export const ICON_NAME_MAP = {
   home: '🏠',
   settings: '⚙️',
   task: '📝',
-  calendar: '📅'
+  tasks: '📋',
+  checklist: '📋',
+  calendar: '📅',
+  book: '📚',
+  homework: '📚',
+  notes: '📝',
+  note: '📝',
+  study: '🎓',
+  school: '🏫',
+  university: '🏛️',
+  code: '💻',
+  computer: '💻',
+  pencil: '✏️',
+  pen: '✒️',
+  alert: '⚠️',
+  star2: '✨',
+  archive: '📦',
+  fitness: '💪',
+  health: '🏥',
+  music: '🎵',
+  idea: '💡'
 };
 
 export function normalizeListIcon(icon) {
   if (!icon) return '📁';
   const trimmed = String(icon).trim();
   const lower = trimmed.toLowerCase();
-  return ICON_NAME_MAP[lower] || trimmed;
+  if (ICON_NAME_MAP[lower]) return ICON_NAME_MAP[lower];
+  // If it's a raw alphanumeric identifier without emoji (e.g. "custom", "list", "notes"), fallback to folder
+  if (/^[a-zA-Z0-9_\-\s]+$/.test(trimmed)) {
+    return '📁';
+  }
+  return trimmed;
+}
+
+export function hasPersianChar(text) {
+  return /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text || '');
+}
+
+export function detectBidiDirection(text) {
+  if (!text) return 'ltr';
+  if (!hasPersianChar(text)) return 'ltr';
+
+  // Check if it's predominantly an English title with just a Persian date in parentheses at the end
+  // e.g. "AP - ICE: Basics C++ (یکشنبه ۱۴۰۵/۰۷/۱۲)"
+  const farsiCount = (text.match(/[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+  const latinCount = (text.match(/[a-zA-Z]/g) || []).length;
+  const endsWithFarsiParens = /\([\u0600-\u06FF\s\d\/\.\-:]+\)\s*$/.test(text);
+
+  if (endsWithFarsiParens && latinCount > farsiCount) {
+    return 'ltr';
+  }
+
+  return 'rtl';
+}
+
+export function splitTitleForBidi(text) {
+  if (!text) return { isSplit: false, text: '' };
+  // Check if title ends with parenthesized Persian date / tag
+  const match = text.match(/^(.*?)\s*(\([\u0600-\u06FF\s\d\/\.\-:]+\))\s*$/);
+  if (match) {
+    const prefix = match[1];
+    const paren = match[2];
+    const prefixLatin = (prefix.match(/[a-zA-Z]/g) || []).length;
+    const prefixFarsi = (prefix.match(/[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/g) || []).length;
+    // If the prefix is predominantly Latin/English (e.g. "AP - ICE: Basics C++")
+    if (prefixLatin > prefixFarsi) {
+      return { isSplit: true, prefix, paren, dir: 'ltr' };
+    }
+  }
+  return { isSplit: false, text, dir: detectBidiDirection(text) };
 }
 
 const DEFAULT_LISTS = [

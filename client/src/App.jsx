@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { syncEngine, detectDeviceType, normalizeListIcon } from './syncEngine';
+import {
+  syncEngine,
+  detectDeviceType,
+  normalizeListIcon,
+  hasPersianChar,
+  detectBidiDirection,
+  splitTitleForBidi
+} from './syncEngine';
 import HandwritingCanvas from './components/HandwritingCanvas';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import ThemeSettingsModal, { ALL_THEMES } from './components/ThemeSettingsModal';
@@ -9,15 +16,44 @@ import DevicesPairingModal from './components/DevicesPairingModal';
 import TaskDetailPanel from './components/TaskDetailPanel';
 import { Icon, parseNaturalTaskInput } from './components/SvgIcons';
 
+export function BidiTaskTitle({ title }) {
+  if (!title) return null;
+  const bidi = splitTitleForBidi(title);
+  if (bidi.isSplit) {
+    return (
+      <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>
+        {bidi.prefix}{' '}
+        <bdi dir="rtl" style={{ display: 'inline-block', unicodeBidi: 'isolate' }}>
+          {bidi.paren}
+        </bdi>
+      </span>
+    );
+  }
+  const isRtl = bidi.dir === 'rtl';
+  return (
+    <span
+      dir={isRtl ? 'rtl' : 'ltr'}
+      style={{
+        unicodeBidi: 'plaintext',
+        textAlign: isRtl ? 'right' : 'left',
+        display: 'inline-block',
+        width: '100%'
+      }}
+    >
+      {title}
+    </span>
+  );
+}
+
 export default function App() {
-  const [syncState, setSyncState] = useState({
-    status: 'SYNCING',
-    todos: [],
-    lists: [],
-    onlineDevices: [],
-    pendingCount: 0,
-    p2pInfo: { activeP2PCount: 0, peers: [], pairedDevices: [], nearbyPeers: [], pendingRequests: [] }
-  });
+  const [syncState, setSyncState] = useState(() => ({
+    status: syncEngine.status || 'SYNCING',
+    todos: Object.values(syncEngine.todos || {}).filter(t => !t.deletedAt),
+    lists: syncEngine.lists && syncEngine.lists.length > 0 ? syncEngine.lists : [],
+    onlineDevices: syncEngine.onlineDevices || [],
+    pendingCount: syncEngine.mutationQueue?.length || 0,
+    p2pInfo: syncEngine.p2pEngine ? syncEngine.p2pEngine.getInfo() : { activeP2PCount: 0, peers: [], pairedDevices: [], nearbyPeers: [], pendingRequests: [] }
+  }));
 
   // Navigation & View state
   const [activeView, setActiveView] = useState('today');
@@ -296,6 +332,21 @@ export default function App() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlView = params.get('view');
+      const urlList = params.get('list');
+      const urlSearch = params.get('search');
+      if (urlView) setActiveView(urlView);
+      if (urlList) {
+        setActiveView('list');
+        setSelectedListId(urlList);
+      }
+      if (urlSearch) setSearchQuery(urlSearch);
+    } catch {}
+  }, []);
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Check for overdue/yesterday's unfinished tasks
@@ -310,20 +361,24 @@ export default function App() {
   const filteredTodos = syncState.todos.filter(todo => {
     if (todo.deletedAt) return false;
 
-    if (activeView === 'today') {
-      const isDueToday = todo.dueDate === todayStr;
-      const isMyDay = todo.inMyDay;
-      if (!isDueToday && !isMyDay) return false;
-    } else if (activeView === 'all' || activeView === 'backlog') {
-      // Show all tasks
-    } else if (activeView === 'list' || activeView === 'projects') {
-      if (selectedListId && todo.listId !== selectedListId) return false;
-    } else if (activeView === 'recurring') {
-      if (!todo.recurrence || todo.recurrence === 'none') return false;
-    } else if (activeView === 'handwriting') {
-      if (!todo.handwriting) return false;
-    } else if (activeView === 'analytics') {
-      return false;
+    if (searchQuery.trim()) {
+      // Global search across all lists & tasks
+    } else {
+      if (activeView === 'today') {
+        const isDueToday = todo.dueDate === todayStr;
+        const isMyDay = todo.inMyDay;
+        if (!isDueToday && !isMyDay) return false;
+      } else if (activeView === 'all' || activeView === 'backlog') {
+        // Show all tasks
+      } else if (activeView === 'list' || activeView === 'projects') {
+        if (selectedListId && todo.listId !== selectedListId) return false;
+      } else if (activeView === 'recurring') {
+        if (!todo.recurrence || todo.recurrence === 'none') return false;
+      } else if (activeView === 'handwriting') {
+        if (!todo.handwriting) return false;
+      } else if (activeView === 'analytics') {
+        return false;
+      }
     }
 
     if (filterRecurring && (!todo.recurrence || todo.recurrence === 'none')) return false;
@@ -669,6 +724,7 @@ export default function App() {
               placeholder="Search tasks, notes ( / )..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              dir="auto"
               style={{
                 width: '100%',
                 padding: '7px 28px 7px 32px',
@@ -677,7 +733,8 @@ export default function App() {
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text)',
                 fontSize: '12.5px',
-                outline: 'none'
+                outline: 'none',
+                unicodeBidi: 'plaintext'
               }}
             />
             <span style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', display: 'flex' }}>
@@ -970,7 +1027,7 @@ export default function App() {
                           </span>
                         )}
                         <span>{normalizeListIcon(list.icon)}</span>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
+                        <span dir="auto" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', unicodeBidi: 'plaintext' }}>{list.name}</span>
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                         <span style={{ fontSize: '11px', opacity: 0.7 }}>{count}</span>
@@ -1040,44 +1097,53 @@ export default function App() {
 
                 <div>
                   <h2 style={{ fontSize: deviceType === 'phone' ? '16px' : '18px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {activeView === 'today' && (
+                    {searchQuery.trim() ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <Icon name="sun" size={18} style={{ color: '#fbbf24' }} /> My Day
+                        <Icon name="search" size={18} style={{ color: 'var(--primary)' }} />
+                        <span>Search: “{searchQuery}”</span>
                       </span>
-                    )}
-                    {activeView === 'all' && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <Icon name="list" size={18} style={{ color: 'var(--primary)' }} /> All Tasks
-                      </span>
-                    )}
-                    {activeView === 'list' && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                        <span>
-                          {normalizeListIcon(syncState.lists.find(l => l.id === selectedListId)?.icon) || '📁'}{' '}
-                          {syncState.lists.find(l => l.id === selectedListId)?.name || 'List'}
-                        </span>
-                        {selectedListId && selectedListId !== 'inbox' && (
-                          <button
-                            onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => l.id === selectedListId))}
-                            title="Delete this list"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              border: '1px solid rgba(239, 68, 68, 0.25)',
-                              borderRadius: '6px',
-                              color: '#ef4444',
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              padding: '2px 8px',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Icon name="trash" size={12} /> Delete
-                          </button>
+                    ) : (
+                      <>
+                        {activeView === 'today' && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Icon name="sun" size={18} style={{ color: '#fbbf24' }} /> My Day
+                          </span>
                         )}
-                      </span>
+                        {activeView === 'all' && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Icon name="list" size={18} style={{ color: 'var(--primary)' }} /> All Tasks
+                          </span>
+                        )}
+                        {activeView === 'list' && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <span>
+                              {normalizeListIcon(syncState.lists.find(l => l.id === selectedListId)?.icon) || '📁'}{' '}
+                              {syncState.lists.find(l => l.id === selectedListId)?.name || 'List'}
+                            </span>
+                            {selectedListId && selectedListId !== 'inbox' && (
+                              <button
+                                onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => l.id === selectedListId))}
+                                title="Delete this list"
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                  borderRadius: '6px',
+                                  color: '#ef4444',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '2px 8px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Icon name="trash" size={12} /> Delete
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </>
                     )}
                   </h2>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1256,7 +1322,7 @@ export default function App() {
                             });
                           }}
                         />
-                        <span style={{ flex: 1, fontWeight: 600 }}>{t.title}</span>
+                        <span style={{ flex: 1, fontWeight: 600 }}><BidiTaskTitle title={t.title} /></span>
                         {t.dueDate && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t.dueDate}</span>}
                       </label>
                     );
@@ -1530,20 +1596,25 @@ export default function App() {
                           textDecoration: isCompleted ? 'line-through' : 'none',
                           wordBreak: 'break-word'
                         }}>
-                          {todo.title}
+                          <BidiTaskTitle title={todo.title} />
                         </div>
 
                         {todo.notes && (
-                          <div style={{
-                            fontSize: '12px',
-                            color: 'var(--text-muted)',
-                            marginTop: '3px',
-                            lineHeight: 1.35,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 1,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
-                          }}>
+                          <div
+                            dir={hasPersianChar(todo.notes) ? 'rtl' : 'ltr'}
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--text-muted)',
+                              marginTop: '3px',
+                              lineHeight: 1.35,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 1,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              unicodeBidi: 'plaintext',
+                              textAlign: hasPersianChar(todo.notes) ? 'right' : 'left'
+                            }}
+                          >
                             {todo.notes}
                           </div>
                         )}
@@ -1902,6 +1973,7 @@ export default function App() {
                   }
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
+                  dir="auto"
                   style={{
                     flex: 1,
                     padding: deviceType === 'phone' ? '10px 12px' : '10px 14px',
@@ -1910,7 +1982,8 @@ export default function App() {
                     backgroundColor: 'var(--bg-subtle)',
                     color: 'var(--text)',
                     fontSize: '14px',
-                    outline: 'none'
+                    outline: 'none',
+                    unicodeBidi: 'plaintext'
                   }}
                 />
 
@@ -2206,7 +2279,7 @@ export default function App() {
                             </div>
                           )}
                           <span style={{ fontSize: '20px' }}>{normalizeListIcon(list.icon)}</span>
-                          <span>{list.name}</span>
+                          <span dir="auto" style={{ unicodeBidi: 'plaintext' }}>{list.name}</span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

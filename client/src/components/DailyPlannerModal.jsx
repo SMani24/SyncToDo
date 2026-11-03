@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { normalizeListIcon } from '../syncEngine';
+import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
 
 export default function DailyPlannerModal({
   todos = [],
@@ -207,17 +207,41 @@ export default function DailyPlannerModal({
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span
+                        dir={detectBidiDirection(todo.title)}
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          color: 'var(--text)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          unicodeBidi: 'plaintext'
+                        }}
+                      >
                         {todo.title}
                       </span>
                       {listObj && (
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                          <span>{normalizeListIcon(listObj.icon)}</span> {listObj.name}
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                          <span>{normalizeListIcon(listObj.icon)}</span>
+                          <span dir="auto" style={{ unicodeBidi: 'plaintext' }}>{listObj.name}</span>
                         </span>
                       )}
                     </div>
                     {todo.notes && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div
+                        dir={hasPersianChar(todo.notes) ? 'rtl' : 'ltr'}
+                        style={{
+                          fontSize: '11px',
+                          color: 'var(--text-muted)',
+                          marginTop: '2px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          unicodeBidi: 'plaintext',
+                          textAlign: hasPersianChar(todo.notes) ? 'right' : 'left'
+                        }}
+                      >
                         {todo.notes}
                       </div>
                     )}

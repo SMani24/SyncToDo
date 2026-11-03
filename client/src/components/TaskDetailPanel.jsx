@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './SvgIcons';
-import { normalizeListIcon } from '../syncEngine';
+import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
 
 export default function TaskDetailPanel({
   todo,
@@ -154,6 +154,7 @@ export default function TaskDetailPanel({
             value={titleText}
             onChange={(e) => setTitleText(e.target.value)}
             onBlur={commitTitle}
+            dir={detectBidiDirection(titleText)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.target.blur();
@@ -168,7 +169,9 @@ export default function TaskDetailPanel({
               fontSize: '15px',
               fontWeight: 700,
               outline: 'none',
-              lineHeight: 1.35
+              lineHeight: 1.35,
+              unicodeBidi: 'plaintext',
+              textAlign: detectBidiDirection(titleText) === 'rtl' ? 'right' : 'left'
             }}
           />
         </div>
@@ -257,13 +260,18 @@ export default function TaskDetailPanel({
               >
                 {step.completed && <Icon name="check" size={11} />}
               </button>
-              <span style={{
-                flex: 1,
-                fontSize: '12.5px',
-                color: step.completed ? 'var(--text-muted)' : 'var(--text)',
-                textDecoration: step.completed ? 'line-through' : 'none',
-                wordBreak: 'break-word'
-              }}>
+              <span
+                dir={detectBidiDirection(step.title)}
+                style={{
+                  flex: 1,
+                  fontSize: '12.5px',
+                  color: step.completed ? 'var(--text-muted)' : 'var(--text)',
+                  textDecoration: step.completed ? 'line-through' : 'none',
+                  wordBreak: 'break-word',
+                  unicodeBidi: 'plaintext',
+                  textAlign: detectBidiDirection(step.title) === 'rtl' ? 'right' : 'left'
+                }}
+              >
                 {step.title}
               </span>
               <button
@@ -289,6 +297,7 @@ export default function TaskDetailPanel({
               placeholder="+ Add a step..."
               value={newStepText}
               onChange={(e) => setNewStepText(e.target.value)}
+              dir="auto"
               style={{
                 flex: 1,
                 padding: '7px 10px',
@@ -297,7 +306,8 @@ export default function TaskDetailPanel({
                 background: 'var(--surface)',
                 color: 'var(--text)',
                 fontSize: '12.5px',
-                outline: 'none'
+                outline: 'none',
+                unicodeBidi: 'plaintext'
               }}
             />
             {newStepText.trim() && (
@@ -514,6 +524,7 @@ export default function TaskDetailPanel({
             value={notesText}
             onChange={(e) => setNotesText(e.target.value)}
             onBlur={commitNotes}
+            dir={hasPersianChar(notesText) ? 'rtl' : 'ltr'}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -524,7 +535,9 @@ export default function TaskDetailPanel({
               fontSize: '12.5px',
               lineHeight: 1.45,
               resize: 'vertical',
-              outline: 'none'
+              outline: 'none',
+              unicodeBidi: 'plaintext',
+              textAlign: hasPersianChar(notesText) ? 'right' : 'left'
             }}
           />
         </div>

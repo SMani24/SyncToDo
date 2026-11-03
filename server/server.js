@@ -27,13 +27,43 @@ const ICON_NAME_MAP = {
   personal: '❤️',
   cart: '🛒',
   shopping: '🛒',
-  folder: '📁'
+  folder: '📁',
+  star: '⭐',
+  home: '🏠',
+  settings: '⚙️',
+  task: '📝',
+  tasks: '📋',
+  checklist: '📋',
+  calendar: '📅',
+  book: '📚',
+  homework: '📚',
+  notes: '📝',
+  note: '📝',
+  study: '🎓',
+  school: '🏫',
+  university: '🏛️',
+  code: '💻',
+  computer: '💻',
+  pencil: '✏️',
+  pen: '✒️',
+  alert: '⚠️',
+  star2: '✨',
+  archive: '📦',
+  fitness: '💪',
+  health: '🏥',
+  music: '🎵',
+  idea: '💡'
 };
 
 function normalizeListIcon(icon) {
   if (!icon) return '📁';
-  const lower = String(icon).trim().toLowerCase();
-  return ICON_NAME_MAP[lower] || icon;
+  const trimmed = String(icon).trim();
+  const lower = trimmed.toLowerCase();
+  if (ICON_NAME_MAP[lower]) return ICON_NAME_MAP[lower];
+  if (/^[a-zA-Z0-9_\-\s]+$/.test(trimmed)) {
+    return '📁';
+  }
+  return trimmed;
 }
 
 function generateSixDigitCode() {

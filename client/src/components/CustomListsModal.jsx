@@ -101,6 +101,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                 placeholder="List name (e.g. Website Redesign, Fitness)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                dir="auto"
                 style={{
                   flex: 1,
                   padding: '9px 12px',
@@ -109,7 +110,8 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                   backgroundColor: 'var(--bg)',
                   color: 'var(--text)',
                   fontSize: '13px',
-                  outline: 'none'
+                  outline: 'none',
+                  unicodeBidi: 'plaintext'
                 }}
               />
               <button
@@ -208,6 +210,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
+                          dir="auto"
                           style={{
                             flex: 1,
                             padding: '4px 8px',
@@ -215,7 +218,8 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                             border: '1px solid var(--primary)',
                             backgroundColor: 'var(--bg)',
                             color: 'var(--text)',
-                            fontSize: '13px'
+                            fontSize: '13px',
+                            unicodeBidi: 'plaintext'
                           }}
                         />
                         <button
@@ -226,7 +230,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                         </button>
                       </div>
                     ) : (
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{list.name}</span>
+                      <span dir="auto" style={{ fontSize: '13px', fontWeight: 600, unicodeBidi: 'plaintext' }}>{list.name}</span>
                     )}
                   </div>
 
