@@ -459,8 +459,13 @@ export class SyncEngine {
       this.notify();
     } else if (msg.type === 'DEVICES_PRESENCE') {
       this.onlineDevices = msg.devices || [];
-      if (Array.isArray(msg.pairedDevices) && this.p2pEngine) {
-        this.p2pEngine.ingestDiscoveryResponse({ pairedDevices: msg.pairedDevices });
+      if (this.p2pEngine) {
+        if (Array.isArray(msg.devices)) {
+          this.p2pEngine.ingestPresenceDevices(msg.devices);
+        }
+        if (Array.isArray(msg.pairedDevices)) {
+          this.p2pEngine.ingestDiscoveryResponse({ pairedDevices: msg.pairedDevices }, true);
+        }
       }
       this.notify();
     } else if (msg.type === 'PAIRING_UPDATE') {

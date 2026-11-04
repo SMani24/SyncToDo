@@ -68,17 +68,27 @@ export class P2PEngine {
       });
     }
 
+    const onlineDevs = this.syncEngine?.onlineDevices || [];
     const pairedList = [];
     for (const pd of this.pairedDevices.values()) {
       const activeByIp = pd.ip ? this.activePeers.get(pd.ip) : null;
+      const activeByDevId = pd.deviceId
+        ? Array.from(this.activePeers.values()).find(p => p.deviceId === pd.deviceId)
+        : null;
+      const onlineInMesh = onlineDevs.some(od =>
+        (od.deviceId && od.deviceId === pd.deviceId) ||
+        (od.deviceName && pd.deviceName && od.deviceName.toLowerCase().trim() === pd.deviceName.toLowerCase().trim())
+      );
       const isOnline = Boolean(
         (activeByIp && activeByIp.status === 'connected') ||
-        (pd.lastSeen && Date.now() - pd.lastSeen < 25000)
+        (activeByDevId && activeByDevId.status === 'connected') ||
+        onlineInMesh ||
+        (pd.lastSeen && Date.now() - pd.lastSeen < 60000)
       );
       pairedList.push({
         ...pd,
         status: isOnline ? 'connected' : 'offline',
-        latency: activeByIp?.latency || null
+        latency: activeByIp?.latency || activeByDevId?.latency || (onlineInMesh ? (isOnline ? 120 : null) : null)
       });
     }
 
@@ -97,10 +107,9 @@ export class P2PEngine {
       }
     }
 
-    const connectedCount = Math.max(
-      peerList.filter(p => p.status === 'connected').length,
-      pairedList.filter(p => p.status === 'connected').length
-    );
+    const activePairedCount = pairedList.filter(p => p.status === 'connected').length;
+    const activePeersCount = peerList.filter(p => p.status === 'connected').length;
+    const connectedCount = Math.max(activePairedCount, activePeersCount);
 
     return {
       myLocalIp: this.myLocalIp,
@@ -806,10 +815,67 @@ export class P2PEngine {
     }
   }
 
-  async syncAllPeers() {
-    for (const ip of this.knownPeers) {
-      await this.syncWithPeer(ip);
+  ingestPresenceDevices(devices) {
+    if (!Array.isArray(devices)) return;
+    let changed = false;
+    const now = Date.now();
+
+    devices.forEach(dev => {
+      if (!dev || !dev.deviceId) return;
+      if (dev.deviceId === this.localServerInfo.deviceId || dev.deviceId === this.syncEngine?.deviceId) return;
+
+      // Update in pairedDevices if paired
+      if (this.pairedDevices.has(dev.deviceId)) {
+        const pd = this.pairedDevices.get(dev.deviceId);
+        pd.lastSeen = now;
+        if (dev.deviceName) pd.deviceName = dev.deviceName;
+        if (dev.localIp && dev.localIp !== '127.0.0.1') {
+          pd.ip = dev.localIp;
+          if (!this.knownPeers.includes(dev.localIp)) {
+            this.knownPeers.push(dev.localIp);
+            this.saveKnownPeers();
+          }
+        }
+        this.savePairedDevices();
+        changed = true;
+      }
+
+      // Record in nearbyPeers
+      if (dev.localIp && dev.localIp !== '127.0.0.1' && dev.localIp !== this.myLocalIp) {
+        this.recordNearbyPeer({
+          deviceId: dev.deviceId,
+          deviceName: dev.deviceName,
+          deviceType: dev.deviceType,
+          ip: dev.localIp,
+          port: dev.deviceType === 'laptop' ? LAPTOP_PORT : P2P_PORT
+        });
+      }
+    });
+
+    if (changed) {
+      this.notify();
+      this.syncAllPeers();
     }
+  }
+
+  async syncAllPeers() {
+    // Gather all target IPs across knownPeers, pairedDevices, and onlineDevices
+    const targets = new Set();
+    this.knownPeers.forEach(ip => {
+      if (ip && ip !== '127.0.0.1' && ip !== this.myLocalIp) targets.add(ip);
+    });
+    for (const pd of this.pairedDevices.values()) {
+      if (pd.ip && pd.ip !== '127.0.0.1' && pd.ip !== this.myLocalIp) targets.add(pd.ip);
+    }
+    const onlineDevs = this.syncEngine?.onlineDevices || [];
+    onlineDevs.forEach(od => {
+      if (od.localIp && od.localIp !== '127.0.0.1' && od.localIp !== this.myLocalIp) {
+        targets.add(od.localIp);
+      }
+    });
+
+    // Run parallel sync requests with Promise.allSettled so no peer blocks another
+    await Promise.allSettled(Array.from(targets).map(ip => this.syncWithPeer(ip)));
   }
 
   // Direct Peer-to-Peer HTTP Delta & Full Merge Sync (Todos + Lists)
@@ -820,13 +886,22 @@ export class P2PEngine {
         ? [this.peerPorts.get(ip), this.peerPorts.get(ip) === P2P_PORT ? LAPTOP_PORT : P2P_PORT]
         : [LAPTOP_PORT, P2P_PORT];
 
-    // Find pairing token for this peer if known
+    // Resilient pairing token lookup for this peer
     let token = null;
     let peerMeta = null;
     for (const pd of this.pairedDevices.values()) {
-      if (pd.ip === ip || (pd.deviceId && this.activePeers.get(ip)?.deviceId === pd.deviceId)) {
+      const matchIp = pd.ip === ip;
+      const matchActive = (pd.deviceId && this.activePeers.get(ip)?.deviceId === pd.deviceId);
+      const matchNearby = (this.nearbyPeers.get(ip)?.deviceId === pd.deviceId || (pd.deviceId && this.nearbyPeers.get(pd.deviceId)?.ip === ip));
+      const matchOnline = (this.syncEngine?.onlineDevices || []).some(od => od.localIp === ip && od.deviceId === pd.deviceId);
+
+      if (matchIp || matchActive || matchNearby || matchOnline) {
         token = pd.token;
         peerMeta = pd;
+        if (pd.ip !== ip) {
+          pd.ip = ip;
+          this.savePairedDevices();
+        }
         break;
       }
     }
@@ -1013,7 +1088,21 @@ export class P2PEngine {
 
   // Broadcast local mutation directly to all active paired LAN peers
   broadcastMutationToPeers() {
+    const targets = new Set();
     this.knownPeers.forEach(ip => {
+      if (ip && ip !== '127.0.0.1' && ip !== this.myLocalIp) targets.add(ip);
+    });
+    for (const pd of this.pairedDevices.values()) {
+      if (pd.ip && pd.ip !== '127.0.0.1' && pd.ip !== this.myLocalIp) targets.add(pd.ip);
+    }
+    const onlineDevs = this.syncEngine?.onlineDevices || [];
+    onlineDevs.forEach(od => {
+      if (od.localIp && od.localIp !== '127.0.0.1' && od.localIp !== this.myLocalIp) {
+        targets.add(od.localIp);
+      }
+    });
+
+    targets.forEach(ip => {
       this.syncWithPeer(ip).catch(() => {});
     });
   }

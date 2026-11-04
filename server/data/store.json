@@ -11,7 +11,17 @@
       "port": 4567,
       "token": "tok-1793823690392-6b7yvrse",
       "pairedAt": 1793823690392,
-      "lastSeen": 1793826316857
+      "lastSeen": 1793832579438
+    },
+    "android-078fbfc5": {
+      "deviceId": "android-078fbfc5",
+      "deviceName": "SM-S938B",
+      "deviceType": "phone",
+      "ip": "192.168.31.96",
+      "port": 4567,
+      "token": "tok-1793832180228-9l8rn9tk",
+      "pairedAt": 1793832180228,
+      "lastSeen": 1793832597157
     }
   },
   "todos": {
@@ -770,8 +780,8 @@
       "id": "todo-taks-0029",
       "title": "بخش بندی مرتب کردن NAS",
       "notes": "Work List Fall 1405 (Page 3)",
-      "completed": false,
-      "completedAt": null,
+      "completed": true,
+      "completedAt": 1793832034707,
       "listId": "taks-list",
       "priority": "medium",
       "dueDate": "2026-11-04",
@@ -782,9 +792,9 @@
       "handwriting": null,
       "order": 6,
       "createdAt": 1793725642466,
-      "updatedAt": 1793807120182,
+      "updatedAt": 1793832034707,
       "deletedAt": null,
-      "version": 8
+      "version": 9
     },
     "todo-taks-0030": {
       "id": "todo-taks-0030",
@@ -2910,8 +2920,8 @@
       "id": "todo-taks-0136",
       "title": "مرتب کردن انیمه های جدید !",
       "notes": "Work List Fall 1405 (Page 11)",
-      "completed": false,
-      "completedAt": null,
+      "completed": true,
+      "completedAt": 1793832037561,
       "listId": "taks-list",
       "priority": "medium",
       "dueDate": "2026-11-04",
@@ -2922,9 +2932,9 @@
       "handwriting": null,
       "order": 8,
       "createdAt": 1793725643001,
-      "updatedAt": 1793807120182,
+      "updatedAt": 1793832037561,
       "deletedAt": null,
-      "version": 8
+      "version": 9
     },
     "todo-taks-0137": {
       "id": "todo-taks-0137",
@@ -3010,8 +3020,8 @@
       "id": "todo-taks-0141",
       "title": "پرینت بدنه فشار دهنده خمیر دندان",
       "notes": "Work List Fall 1405 (Page 11)",
-      "completed": false,
-      "completedAt": null,
+      "completed": true,
+      "completedAt": 1793832039844,
       "listId": "taks-list",
       "priority": "medium",
       "dueDate": "2026-11-04",
@@ -3022,9 +3032,9 @@
       "handwriting": null,
       "order": 9,
       "createdAt": 1793725643026,
-      "updatedAt": 1793807120182,
+      "updatedAt": 1793832039844,
       "deletedAt": null,
-      "version": 8
+      "version": 9
     },
     "todo-taks-0142": {
       "id": "todo-taks-0142",
@@ -9529,7 +9539,7 @@
       "title": "AP - ICE: OOP (یکشنبه ۱۴۰۵/۰۸/۱۰)",
       "notes": "موعد تحویل: یکشنبه ۱۴۰۵/۰۸/۱۰",
       "completed": true,
-      "completedAt": 1793803691358,
+      "completedAt": 1793832019335,
       "listId": "homework-list",
       "priority": "medium",
       "dueDate": "2026-11-04",
@@ -9542,16 +9552,16 @@
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793726730878,
-      "updatedAt": 1793803691358,
+      "updatedAt": 1793832019335,
       "deletedAt": null,
-      "version": 5
+      "version": 7
     },
     "todo-hw-011": {
       "id": "todo-hw-011",
       "title": "OS - تمرین 1 (سه‌شنبه ۱۴۰۵/۰۸/۱۲)",
       "notes": "موعد تحویل: سه‌شنبه ۱۴۰۵/۰۸/۱۲",
       "completed": true,
-      "completedAt": 1793811721274,
+      "completedAt": 1793832043224,
       "listId": "homework-list",
       "priority": "medium",
       "dueDate": "2026-11-04",
@@ -9564,9 +9574,9 @@
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793726731878,
-      "updatedAt": 1793811721274,
+      "updatedAt": 1793832043224,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-hw-012": {
       "id": "todo-hw-012",
@@ -49363,5 +49373,5 @@
       "originDevice": "tablet-o8s4ley"
     }
   ],
-  "lastUpdated": 1793828273794
+  "lastUpdated": 1793832597158
 }

@@ -869,10 +869,30 @@ export default function App() {
     }
   }, [showInlinePenStrip]);
 
-  const isStylusEraser = (e) => (
-    e.pointerType === 'pen' &&
-    (((e.buttons & 2) !== 0) || ((e.buttons & 32) !== 0) || e.button === 2 || e.button === 5)
-  );
+  const inlineEraserActiveRef = useRef(false);
+
+  useEffect(() => {
+    const handleStylusEvent = (e) => {
+      const action = e.detail?.action;
+      if (action === 'toggle') {
+        inlineEraserActiveRef.current = !inlineEraserActiveRef.current;
+      } else if (action === 'eraser_active') {
+        inlineEraserActiveRef.current = true;
+      }
+    };
+    window.addEventListener('stylusbutton', handleStylusEvent);
+    return () => window.removeEventListener('stylusbutton', handleStylusEvent);
+  }, []);
+
+  const isStylusEraser = (e) => {
+    if (inlineEraserActiveRef.current) return true;
+    if (!e) return false;
+    const isPen = e.pointerType === 'pen' || e.pointerType === 'stylus' || (e.pointerType === 'touch' && ((e.buttons & 2) !== 0 || e.button === 2));
+    const hasBarrelButtons = ((e.buttons & 2) !== 0) || ((e.buttons & 32) !== 0) || ((e.buttons & 4) !== 0);
+    const hasBarrelButtonIndex = e.button === 2 || e.button === 5;
+    const hasStylusModifier = (e.altKey || (e.ctrlKey && isPen));
+    return Boolean(isPen && (hasBarrelButtons || hasBarrelButtonIndex || hasStylusModifier));
+  };
 
   const getInlineCoords = (e) => {
     const canvas = inlineCanvasRef.current;
@@ -2484,6 +2504,7 @@ export default function App() {
                     onPointerDown={handleInlinePointerDown}
                     onPointerMove={handleInlinePointerMove}
                     onPointerUp={handleInlinePointerUp}
+                    onPointerCancel={handleInlinePointerUp}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     style={{
                       width: '100%',

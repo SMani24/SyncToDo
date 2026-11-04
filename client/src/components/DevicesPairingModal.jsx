@@ -344,7 +344,11 @@ export default function DevicesPairingModal({
           border: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '14px'
+          gap: '14px',
+          boxSizing: 'border-box',
+          width: '100%',
+          maxWidth: '100%',
+          overflow: 'hidden'
         }}>
           {/* Device Name row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
@@ -451,7 +455,7 @@ export default function DevicesPairingModal({
             </div>
 
             {/* Enter 6-Digit Code & QR Scanner Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
               <div>
                 <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text)' }}>
                   Pair another device
@@ -461,7 +465,7 @@ export default function DevicesPairingModal({
                 </div>
               </div>
 
-              <form onSubmit={handlePairByCode} style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+              <form onSubmit={handlePairByCode} style={{ display: 'flex', gap: '8px', marginTop: '2px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -470,9 +474,11 @@ export default function DevicesPairingModal({
                   value={sixDigitInput}
                   onChange={(e) => setSixDigitInput(e.target.value)}
                   style={{
-                    flex: 1,
+                    flex: '1 1 0%',
+                    minWidth: 0,
+                    width: '100%',
                     height: '38px',
-                    padding: '0 12px',
+                    padding: '0 10px',
                     borderRadius: '10px',
                     border: '1px solid var(--border)',
                     background: 'var(--surface)',
@@ -480,7 +486,7 @@ export default function DevicesPairingModal({
                     fontSize: '14px',
                     fontWeight: 700,
                     fontFamily: 'monospace',
-                    letterSpacing: '2px',
+                    letterSpacing: '1px',
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
@@ -489,8 +495,9 @@ export default function DevicesPairingModal({
                   type="submit"
                   disabled={isSubmittingCode}
                   style={{
+                    flexShrink: 0,
                     height: '38px',
-                    padding: '0 18px',
+                    padding: '0 14px',
                     borderRadius: '10px',
                     border: 'none',
                     background: 'var(--primary-gradient)',
@@ -502,6 +509,7 @@ export default function DevicesPairingModal({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    boxSizing: 'border-box',
                     boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
                   }}
                 >
@@ -528,10 +536,10 @@ export default function DevicesPairingModal({
                   justifyContent: 'center',
                   gap: '6px',
                   whiteSpace: 'nowrap',
-                  transition: 'background-color 0.15s ease'
+                  boxSizing: 'border-box'
                 }}
               >
-                <Icon name="camera" size={15} />
+                <Icon name="camera" size={14} />
                 <span>Scan QR Code with Camera</span>
               </button>
 
@@ -673,7 +681,7 @@ export default function DevicesPairingModal({
               No paired devices yet. Pair once above and your devices will stay linked automatically.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {pairedDevices.map((dev) => {
                 const isOnline = dev.status === 'connected';
                 return (
@@ -681,86 +689,132 @@ export default function DevicesPairingModal({
                     key={dev.deviceId || dev.ip}
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '11px 14px',
-                      borderRadius: '12px',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      padding: '12px 14px',
+                      borderRadius: '14px',
                       background: 'var(--bg-subtle)',
-                      border: isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)'
+                      border: isOnline ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border)',
+                      boxSizing: 'border-box',
+                      width: '100%'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        width: '34px', height: '34px', borderRadius: '10px',
-                        background: isOnline ? 'rgba(16, 185, 129, 0.14)' : 'var(--surface)',
-                        color: isOnline ? '#10b981' : 'var(--text-muted)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        {renderDeviceIcon(dev.deviceType)}
+                    {/* Row 1: Device Identity (Left) & Live Status Badge Pill (Right) */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          background: isOnline ? 'rgba(16, 185, 129, 0.15)' : 'var(--surface)',
+                          color: isOnline ? '#10b981' : 'var(--text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {renderDeviceIcon(dev.deviceType)}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            color: 'var(--text)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {dev.deviceName || 'Paired Device'}
+                          </div>
+                          <div style={{
+                            fontSize: '11px',
+                            color: 'var(--text-muted)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {dev.ip ? `${dev.ip}:${dev.port || (dev.deviceType === 'laptop' ? 4000 : 4567)}` : 'Wi-Fi P2P Mesh'}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{dev.deviceName || 'Paired Device'}</span>
-                          <span style={{
-                            width: '7px', height: '7px', borderRadius: '50%',
-                            backgroundColor: isOnline ? '#10b981' : 'var(--text-muted)'
-                          }} />
-                        </div>
-                        <div style={{ fontSize: '11px', color: isOnline ? '#10b981' : 'var(--text-muted)', fontWeight: 600 }}>
-                          {isOnline
-                            ? `Synced${dev.latency ? ` · ${dev.latency}ms` : ' · Live'}`
-                            : 'Offline · Will auto-sync when on Wi-Fi'}
-                        </div>
+
+                      {/* Right-aligned Status Badge Pill */}
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        backgroundColor: isOnline ? 'rgba(16, 185, 129, 0.14)' : 'rgba(148, 163, 184, 0.1)',
+                        border: isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
+                        color: isOnline ? '#10b981' : 'var(--text-muted)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}>
+                        <span style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: isOnline ? '#10b981' : 'var(--text-muted)',
+                          boxShadow: isOnline ? '0 0 6px rgba(16, 185, 129, 0.7)' : 'none'
+                        }} />
+                        <span>{isOnline ? (dev.latency ? `${dev.latency}ms` : 'Live') : 'Offline'}</span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      {dev.ip && (
-                        <button
-                          onClick={() => syncEngine.p2pEngine?.syncWithPeer(dev.ip, dev.port)}
-                          title="Sync now"
-                          style={{
-                            height: '32px',
-                            padding: '0 12px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border)',
-                            background: 'var(--surface)',
-                            color: 'var(--text)',
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          <Icon name="repeat" size={11} />
-                          <span>Sync Now</span>
-                        </button>
-                      )}
+                    {/* Row 2: Matched Action Buttons spanning width */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
                       <button
-                        onClick={() => syncEngine.p2pEngine?.removePeer(dev.deviceId || dev.ip)}
-                        title="Unpair device"
+                        onClick={() => syncEngine.p2pEngine?.syncWithPeer(dev.ip, dev.port)}
+                        title="Sync now"
                         style={{
-                          height: '32px',
-                          padding: '0 12px',
+                          flex: 1,
+                          height: '34px',
+                          padding: '0 10px',
                           borderRadius: '8px',
-                          border: '1px solid var(--border)',
-                          background: 'var(--surface)',
-                          color: 'var(--text-muted)',
-                          fontSize: '11.5px',
+                          border: isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
+                          background: isOnline ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface)',
+                          color: isOnline ? '#10b981' : 'var(--text)',
+                          fontSize: '12px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '4px',
-                          whiteSpace: 'nowrap'
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                          boxSizing: 'border-box'
                         }}
                       >
-                        <Icon name="x" size={11} />
+                        <Icon name="repeat" size={13} />
+                        <span>Sync Now</span>
+                      </button>
+
+                      <button
+                        onClick={() => syncEngine.p2pEngine?.removePeer(dev.deviceId || dev.ip)}
+                        title="Unpair device"
+                        style={{
+                          flex: 1,
+                          height: '34px',
+                          padding: '0 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--surface)',
+                          color: '#ef4444',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        <Icon name="x" size={13} />
                         <span>Unpair</span>
                       </button>
                     </div>

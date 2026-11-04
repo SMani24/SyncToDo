@@ -1,10 +1,13 @@
 # Feature and Bug lists
 
 All reported features, updates, and bugs have been resolved and verified:
+- [x] Concurrent multi-device sync mesh (simultaneous Phone, Tablet, and Laptop synchronization without false offline states)
+- [x] Pairing input & submit button boundary overflow fix (guaranteed zero overflow past card borders on all screen widths)
+- [x] Paired devices mobile card layout redesign (spacious 2-row layout, zero text wrapping, live status badge pills, matched action buttons)
+- [x] S-Pen hardware barrel button eraser switching on Samsung devices (native Android key & pointer event interception with contextmenu suppression)
 - [x] Camera QR Code Scanner for instant device pairing on Android (`synctodo://` URI + fallback 6-digit code)
-- [x] S-Pen / Stylus hardware barrel button dynamic eraser switching on both full canvas and quick scribble strip
 - [x] Strict pairing code verification (mismatched 6-digit codes are rejected and denied sync tokens)
-- [x] Multi-device CRDT concurrent offline mutation convergence verified via automated 3-device mock test suite
+- [x] Multi-device CRDT concurrent offline mutation convergence verified via automated test suite
 - [x] Android-to-Android decentralized peer discovery over local Wi-Fi (LAN multicast & multi-subnet broadcast)
 - [x] Local device name identity isolation (prevented mobile devices from adopting remote laptop identity)
 - [x] High-DPI canvas stroke resolution (`Math.max(2.5, window.devicePixelRatio)` with anti-aliasing)

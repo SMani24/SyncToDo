@@ -139,6 +139,30 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     img.src = nextData;
   };
 
+  useEffect(() => {
+    // Intercept S-Pen / stylus hardware barrel button events dispatched from Android bridge
+    const handleStylusEvent = (e) => {
+      const action = e.detail?.action;
+      if (action === 'toggle') {
+        setTool(prev => prev === 'eraser' ? 'pen' : 'eraser');
+      } else if (action === 'eraser_active') {
+        setTool('eraser');
+        setIsBarrelEraser(true);
+      }
+    };
+    // Suppress context menu triggers from Samsung S-Pen secondary button
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener('stylusbutton', handleStylusEvent);
+    window.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    return () => {
+      window.removeEventListener('stylusbutton', handleStylusEvent);
+      window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+    };
+  }, []);
+
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -147,10 +171,14 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     saveHistoryState();
   };
 
-  const isStylusButtonEraser = (e) => (
-    e.pointerType === 'pen' &&
-    (((e.buttons & 2) !== 0) || ((e.buttons & 32) !== 0) || e.button === 2 || e.button === 5)
-  );
+  const isStylusButtonEraser = (e) => {
+    if (!e) return false;
+    const isPen = e.pointerType === 'pen' || e.pointerType === 'stylus' || (e.pointerType === 'touch' && ((e.buttons & 2) !== 0 || e.button === 2));
+    const hasBarrelButtons = ((e.buttons & 2) !== 0) || ((e.buttons & 32) !== 0) || ((e.buttons & 4) !== 0);
+    const hasBarrelButtonIndex = e.button === 2 || e.button === 5;
+    const hasStylusModifier = (e.altKey || (e.ctrlKey && isPen));
+    return Boolean(isPen && (hasBarrelButtons || hasBarrelButtonIndex || hasStylusModifier));
+  };
 
   // Pointer event handlers with Stylus pressure & hardware button eraser support
   const handlePointerDown = (e) => {
@@ -170,6 +198,9 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
 
     const barrel = isStylusButtonEraser(e);
     setIsBarrelEraser(barrel);
+    if (barrel && tool !== 'eraser') {
+      setTool('eraser');
+    }
 
     // Dynamic pressure calculation
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
@@ -196,6 +227,11 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     const barrel = isStylusButtonEraser(e);
     if (barrel !== isBarrelEraser) {
       setIsBarrelEraser(barrel);
+      if (barrel && tool !== 'eraser') {
+        setTool('eraser');
+      }
+      ctx.beginPath();
+      ctx.moveTo(x, y);
     }
 
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
