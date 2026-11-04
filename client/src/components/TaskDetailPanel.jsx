@@ -24,6 +24,7 @@ export default function TaskDetailPanel({
 
   if (!todo) return null;
 
+  const isInlineNote = todo.isInlineHandwriting || (todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title.trim() === ''));
   const steps = Array.isArray(todo.steps) ? todo.steps : [];
   const doneStepsCount = steps.filter(s => s.completed).length;
 
@@ -149,30 +150,76 @@ export default function TaskDetailPanel({
             {todo.completed && <Icon name="check" size={13} />}
           </button>
 
-          <input
-            type="text"
-            value={titleText}
-            onChange={(e) => setTitleText(e.target.value)}
-            onBlur={commitTitle}
-            dir={detectBidiDirection(titleText)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.target.blur();
-              }
-            }}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              color: todo.completed ? 'var(--text-muted)' : 'var(--text)',
-              textDecoration: todo.completed ? 'line-through' : 'none',
-              fontSize: '16px',
-              fontWeight: 700,
-              outline: 'none',
-              lineHeight: 1.35,
-              textAlign: detectBidiDirection(titleText) === 'rtl' ? 'right' : 'left'
-            }}
-          />
+          {isInlineNote && todo.handwriting ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div
+                onClick={() => onOpenCanvas(todo.id, todo.handwriting)}
+                title="Tap to edit handwriting"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  minHeight: '38px',
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--tag-bg)'
+                }}
+              >
+                <img
+                  src={todo.handwriting}
+                  alt="Handwritten note"
+                  style={{
+                    maxHeight: '44px',
+                    maxWidth: '100%',
+                    objectFit: 'contain',
+                    filter: document.body.getAttribute('data-theme')?.match(/minimal|editorial|matcha|sakura/) ? 'none' : 'invert(1) brightness(1.25)'
+                  }}
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Optional text title / transcription..."
+                value={titleText === 'Handwritten task' ? '' : titleText}
+                onChange={(e) => setTitleText(e.target.value)}
+                onBlur={commitTitle}
+                dir={detectBidiDirection(titleText)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px dashed var(--border)',
+                  color: 'var(--text-muted)',
+                  fontSize: '13px',
+                  outline: 'none',
+                  padding: '2px 0'
+                }}
+              />
+            </div>
+          ) : (
+            <input
+              type="text"
+              value={titleText}
+              onChange={(e) => setTitleText(e.target.value)}
+              onBlur={commitTitle}
+              dir={detectBidiDirection(titleText)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.target.blur();
+                }
+              }}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: todo.completed ? 'var(--text-muted)' : 'var(--text)',
+                textDecoration: todo.completed ? 'line-through' : 'none',
+                fontSize: '16px',
+                fontWeight: 700,
+                outline: 'none',
+                lineHeight: 1.35,
+                textAlign: detectBidiDirection(titleText) === 'rtl' ? 'right' : 'left'
+              }}
+            />
+          )}
         </div>
 
         {/* My Day Toggle Button */}
@@ -568,7 +615,7 @@ export default function TaskDetailPanel({
             </button>
           </div>
 
-          {todo.handwriting && (
+          {todo.handwriting && !isInlineNote && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <img
                 src={todo.handwriting}
@@ -578,7 +625,8 @@ export default function TaskDetailPanel({
                   width: '100%',
                   maxHeight: '140px',
                   objectFit: 'contain',
-                  background: '#ffffff',
+                  background: 'transparent',
+                  filter: document.body.getAttribute('data-theme')?.match(/minimal|editorial|matcha|sakura/) ? 'none' : 'invert(1) brightness(1.25)',
                   borderRadius: '8px',
                   border: '1px solid var(--border)',
                   cursor: 'pointer'

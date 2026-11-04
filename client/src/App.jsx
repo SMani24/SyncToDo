@@ -46,6 +46,135 @@ export function BidiTaskTitle({ title }) {
   );
 }
 
+export const handwritingCropCache = new Map();
+
+export function cropCanvasInk(canvas, pad = 6) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+
+    let minX = w, minY = h, maxX = 0, maxY = 0;
+    let hasInk = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const alpha = d[(y * w + x) * 4 + 3];
+        if (alpha > 12) {
+          hasInk = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (!hasInk) return null;
+
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(w, maxX + pad);
+    maxY = Math.min(h, maxY + pad);
+
+    const cropW = Math.max(1, maxX - minX);
+    const cropH = Math.max(1, maxY - minY);
+
+    const c = document.createElement('canvas');
+    c.width = cropW;
+    c.height = cropH;
+    const cCtx = c.getContext('2d');
+    cCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+    return c.toDataURL('image/png');
+  } catch (err) {
+    return canvas.toDataURL('image/png');
+  }
+}
+
+export function HandwrittenTitle({ src, isCompleted, isDarkTheme }) {
+  const [trimmedSrc, setTrimmedSrc] = useState(src);
+
+  useEffect(() => {
+    if (!src || !src.startsWith('data:image')) {
+      setTrimmedSrc(src);
+      return;
+    }
+    if (handwritingCropCache.has(src)) {
+      setTrimmedSrc(handwritingCropCache.get(src));
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, c.width, c.height);
+        const d = imgData.data;
+        let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
+        let found = false;
+        for (let y = 0; y < c.height; y++) {
+          for (let x = 0; x < c.width; x++) {
+            const a = d[(y * c.width + x) * 4 + 3];
+            if (a > 12) {
+              found = true;
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+        if (found && (maxX - minX < c.width * 0.92 || maxY - minY < c.height * 0.92)) {
+          const pad = 6;
+          minX = Math.max(0, minX - pad);
+          minY = Math.max(0, minY - pad);
+          maxX = Math.min(c.width, maxX + pad);
+          maxY = Math.min(h, maxY + pad);
+          const cw = Math.max(1, maxX - minX);
+          const ch = Math.max(1, maxY - minY);
+          const c2 = document.createElement('canvas');
+          c2.width = cw;
+          c2.height = ch;
+          const ctx2 = c2.getContext('2d');
+          ctx2.drawImage(c, minX, minY, cw, ch, 0, 0, cw, ch);
+          const croppedUrl = c2.toDataURL('image/png');
+          handwritingCropCache.set(src, croppedUrl);
+          setTrimmedSrc(croppedUrl);
+        } else {
+          handwritingCropCache.set(src, src);
+        }
+      } catch (err) {
+        setTrimmedSrc(src);
+      }
+    };
+    img.src = src;
+  }, [src]);
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', height: '36px', verticalAlign: 'middle', maxWidth: '100%' }}>
+      <img
+        src={trimmedSrc}
+        alt="Handwritten task"
+        style={{
+          maxHeight: '36px',
+          maxWidth: '100%',
+          height: 'auto',
+          objectFit: 'contain',
+          filter: isDarkTheme ? 'invert(1) brightness(1.3)' : 'none',
+          opacity: isCompleted ? 0.45 : 1,
+          pointerEvents: 'none'
+        }}
+      />
+    </div>
+  );
+}
+
 export default function App() {
   const [syncState, setSyncState] = useState(() => ({
     status: syncEngine.status || 'SYNCING',
@@ -85,6 +214,21 @@ export default function App() {
   const touchDragRef = useRef({ id: null, startY: 0, active: false });
   const didDragRef = useRef(false);
   const dragTimeoutRef = useRef(null);
+  const [newHandwritingIsInline, setNewHandwritingIsInline] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [floatingDrag, setFloatingDrag] = useState(null);
+  const isIgnoreClicksRef = useRef(false);
+  const [isIgnoringClicks, setIsIgnoringClicks] = useState(false);
+  const mainRef = useRef(null);
+
+  const triggerClickLockout = (ms = 350) => {
+    isIgnoreClicksRef.current = true;
+    setIsIgnoringClicks(true);
+    setTimeout(() => {
+      isIgnoreClicksRef.current = false;
+      setIsIgnoringClicks(false);
+    }, ms);
+  };
 
   // List Editing state (Option A header edit & Option B context menu / long-press)
   const [editingList, setEditingList] = useState(null);
@@ -374,6 +518,9 @@ export default function App() {
     updateThemeConfig({ activeThemeId: themeId });
   };
 
+  const activeAppliedTheme = themeConfig?.activeThemeId || (typeof document !== 'undefined' ? document.body.getAttribute('data-theme') : 'nordic') || 'nordic';
+  const isDarkTheme = !['minimal', 'editorial', 'matcha', 'sakura'].includes(activeAppliedTheme);
+
   useEffect(() => {
     const onResize = () => setDeviceType(detectDeviceType());
     window.addEventListener('resize', onResize);
@@ -393,12 +540,16 @@ export default function App() {
       const urlView = params.get('view');
       const urlList = params.get('list');
       const urlSearch = params.get('search');
+      const urlFocus = params.get('focus');
       if (urlView) setActiveView(urlView);
       if (urlList) {
         setActiveView('list');
         setSelectedListId(urlList);
       }
       if (urlSearch) setSearchQuery(urlSearch);
+      if (urlFocus) {
+        setTimeout(() => quickAddInputRef.current?.focus(), 400);
+      }
     } catch {}
   }, []);
 
@@ -521,29 +672,27 @@ export default function App() {
     return 0;
   };
 
-  const handleDrop = (targetTodoId) => {
+  const handleDropDirect = (sourceId, targetId) => {
     didDragRef.current = true;
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
-    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 120);
+    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 180);
 
-    if (!draggedTodoId || draggedTodoId === targetTodoId) {
-      setDraggedTodoId(null);
-      setDragOverTodoId(null);
-      return;
-    }
-    const fromIndex = sortedActive.findIndex(t => t.id === draggedTodoId);
-    const toIndex = sortedActive.findIndex(t => t.id === targetTodoId);
-    if (fromIndex === -1 || toIndex === -1) {
-      setDraggedTodoId(null);
-      setDragOverTodoId(null);
-      return;
-    }
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const fromIndex = sortedActive.findIndex(t => t.id === sourceId);
+    const toIndex = sortedActive.findIndex(t => t.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
 
     const newItems = [...sortedActive];
     const [moved] = newItems.splice(fromIndex, 1);
     newItems.splice(toIndex, 0, moved);
 
     syncEngine.reorderTodos(newItems.map(t => t.id));
+  };
+
+  const handleDrop = (targetTodoId) => {
+    if (draggedTodoId && targetTodoId) {
+      handleDropDirect(draggedTodoId, targetTodoId);
+    }
     setDraggedTodoId(null);
     setDragOverTodoId(null);
   };
@@ -649,7 +798,9 @@ export default function App() {
     inlineDrawingRef.current = false;
     const canvas = inlineCanvasRef.current;
     if (canvas) {
-      setNewHandwriting(canvas.toDataURL('image/png'));
+      const cropped = cropCanvasInk(canvas) || canvas.toDataURL('image/png');
+      setNewHandwriting(cropped);
+      setNewHandwritingIsInline(true);
     }
   };
 
@@ -661,6 +812,7 @@ export default function App() {
     }
     setInlineHasInk(false);
     setNewHandwriting(null);
+    setNewHandwritingIsInline(false);
   };
 
   // Add Task (incorporating natural language detections!)
@@ -673,7 +825,8 @@ export default function App() {
     const targetList = parsedQuickAdd.detectedList ? parsedQuickAdd.detectedList.id : defaultList;
     const isMyDay = activeView === 'today' || parsedQuickAdd.detectedDate === todayStr;
 
-    const finalTitle = parsedQuickAdd.cleanTitle || (newHandwriting ? 'Handwritten task' : newTitle.trim());
+    const isInline = newHandwritingIsInline || (!newTitle.trim() && !!newHandwriting);
+    const finalTitle = parsedQuickAdd.cleanTitle || (isInline ? '' : (newHandwriting ? 'Handwritten task' : newTitle.trim()));
     const finalPriority = parsedQuickAdd.detectedPriority || newPriority;
     const finalDueDate = parsedQuickAdd.detectedDate || newDueDate || (activeView === 'today' ? todayStr : null);
     const finalRecurrence = parsedQuickAdd.detectedRecurrence || newRecurrence;
@@ -691,7 +844,8 @@ export default function App() {
         reminderTime: parsedQuickAdd.detectedTime || null,
         recurrence: finalRecurrence,
         recurrenceInterval: finalInterval,
-        handwriting: newHandwriting
+        handwriting: newHandwriting,
+        isInlineHandwriting: isInline
       }
     );
 
@@ -700,6 +854,7 @@ export default function App() {
     setNewRecurrence('none');
     setNewRecurrenceInterval(1);
     setNewHandwriting(null);
+    setNewHandwritingIsInline(false);
     if (inlineHasInk) clearInlineCanvas();
     setShowInlinePenStrip(false);
   };
@@ -720,9 +875,10 @@ export default function App() {
 
   const handleSaveCanvas = (dataUrl) => {
     if (canvasTargetTodoId) {
-      syncEngine.updateTodo(canvasTargetTodoId, { handwriting: dataUrl });
+      syncEngine.updateTodo(canvasTargetTodoId, { handwriting: dataUrl, isInlineHandwriting: false });
     } else {
       setNewHandwriting(dataUrl);
+      setNewHandwritingIsInline(false);
     }
     setShowCanvasModal(false);
   };
@@ -783,19 +939,21 @@ export default function App() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 style={{ fontSize: deviceType === 'phone' ? '15px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px', color: 'var(--text)' }}>
+              <h1 style={{ fontSize: deviceType === 'phone' ? '16px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px', color: 'var(--text)' }}>
                 SyncToDo
               </h1>
-              <span style={{
-                fontSize: '9.5px',
-                padding: '2px 7px',
-                borderRadius: '999px',
-                backgroundColor: 'var(--tag-bg)',
-                color: 'var(--tag-text)',
-                fontWeight: 700
-              }}>
-                {syncState.p2pInfo?.deviceName || syncEngine.deviceName || deviceType}
-              </span>
+              {deviceType !== 'phone' && (
+                <span style={{
+                  fontSize: '9.5px',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'var(--tag-bg)',
+                  color: 'var(--tag-text)',
+                  fontWeight: 700
+                }}>
+                  {syncState.p2pInfo?.deviceName || syncEngine.deviceName || deviceType}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -842,7 +1000,7 @@ export default function App() {
         )}
 
         {/* Right: Unified Sync Status Pill & Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: deviceType === 'phone' ? '6px' : '8px' }}>
           {/* Unified Sync Pill */}
           <button
             onClick={() => setShowSettingsModal(true)}
@@ -850,7 +1008,7 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: deviceType === 'phone' ? '5px 10px' : '6px 12px',
+              padding: deviceType === 'phone' ? '5px 9px' : '6px 12px',
               borderRadius: '999px',
               border: pendingPairCount > 0
                 ? '1.5px solid #10b981'
@@ -879,11 +1037,9 @@ export default function App() {
               boxShadow: activePeerCount > 0 ? '0 0 8px rgba(16,185,129,0.6)' : 'none'
             }} />
             <span>
-              {pendingPairCount > 0
-                ? `Pair Request (${pendingPairCount})`
-                : activePeerCount > 0
-                ? `Synced · ${activePeerCount} device${activePeerCount > 1 ? 's' : ''}`
-                : 'Pair Devices'}
+              {deviceType === 'phone'
+                ? (pendingPairCount > 0 ? `${pendingPairCount}` : activePeerCount > 0 ? `${activePeerCount} device${activePeerCount > 1 ? 's' : ''}` : 'Sync')
+                : (pendingPairCount > 0 ? `Pair Request (${pendingPairCount})` : activePeerCount > 0 ? `Synced · ${activePeerCount} device${activePeerCount > 1 ? 's' : ''}` : 'Pair Devices')}
             </span>
           </button>
 
@@ -909,27 +1065,29 @@ export default function App() {
             {deviceType !== 'phone' && <span>Themes</span>}
           </button>
 
-          {/* Daily Planner Trigger */}
-          <button
-            onClick={() => setShowPlannerModal(true)}
-            style={{
-              padding: deviceType === 'phone' ? '6px 9px' : '6px 12px',
-              borderRadius: '9px',
-              border: 'none',
-              background: 'var(--primary-gradient)',
-              color: '#ffffff',
-              fontSize: '11.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-            title="Plan My Day from your lists"
-          >
-            <Icon name="sun" size={14} />
-            {deviceType !== 'phone' && <span>Plan Day</span>}
-          </button>
+          {/* Daily Planner Trigger (Only on Laptop/Tablet, phone has dedicated tab in bottom nav) */}
+          {deviceType !== 'phone' && (
+            <button
+              onClick={() => setShowPlannerModal(true)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '9px',
+                border: 'none',
+                background: 'var(--primary-gradient)',
+                color: '#ffffff',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Plan My Day from your lists"
+            >
+              <Icon name="sun" size={14} />
+              <span>Plan Day</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -1133,14 +1291,19 @@ export default function App() {
         )}
 
         {/* Center Task Workspace */}
-        <main style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'var(--bg)',
-          overflow: 'hidden',
-          minWidth: 0
-        }}>
+        <main
+          ref={mainRef}
+          onScroll={() => { if (mainRef.current) mainRef.current.scrollTop = 0; }}
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'var(--bg)',
+            overflow: 'hidden',
+            minWidth: 0,
+            contain: 'paint'
+          }}
+        >
           {/* Sub-header / Filter Toolbar */}
           {activeView !== 'analytics' && (
             <div style={{
@@ -1511,6 +1674,8 @@ export default function App() {
 
                 const dragOffset = !isCompleted && index !== -1 ? getDragOffset(todo.id, index) : 0;
                 const isCurrentlyDragged = !isCompleted && draggedTodoId === todo.id;
+                const isHeldByFinger = floatingDrag && floatingDrag.id === todo.id;
+                const isInlineNote = todo.isInlineHandwriting || (todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title.trim() === ''));
 
                 return (
                   <div
@@ -1534,8 +1699,10 @@ export default function App() {
                       overflow: isSwipedOpen ? 'hidden' : 'visible',
                       borderRadius: '12px',
                       transform: dragOffset ? `translateY(${dragOffset}px)` : 'none',
-                      transition: draggedTodoId ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)' : 'none',
-                      zIndex: isCurrentlyDragged ? 40 : 1
+                      transition: draggedTodoId ? 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
+                      zIndex: isCurrentlyDragged ? 40 : 1,
+                      opacity: isHeldByFinger ? 0 : 1,
+                      pointerEvents: isHeldByFinger ? 'none' : 'auto'
                     }}
                   >
                     {/* Reveal Actions behind card on Left Swipe (Phone/Touch) */}
@@ -1597,7 +1764,7 @@ export default function App() {
 
                     <div
                       onClick={() => {
-                        if (didDragRef.current) return;
+                        if (isIgnoreClicksRef.current || didDragRef.current) return;
                         if (isSwipedOpen) {
                           setSwipedTodoId(null);
                           return;
@@ -1672,7 +1839,9 @@ export default function App() {
                         padding: deviceType === 'phone' ? '12px' : '12px 14px',
                         borderRadius: '12px',
                         backgroundColor: isSelected ? 'var(--surface-elevated)' : isCompleted ? 'var(--bg-subtle)' : 'var(--surface)',
-                        border: (!isCompleted && dragOverTodoId === todo.id)
+                        border: (!isCompleted && isCurrentlyDragged && !isHeldByFinger)
+                          ? '2px dashed var(--primary)'
+                          : (!isCompleted && dragOverTodoId === todo.id)
                           ? '2px solid var(--primary)'
                           : isSelected
                           ? '1.5px solid var(--primary)'
@@ -1684,10 +1853,10 @@ export default function App() {
                           : isCompleted
                           ? 'none'
                           : 'var(--card-shadow)',
-                        opacity: isCompleted ? 0.72 : 1,
+                        opacity: (isCurrentlyDragged && !isHeldByFinger) ? 0.18 : isCompleted ? 0.72 : 1,
                         cursor: 'pointer',
                         gap: deviceType === 'phone' ? '10px' : '12px',
-                        transform: isSwipedOpen ? 'translateX(-158px)' : isCurrentlyDragged ? 'scale(1.02)' : 'translateX(0)',
+                        transform: isSwipedOpen ? 'translateX(-158px)' : 'translateX(0)',
                         transition: 'all 0.18s ease',
                         position: 'relative',
                         zIndex: 1
@@ -1713,23 +1882,41 @@ export default function App() {
                             e.stopPropagation();
                             const touch = e.touches[0];
                             const cardEl = e.currentTarget.closest('[data-todo-card]');
-                            const h = cardEl ? cardEl.offsetHeight : 60;
+                            if (!cardEl) return;
+                            const rect = cardEl.getBoundingClientRect();
+                            const h = rect.height || 60;
                             setDraggedCardHeight(h);
                             setDraggedTodoId(todo.id);
                             setDragOverTodoId(todo.id);
-                            touchDragRef.current = { id: todo.id, startY: touch.clientY, active: true };
+                            touchDragRef.current = {
+                              id: todo.id,
+                              startY: touch.clientY,
+                              active: true,
+                              rect,
+                              offsetY: touch.clientY - rect.top
+                            };
+                            setFloatingDrag({
+                              id: todo.id,
+                              startY: touch.clientY,
+                              currentY: touch.clientY,
+                              offsetY: touch.clientY - rect.top,
+                              rect,
+                              todo
+                            });
                             if (navigator.vibrate) navigator.vibrate(25);
                           }}
                           onTouchMove={(e) => {
                             if (!touchDragRef.current.active) return;
                             e.preventDefault();
                             const touch = e.touches[0];
+                            setFloatingDrag(prev => prev ? { ...prev, currentY: touch.clientY } : null);
                             const el = document.elementFromPoint(touch.clientX, touch.clientY);
                             const cardWrapper = el ? el.closest('[data-todo-card]') : null;
                             if (cardWrapper) {
                               const targetId = cardWrapper.getAttribute('data-todo-card');
                               if (targetId && targetId !== dragOverTodoId) {
                                 setDragOverTodoId(targetId);
+                                if (navigator.vibrate) navigator.vibrate(10);
                               }
                             }
                           }}
@@ -1737,11 +1924,13 @@ export default function App() {
                             if (!touchDragRef.current.active) return;
                             e.stopPropagation();
                             touchDragRef.current.active = false;
-                            if (dragOverTodoId && dragOverTodoId !== draggedTodoId) {
-                              handleDrop(dragOverTodoId);
-                            } else {
-                              setDraggedTodoId(null);
-                              setDragOverTodoId(null);
+                            const targetId = dragOverTodoId;
+                            const sourceId = draggedTodoId;
+                            setFloatingDrag(null);
+                            setDraggedTodoId(null);
+                            setDragOverTodoId(null);
+                            if (targetId && sourceId && targetId !== sourceId) {
+                              handleDropDirect(sourceId, targetId);
                             }
                           }}
                         >
@@ -1789,7 +1978,11 @@ export default function App() {
                           textDecoration: isCompleted ? 'line-through' : 'none',
                           wordBreak: 'break-word'
                         }}>
-                          <BidiTaskTitle title={todo.title} />
+                          {isInlineNote ? (
+                            <HandwrittenTitle src={todo.handwriting} isCompleted={isCompleted} isDarkTheme={isDarkTheme} />
+                          ) : (
+                            <BidiTaskTitle title={todo.title} />
+                          )}
                         </div>
 
                         {todo.notes && (
@@ -1812,7 +2005,7 @@ export default function App() {
                           </div>
                         )}
 
-                        {todo.handwriting && (
+                        {todo.handwriting && !isInlineNote && (
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1826,22 +2019,25 @@ export default function App() {
                               padding: '3px 8px',
                               borderRadius: '8px',
                               background: 'var(--bg-subtle)',
-                              border: '1px solid var(--border)'
+                              border: '1px solid var(--border)',
+                              cursor: 'pointer'
                             }}
+                            title="View or edit sketch attachment"
                           >
                             <img
                               src={todo.handwriting}
-                              alt="Handwriting preview"
+                              alt="Handwriting attachment"
                               style={{
-                                width: '44px',
-                                height: '24px',
+                                width: '36px',
+                                height: '22px',
                                 objectFit: 'contain',
                                 borderRadius: '4px',
-                                background: '#fff'
+                                background: 'transparent',
+                                filter: isDarkTheme ? 'invert(1) brightness(1.2)' : 'none'
                               }}
                             />
-                            <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>
-                              Sketch
+                            <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>
+                              Attachment
                             </span>
                           </div>
                         )}
@@ -2185,6 +2381,19 @@ export default function App() {
                   }
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
+                  onFocus={(e) => {
+                    if (isIgnoreClicksRef.current) {
+                      e.target.blur();
+                      return;
+                    }
+                    setIsInputFocused(true);
+                    requestAnimationFrame(() => {
+                      if (mainRef.current) mainRef.current.scrollTop = 0;
+                    });
+                  }}
+                  onBlur={() => {
+                    setIsInputFocused(false);
+                  }}
                   dir="auto"
                   autoCapitalize="sentences"
                   autoComplete="off"
@@ -2326,6 +2535,7 @@ export default function App() {
           {showListPickerSheet && (
             <div
               onClick={() => {
+                triggerClickLockout();
                 setShowListPickerSheet(false);
                 handleExitListSelect();
               }}
@@ -2452,6 +2662,7 @@ export default function App() {
                         key={list.id}
                         onTouchStart={() => handleItemTouchStart(list.id, isSystem)}
                         onTouchEnd={() => handleItemTouchEnd(list.id, isSystem, () => {
+                          triggerClickLockout();
                           setActiveView('list');
                           setSelectedListId(list.id);
                           setShowListPickerSheet(false);
@@ -2459,6 +2670,7 @@ export default function App() {
                         onTouchMove={handleItemTouchCancel}
                         onMouseDown={() => handleItemTouchStart(list.id, isSystem)}
                         onMouseUp={() => handleItemTouchEnd(list.id, isSystem, () => {
+                          triggerClickLockout();
                           setActiveView('list');
                           setSelectedListId(list.id);
                           setShowListPickerSheet(false);
@@ -2528,6 +2740,7 @@ export default function App() {
             </div>
           )}
 
+          {!isInputFocused && (
           <nav style={{
             height: '60px',
             backgroundColor: 'var(--surface)',
@@ -2608,6 +2821,7 @@ export default function App() {
               <span>Plots</span>
             </button>
           </nav>
+          )}
         </>
       )}
 
@@ -2760,6 +2974,69 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Card for Touch Reordering (Zero duplicates in list, follows finger directly) */}
+      {floatingDrag && (
+        <div
+          style={{
+            position: 'fixed',
+            top: `${floatingDrag.currentY - floatingDrag.offsetY}px`,
+            left: `${floatingDrag.rect.left}px`,
+            width: `${floatingDrag.rect.width}px`,
+            pointerEvents: 'none',
+            zIndex: 999999,
+            transform: 'scale(1.03)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--primary)',
+            borderRadius: '12px',
+            backgroundColor: 'var(--surface-elevated)',
+            willChange: 'top, transform'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            padding: deviceType === 'phone' ? '12px' : '12px 14px',
+            borderRadius: '12px',
+            gap: deviceType === 'phone' ? '10px' : '12px'
+          }}>
+            <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', marginTop: '4px' }}>
+              <Icon name="grip" size={14} />
+            </div>
+            <div style={{
+              width: '22px', height: '22px', minWidth: '22px',
+              borderRadius: '50%', border: '2px solid var(--text-muted)',
+              marginTop: '2px'
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: deviceType === 'phone' ? '14.5px' : '15px',
+                fontWeight: 600, lineHeight: 1.4, color: 'var(--text)'
+              }}>
+                {(floatingDrag.todo.isInlineHandwriting || (floatingDrag.todo.handwriting && (!floatingDrag.todo.title || floatingDrag.todo.title === 'Handwritten task'))) ? (
+                  <HandwrittenTitle src={floatingDrag.todo.handwriting} isCompleted={false} isDarkTheme={isDarkTheme} />
+                ) : (
+                  <BidiTaskTitle title={floatingDrag.todo.title} />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invisible Click-Blocker Layer during sheet closure lockout */}
+      {isIgnoringClicks && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'transparent',
+            pointerEvents: 'auto'
+          }}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
+        />
       )}
     </div>
   );
