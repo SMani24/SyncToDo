@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
+import { Icon } from './SvgIcons';
 
 export default function DailyPlannerModal({
   todos = [],
   lists = [],
+  deviceType = 'laptop',
   onToggleInMyDay,
   onCarryForward,
   onClose
@@ -29,74 +31,103 @@ export default function DailyPlannerModal({
     return true;
   });
 
+  const isPhone = deviceType === 'phone';
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.7)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 200,
-      padding: '16px'
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '640px',
-        backgroundColor: 'var(--surface)',
-        borderRadius: '20px',
-        border: '1px solid var(--border)',
-        boxShadow: 'var(--card-shadow)',
-        overflow: 'hidden',
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(6, 10, 20, 0.72)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
-        flexDirection: 'column',
-        maxHeight: '90vh',
-        color: 'var(--text)'
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 210,
+        padding: isPhone ? 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px' : '16px'
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: '640px',
+          backgroundColor: 'var(--surface)',
+          borderRadius: '20px',
+          border: '1px solid var(--border)',
+          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.45)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: isPhone ? 'calc(100% - 20px)' : '88vh',
+          color: 'var(--text)'
+        }}
+      >
         {/* Header */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '18px 24px',
+          padding: isPhone ? '14px 16px' : '18px 24px',
           borderBottom: '1px solid var(--border)',
           backgroundColor: 'var(--surface-elevated)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '22px' }}>☀️</span>
+            <div style={{
+              width: isPhone ? '34px' : '38px',
+              height: isPhone ? '34px' : '38px',
+              borderRadius: '11px',
+              background: 'var(--tag-bg)',
+              color: 'var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px'
+            }}>
+              ☀️
+            </div>
             <div>
-              <h3 style={{ fontSize: '17px', fontWeight: 700, margin: 0 }}>
-                Daily Planner & Backlog Triage
+              <h3 style={{ fontSize: isPhone ? '16px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
+                {isPhone ? 'Plan My Day' : 'Daily Planner & Backlog Triage'}
               </h3>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Pick tasks from your bulk backlog & specific projects to focus on today
+              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                {isPhone ? 'Pick backlog tasks to focus on today' : 'Pick tasks from your bulk backlog & specific projects to focus on today'}
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '20px', cursor: 'pointer' }}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-subtle)',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
           >
-            ✕
+            <Icon name="x" size={15} />
           </button>
         </div>
 
         {/* Overdue / Yesterday Carry-Forward Banner */}
         {overdueTasks.length > 0 && (
           <div style={{
-            margin: '16px 20px 0 20px',
-            padding: '14px 18px',
+            margin: isPhone ? '12px 14px 0 14px' : '16px 20px 0 20px',
+            padding: isPhone ? '12px 14px' : '14px 18px',
             borderRadius: '12px',
             background: 'rgba(245, 158, 11, 0.12)',
             border: '1px solid rgba(245, 158, 11, 0.3)',
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: isPhone ? 'column' : 'row',
+            alignItems: isPhone ? 'stretch' : 'center',
             justifyContent: 'space-between',
-            gap: '12px'
+            gap: '10px'
           }}>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -117,7 +148,8 @@ export default function DailyPlannerModal({
                 fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                alignSelf: isPhone ? 'flex-end' : 'auto'
               }}
             >
               Carry Forward All
@@ -130,7 +162,7 @@ export default function DailyPlannerModal({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          padding: '14px 20px 8px 20px',
+          padding: isPhone ? '10px 14px 8px 14px' : '14px 20px 8px 20px',
           overflowX: 'auto',
           borderBottom: '1px solid var(--border)'
         }}>
@@ -148,7 +180,7 @@ export default function DailyPlannerModal({
               whiteSpace: 'nowrap'
             }}
           >
-            📋 Bulk Backlog ({activeTodos.filter(t => !t.completed).length})
+            📋 Backlog ({activeTodos.filter(t => !t.completed).length})
           </button>
           {lists.map(list => {
             const count = activeTodos.filter(t => !t.completed && t.listId === list.id).length;
@@ -180,8 +212,15 @@ export default function DailyPlannerModal({
           })}
         </div>
 
-        {/* Task List */}
-        <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Task Candidates List */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: isPhone ? '12px 14px' : '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
           {candidateTasks.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '13px' }}>
               🎉 No open tasks in this view. Everything is planned or completed!
@@ -198,7 +237,7 @@ export default function DailyPlannerModal({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '10px 14px',
+                    padding: isPhone ? '9px 12px' : '10px 14px',
                     borderRadius: '12px',
                     backgroundColor: isInToday ? 'var(--surface-elevated)' : 'var(--bg-subtle)',
                     border: isInToday ? '1px solid var(--primary)' : '1px solid var(--border)',
@@ -250,13 +289,13 @@ export default function DailyPlannerModal({
                   <button
                     onClick={() => onToggleInMyDay(todo.id, !isInToday)}
                     style={{
-                      padding: '6px 12px',
+                      padding: isPhone ? '5px 10px' : '6px 12px',
                       borderRadius: '8px',
                       border: isInToday ? '1px solid var(--primary)' : '1px solid var(--border)',
                       background: isInToday ? 'var(--primary)' : 'transparent',
                       color: isInToday ? '#ffffff' : 'var(--text)',
                       fontSize: '11px',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       display: 'flex',
@@ -264,7 +303,7 @@ export default function DailyPlannerModal({
                       gap: '4px'
                     }}
                   >
-                    {isInToday ? '✓ In Today' : '+ Add to Today'}
+                    {isInToday ? '✓ Added' : '+ Add'}
                   </button>
                 </div>
               );
@@ -277,7 +316,7 @@ export default function DailyPlannerModal({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 24px',
+          padding: isPhone ? '12px 16px' : '14px 24px',
           borderTop: '1px solid var(--border)',
           backgroundColor: 'var(--surface-elevated)'
         }}>
@@ -287,13 +326,13 @@ export default function DailyPlannerModal({
           <button
             onClick={onClose}
             style={{
-              padding: '8px 20px',
+              padding: isPhone ? '7px 16px' : '8px 20px',
               borderRadius: '8px',
               border: 'none',
               background: 'var(--primary-gradient)',
               color: '#ffffff',
               fontSize: '13px',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer'
             }}
           >

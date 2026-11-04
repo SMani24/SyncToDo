@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './SvgIcons';
 import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
+import { formatCalendarDate } from '../utils/calendar';
 
 export default function TaskDetailPanel({
+  calendarType = 'gregorian',
   todo,
   lists = [],
   deviceType = 'laptop',
@@ -500,6 +502,11 @@ export default function TaskDetailPanel({
                   color: 'var(--text)', fontSize: '12px'
                 }}
               />
+              {todo.dueDate && (
+                <div style={{ marginTop: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)' }}>
+                  {formatCalendarDate(todo.dueDate, calendarType)}
+                </div>
+              )}
             </div>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>

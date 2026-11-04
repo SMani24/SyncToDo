@@ -109,7 +109,7 @@ export default function ThemeSettingsModal({
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 210,
-      padding: '16px'
+      padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px'
     }}>
       <div style={{
         width: '100%',
@@ -157,7 +157,7 @@ export default function ThemeSettingsModal({
 
           {/* Schedule Mode Selector */}
           <div style={{
-            padding: '16px',
+            padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px',
             borderRadius: '14px',
             backgroundColor: 'var(--bg-subtle)',
             border: '1px solid var(--border)',

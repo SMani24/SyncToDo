@@ -37,7 +37,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 200,
-      padding: '16px'
+      padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px'
     }}>
       <div style={{
         width: '100%',
@@ -85,7 +85,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
 
           {/* New List Form */}
           <form onSubmit={handleCreate} style={{
-            padding: '16px',
+            padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px',
             borderRadius: '14px',
             backgroundColor: 'var(--bg-subtle)',
             border: '1px solid var(--border)',

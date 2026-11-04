@@ -136,7 +136,7 @@ export default function DevicesPairingModal({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 220,
-        padding: '14px'
+        padding: deviceType === 'phone' ? 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px' : '16px'
       }}
     >
       <div
@@ -173,11 +173,11 @@ export default function DevicesPairingModal({
               <Icon name="wifi" size={18} />
             </div>
             <div>
-              <h3 style={{ fontSize: '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
-                Devices & Local Wi-Fi Sync
+              <h3 style={{ fontSize: '16.5px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
+                Devices & Sync
               </h3>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                Pair once by name or 6-digit code — reconnects automatically even when IP changes
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Wi-Fi pairing & real-time sync across your devices
               </div>
             </div>
           </div>
@@ -496,7 +496,7 @@ export default function DevicesPairingModal({
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  {isSubmittingCode ? 'Pairing…' : 'Pair by Code'}
+                  {isSubmittingCode ? 'Pairing…' : (deviceType === 'phone' ? 'Pair' : 'Pair by Code')}
                 </button>
               </form>
               {codeFeedback && (
@@ -540,7 +540,7 @@ export default function DevicesPairingModal({
 
           {nearbyPeers.length === 0 ? (
             <div style={{
-              padding: '14px',
+              padding: deviceType === 'phone' ? 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px' : '16px',
               borderRadius: '12px',
               background: 'var(--bg-subtle)',
               border: '1px dashed var(--border)',

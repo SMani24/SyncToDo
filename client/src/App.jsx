@@ -14,6 +14,14 @@ import DailyPlannerModal from './components/DailyPlannerModal';
 import CustomListsModal from './components/CustomListsModal';
 import EditListModal from './components/EditListModal';
 import DevicesPairingModal from './components/DevicesPairingModal';
+import SettingsModal from './components/SettingsModal';
+import {
+  getStoredCalendarType,
+  setStoredCalendarType,
+  formatCalendarDate,
+  formatDueDateBadge,
+  formatFullHeaderDate
+} from './utils/calendar';
 import TaskDetailPanel from './components/TaskDetailPanel';
 import { Icon, parseNaturalTaskInput } from './components/SvgIcons';
 
@@ -221,6 +229,7 @@ export default function App() {
   const [isIgnoringClicks, setIsIgnoringClicks] = useState(false);
   const mainRef = useRef(null);
 
+
   const triggerClickLockout = (ms = 350) => {
     isIgnoreClicksRef.current = true;
     setIsIgnoringClicks(true);
@@ -277,6 +286,13 @@ export default function App() {
 
   // Modals state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [calendarType, setCalendarType] = useState(getStoredCalendarType);
+
+  const handleSelectCalendarType = (type) => {
+    setCalendarType(type);
+    setStoredCalendarType(type);
+  };
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showPlannerModal, setShowPlannerModal] = useState(false);
   const [showListsModal, setShowListsModal] = useState(false);
@@ -315,6 +331,80 @@ export default function App() {
   const quickAddInputRef = useRef(null);
 
   const [deviceType, setDeviceType] = useState(detectDeviceType());
+
+  // Android hardware back button & modal management
+  const anyModalOpen = Boolean(
+    showListPickerSheet ||
+    selectedTodoId ||
+    showCanvasModal ||
+    showSettingsModal ||
+    showDevicesModal ||
+    showThemeModal ||
+    showPlannerModal ||
+    showListsModal ||
+    editingList ||
+    (listsToDelete && listsToDelete.length > 0)
+  );
+
+  useEffect(() => {
+    if (window.AndroidBridge && window.AndroidBridge.setModalOpen) {
+      try {
+        window.AndroidBridge.setModalOpen(anyModalOpen);
+      } catch (_) {}
+    }
+  }, [anyModalOpen]);
+
+  useEffect(() => {
+    window.__handleAndroidBack = () => {
+      if (listsToDelete && listsToDelete.length > 0) {
+        setListsToDelete(null);
+        return true;
+      }
+      if (showCanvasModal) {
+        setShowCanvasModal(false);
+        return true;
+      }
+      if (editingList) {
+        setEditingList(null);
+        return true;
+      }
+      if (showListsModal) {
+        setShowListsModal(false);
+        return true;
+      }
+      if (showPlannerModal) {
+        setShowPlannerModal(false);
+        return true;
+      }
+      if (showThemeModal) {
+        setShowThemeModal(false);
+        return true;
+      }
+      if (showDevicesModal) {
+        setShowDevicesModal(false);
+        return true;
+      }
+      if (showSettingsModal) {
+        setShowSettingsModal(false);
+        return true;
+      }
+      if (showListPickerSheet) {
+        setShowListPickerSheet(false);
+        handleExitListSelect();
+        return true;
+      }
+      if (selectedTodoId) {
+        setSelectedTodoId(null);
+        return true;
+      }
+      return false;
+    };
+  }, [
+    listsToDelete, showCanvasModal, editingList, showListsModal,
+    showPlannerModal, showThemeModal, showDevicesModal, showSettingsModal,
+    showListPickerSheet, selectedTodoId
+  ]);
+
 
   const triggerUndoToast = (message, onUndoFn) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -1003,7 +1093,7 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: deviceType === 'phone' ? '6px' : '8px' }}>
           {/* Unified Sync Pill */}
           <button
-            onClick={() => setShowSettingsModal(true)}
+            onClick={() => setShowDevicesModal(true)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1063,6 +1153,28 @@ export default function App() {
           >
             <Icon name="palette" size={14} />
             {deviceType !== 'phone' && <span>Themes</span>}
+          </button>
+
+          {/* Settings & Calendars Modal Trigger */}
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            style={{
+              padding: deviceType === 'phone' ? '6px 8px' : '6px 10px',
+              borderRadius: '9px',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--surface-elevated)',
+              color: 'var(--text)',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px'
+            }}
+            title="Settings & Calendars"
+          >
+            <Icon name="gear" size={14} />
+            {deviceType !== 'phone' && <span>Settings</span>}
           </button>
 
           {/* Daily Planner Trigger (Only on Laptop/Tablet, phone has dedicated tab in bottom nav) */}
@@ -2097,7 +2209,7 @@ export default function App() {
                               display: 'inline-flex', alignItems: 'center', gap: '4px'
                             }}>
                               <Icon name="cal" size={11} />
-                              {todo.dueDate === todayStr ? 'Today' : todo.dueDate}
+                              {formatDueDateBadge(todo.dueDate, todayStr, calendarType)}
                               {todo.reminderTime ? ` · ${todo.reminderTime}` : ''}
                             </span>
                           )}
@@ -2459,6 +2571,7 @@ export default function App() {
         {/* Right Side Task Detail Inspector (Laptop & Tablet) */}
         {deviceType !== 'phone' && selectedTodo && (
           <TaskDetailPanel
+            calendarType={calendarType}
             todo={selectedTodo}
             lists={syncState.lists}
             deviceType={deviceType}
@@ -2474,6 +2587,7 @@ export default function App() {
       {/* Phone Bottom Sheet Task Detail Inspector */}
       {deviceType === 'phone' && selectedTodo && (
         <TaskDetailPanel
+          calendarType={calendarType}
           todo={selectedTodo}
           lists={syncState.lists}
           deviceType={deviceType}
@@ -2848,6 +2962,7 @@ export default function App() {
 
       {showPlannerModal && (
         <DailyPlannerModal
+          deviceType={deviceType}
           todos={syncState.todos}
           lists={syncState.lists}
           onToggleInMyDay={(todoId, inMyDay) => {
@@ -2872,10 +2987,24 @@ export default function App() {
       )}
 
       {/* Friendly Devices & Pairing Modal */}
-      {showSettingsModal && (
+      {showDevicesModal && (
         <DevicesPairingModal
           syncEngine={syncEngine}
           p2pInfo={syncState.p2pInfo}
+          deviceType={deviceType}
+          onClose={() => setShowDevicesModal(false)}
+        />
+      )}
+
+      {/* Settings & Preferences Modal (Calendars, Themes, Backups) */}
+      {showSettingsModal && (
+        <SettingsModal
+          calendarType={calendarType}
+          onSelectCalendarType={handleSelectCalendarType}
+          onOpenThemeModal={() => setShowThemeModal(true)}
+          onOpenDeviceModal={() => setShowDevicesModal(true)}
+          syncEngine={syncEngine}
+          syncState={syncState}
           deviceType={deviceType}
           onClose={() => setShowSettingsModal(false)}
         />

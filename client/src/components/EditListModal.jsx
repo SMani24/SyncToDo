@@ -62,7 +62,7 @@ export default function EditListModal({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1050,
-        padding: '16px'
+        padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px'
       }}
     >
       <div

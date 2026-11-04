@@ -43,10 +43,9 @@
       --sar: env(safe-area-inset-right, 0px);
     }
 
-    html, body, #root {
+    html, body {
       width: 100%;
       height: 100%;
-      height: 100dvh;
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -59,6 +58,17 @@
       -webkit-font-smoothing: antialiased;
       background-color: var(--bg);
       color: var(--text);
+    }
+
+    #root {
+      width: 100%;
+      height: 100%;
+      height: var(--app-height, 100%);
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
     }
 
     /* Mobile Input & Caret Fixes (Prevents auto-zoom & caret jumps) */
@@ -257,7 +267,7 @@
       --tag-text: #be185d;
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-BXnbuXAI.js"></script>
+  <script type="module" crossorigin src="/assets/index-WMz343CG.js"></script>
 </head>
 <body data-theme="nordic">
   <div id="root"></div>

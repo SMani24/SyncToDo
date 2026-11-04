@@ -1,17 +1,20 @@
 # Feature and Bug lists
 
+All reported features, updates, and bugs have been resolved and verified:
+- [x] Interactive drag-to-reorder tile shifting animations
+- [x] Scroll position and view tab persistence across navigation
+- [x] List editing (Option A header button & Option B row pen action)
+- [x] Multi-calendar system support in Settings (Gregorian, Hijri Shamsi / هجری شمسی, Hijri Qamari / هجری قمری)
+- [x] Phone typing layout fix (zero displacement, no grey void, inputs pinned above keyboard)
+- [x] Android hardware back button closing lists sheet / modals without quitting app
+- [x] Unified dual-ring app icon across phone APK and laptop/web
+- [x] Mobile-responsive headers & layouts for Plan My Day, Devices & Sync, Themes, and Settings modals
+
 ## Features to Add
-
-When changing the order of tasks, the task tiles should be interactive (meaning if I select task A and begin moving it, the other tile should move to make room for it where I'm hovering it!)
-
-When a user is on a list or daily tasks or anywhere with a list of tasks and leaves that tab, the app should remember where the user was so the next time it can show the exact place and the user can continue where they left of (right now it sometimes goes all the way to the beginning!)
-
-Currently there is no way to edit a list's information (name, icon, etc.) which isn't good. Suggest some ways we can do it, once I confirm the most intuitive way, you may begin developing it!
+*(Add any new feature requests here)*
 
 ## Bugs to Fix
-
-Typing something in the phone looks weird, can you find the issue? first confirm the issue with me then proceed to fix it.
+*(Add any new bug reports here)*
 
 ## Requests
-
-The icon on the phone app and the laptop version don't match, please provide 10 icon designs and suggest them for me to select the best one.
+*(Add any new design or general requests here)*
