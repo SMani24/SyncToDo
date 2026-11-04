@@ -164,10 +164,10 @@ export default function SettingsModal({
                       backgroundColor: 'transparent',
                       flexShrink: 0
                     }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'nowrap' }}>
                         <span>{cal.label}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 800 }}>({cal.nativeLabel})</span>
+                        <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>({cal.nativeLabel})</span>
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
                         {cal.description}

@@ -5,19 +5,19 @@ export const CALENDAR_TYPES = [
     id: 'gregorian',
     label: 'Gregorian',
     nativeLabel: 'میلادی',
-    description: 'Standard international calendar (e.g. Nov 4, 2026)'
+    description: 'International'
   },
   {
     id: 'shamsi',
-    label: 'Solar Hijri (Shamsi)',
+    label: 'Solar Hijri',
     nativeLabel: 'هجری شمسی',
-    description: 'Official Persian / Iranian calendar (e.g. ۱۳ آبان ۱۴۰۵)'
+    description: 'Iranian calendar'
   },
   {
     id: 'islamic',
-    label: 'Hijri Qamari (Islamic)',
+    label: 'Hijri Qamari',
     nativeLabel: 'هجری قمری',
-    description: 'Lunar Islamic calendar (e.g. ۲۴ جمادی‌الاول ۱۴۴۸)'
+    description: 'Islamic lunar'
   }
 ];
 
