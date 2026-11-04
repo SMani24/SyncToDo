@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import {
   syncEngine,
   detectDeviceType,
@@ -55,9 +55,23 @@ export default function App() {
     p2pInfo: syncEngine.p2pEngine ? syncEngine.p2pEngine.getInfo() : { activeP2PCount: 0, peers: [], pairedDevices: [], nearbyPeers: [], pendingRequests: [] }
   }));
 
+  // Restore persisted view & list if available
+  const initialViewState = (() => {
+    try {
+      const raw = localStorage.getItem('synctodo_last_view_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.activeView === 'string') {
+          return parsed;
+        }
+      }
+    } catch (_) {}
+    return null;
+  })();
+
   // Navigation & View state
-  const [activeView, setActiveView] = useState('today');
-  const [selectedListId, setSelectedListId] = useState(null);
+  const [activeView, setActiveView] = useState(initialViewState?.activeView || 'today');
+  const [selectedListId, setSelectedListId] = useState(initialViewState?.selectedListId || null);
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRecurring, setFilterRecurring] = useState(false);
@@ -66,6 +80,40 @@ export default function App() {
   const [selectedTodoId, setSelectedTodoId] = useState(null);
   const [draggedTodoId, setDraggedTodoId] = useState(null);
   const [dragOverTodoId, setDragOverTodoId] = useState(null);
+  const [draggedCardHeight, setDraggedCardHeight] = useState(64);
+  const touchDragRef = useRef({ id: null, startY: 0, active: false });
+
+  // Save active view & list to localStorage whenever changed
+  useEffect(() => {
+    try {
+      localStorage.setItem('synctodo_last_view_v1', JSON.stringify({ activeView, selectedListId }));
+    } catch (_) {}
+  }, [activeView, selectedListId]);
+
+  // Keep scroll position map per view/list
+  const currentViewKey = (activeView === 'list' && selectedListId) ? `list:${selectedListId}` : activeView;
+  const scrollContainerRef = useRef(null);
+  const viewScrollMap = useRef((() => {
+    try {
+      const raw = localStorage.getItem('synctodo_scroll_positions_v1');
+      return raw ? JSON.parse(raw) : {};
+    } catch (_) {
+      return {};
+    }
+  })());
+
+  useLayoutEffect(() => {
+    const targetScroll = viewScrollMap.current[currentViewKey] || 0;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = targetScroll;
+    }
+    const raf = requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = targetScroll;
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [currentViewKey]);
 
   // Task creation state
   const [newTitle, setNewTitle] = useState('');
@@ -439,6 +487,29 @@ export default function App() {
     syncEngine.reorderTodos(newItems.map(t => t.id));
   };
 
+  const getDragOffset = (todoId, index) => {
+    if (!draggedTodoId || !dragOverTodoId || draggedTodoId === dragOverTodoId) return 0;
+    const draggedIdx = sortedActive.findIndex(t => t.id === draggedTodoId);
+    const targetIdx = sortedActive.findIndex(t => t.id === dragOverTodoId);
+    if (draggedIdx === -1 || targetIdx === -1) return 0;
+    if (todoId === draggedTodoId) return 0;
+
+    const step = (draggedCardHeight || 64) + 8; // card height + 8px gap
+
+    if (draggedIdx < targetIdx) {
+      // Dragging downwards: items between draggedIdx + 1 and targetIdx shift UP to make room
+      if (index > draggedIdx && index <= targetIdx) {
+        return -step;
+      }
+    } else if (draggedIdx > targetIdx) {
+      // Dragging upwards: items between targetIdx and draggedIdx - 1 shift DOWN to make room
+      if (index >= targetIdx && index < draggedIdx) {
+        return step;
+      }
+    }
+    return 0;
+  };
+
   const handleDrop = (targetTodoId) => {
     if (!draggedTodoId || draggedTodoId === targetTodoId) {
       setDraggedTodoId(null);
@@ -447,7 +518,11 @@ export default function App() {
     }
     const fromIndex = sortedActive.findIndex(t => t.id === draggedTodoId);
     const toIndex = sortedActive.findIndex(t => t.id === targetTodoId);
-    if (fromIndex === -1 || toIndex === -1) return;
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedTodoId(null);
+      setDragOverTodoId(null);
+      return;
+    }
 
     const newItems = [...sortedActive];
     const [moved] = newItems.splice(fromIndex, 1);
@@ -1366,7 +1441,17 @@ export default function App() {
           )}
 
           {/* View Content Area */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: deviceType === 'phone' ? '12px' : '16px 20px' }}>
+          <div
+            ref={scrollContainerRef}
+            onScroll={(e) => {
+              const top = e.currentTarget.scrollTop;
+              viewScrollMap.current[currentViewKey] = top;
+              try {
+                localStorage.setItem('synctodo_scroll_positions_v1', JSON.stringify(viewScrollMap.current));
+              } catch (_) {}
+            }}
+            style={{ flex: 1, overflowY: 'auto', padding: deviceType === 'phone' ? '12px' : '16px 20px' }}
+          >
             {activeView === 'analytics' ? (
               <AnalyticsDashboard
                 todos={syncState.todos}
@@ -1374,17 +1459,41 @@ export default function App() {
                 onClose={() => setActiveView('today')}
               />
             ) : (() => {
-              const renderTodoCard = (todo, isCompleted = false) => {
+              const renderTodoCard = (todo, isCompleted = false, index = -1) => {
                 const listObj = syncState.lists.find(l => l.id === todo.listId);
                 const isSelected = selectedTodoId === todo.id;
                 const isSwipedOpen = swipedTodoId === todo.id;
                 const steps = Array.isArray(todo.steps) ? todo.steps : [];
                 const doneSteps = steps.filter(s => s.completed).length;
 
+                const dragOffset = !isCompleted && index !== -1 ? getDragOffset(todo.id, index) : 0;
+                const isCurrentlyDragged = !isCompleted && draggedTodoId === todo.id;
+
                 return (
                   <div
                     key={todo.id}
-                    style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px' }}
+                    data-todo-card={todo.id}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!isCompleted && draggedTodoId && draggedTodoId !== todo.id) {
+                        e.dataTransfer.dropEffect = 'move';
+                        if (dragOverTodoId !== todo.id) {
+                          setDragOverTodoId(todo.id);
+                        }
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!isCompleted) handleDrop(todo.id);
+                    }}
+                    style={{
+                      position: 'relative',
+                      overflow: isSwipedOpen ? 'hidden' : 'visible',
+                      borderRadius: '12px',
+                      transform: dragOffset ? `translateY(${dragOffset}px)` : 'none',
+                      transition: draggedTodoId ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)' : 'none',
+                      zIndex: isCurrentlyDragged ? 20 : 1
+                    }}
                   >
                     {/* Reveal Actions behind card on Left Swipe (Phone/Touch) */}
                     {isSwipedOpen && (
@@ -1489,7 +1598,11 @@ export default function App() {
                         if (isCompleted) return;
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('text/plain', todo.id);
+                        const cardEl = e.currentTarget;
+                        const h = cardEl ? cardEl.offsetHeight : 60;
+                        setDraggedCardHeight(h);
                         setDraggedTodoId(todo.id);
+                        setDragOverTodoId(todo.id);
                       }}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -1497,9 +1610,6 @@ export default function App() {
                           e.dataTransfer.dropEffect = 'move';
                           if (dragOverTodoId !== todo.id) setDragOverTodoId(todo.id);
                         }
-                      }}
-                      onDragLeave={() => {
-                        if (dragOverTodoId === todo.id) setDragOverTodoId(null);
                       }}
                       onDrop={(e) => {
                         e.preventDefault();
@@ -1527,30 +1637,66 @@ export default function App() {
                           : isCompleted
                           ? 'none'
                           : 'var(--card-shadow)',
-                        opacity: (!isCompleted && draggedTodoId === todo.id) ? 0.4 : isCompleted ? 0.72 : 1,
+                        opacity: (!isCompleted && draggedTodoId === todo.id) ? 0.38 : isCompleted ? 0.72 : 1,
                         cursor: 'pointer',
                         gap: deviceType === 'phone' ? '10px' : '12px',
-                        transform: isSwipedOpen ? 'translateX(-158px)' : 'translateX(0)',
+                        transform: isSwipedOpen ? 'translateX(-158px)' : isCurrentlyDragged ? 'scale(0.99)' : 'translateX(0)',
                         transition: 'all 0.18s ease',
                         position: 'relative',
                         zIndex: 1
                       }}
                     >
-                      {/* Drag Grip */}
+                      {/* Drag Grip (Supports Desktop Drag & Mobile Touch Drag) */}
                       {!isCompleted && (
                         <div
                           style={{
                             cursor: 'grab',
                             userSelect: 'none',
-                            color: 'var(--text-muted)',
-                            opacity: 0.45,
+                            color: isCurrentlyDragged ? 'var(--primary)' : 'var(--text-muted)',
+                            opacity: isCurrentlyDragged ? 1 : 0.45,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             marginTop: '4px',
-                            touchAction: 'none'
+                            touchAction: 'none',
+                            padding: '2px'
                           }}
                           title="Drag to reorder (or Alt+↑/↓)"
+                          onTouchStart={(e) => {
+                            e.stopPropagation();
+                            const touch = e.touches[0];
+                            const cardEl = e.currentTarget.closest('[data-todo-card]');
+                            const h = cardEl ? cardEl.offsetHeight : 60;
+                            setDraggedCardHeight(h);
+                            setDraggedTodoId(todo.id);
+                            setDragOverTodoId(todo.id);
+                            touchDragRef.current = { id: todo.id, startY: touch.clientY, active: true };
+                            if (navigator.vibrate) navigator.vibrate(25);
+                          }}
+                          onTouchMove={(e) => {
+                            if (!touchDragRef.current.active) return;
+                            e.preventDefault();
+                            const touch = e.touches[0];
+                            const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                            const cardWrapper = el ? el.closest('[data-todo-card]') : null;
+                            if (cardWrapper) {
+                              const targetId = cardWrapper.getAttribute('data-todo-card');
+                              if (targetId && targetId !== dragOverTodoId) {
+                                setDragOverTodoId(targetId);
+                              }
+                            }
+                          }}
+                          onTouchEnd={(e) => {
+                            if (!touchDragRef.current.active) return;
+                            e.stopPropagation();
+                            touchDragRef.current.active = false;
+                            if (dragOverTodoId && dragOverTodoId !== draggedTodoId) {
+                              handleDrop(dragOverTodoId);
+                            } else {
+                              setDraggedTodoId(null);
+                              setDragOverTodoId(null);
+                            }
+                          }}
                         >
                           <Icon name="grip" size={14} />
                         </div>
@@ -1779,7 +1925,19 @@ export default function App() {
               const hasNoTasks = sortedActive.length === 0 && sortedCompleted.length === 0;
 
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedTodoId && dragOverTodoId) {
+                      handleDrop(dragOverTodoId);
+                    }
+                  }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                >
                   {hasNoTasks ? (
                     <div style={{
                       textAlign: 'center',
@@ -1804,7 +1962,7 @@ export default function App() {
                     </div>
                   ) : (
                     <>
-                      {sortedActive.map(todo => renderTodoCard(todo, false))}
+                      {sortedActive.map((todo, index) => renderTodoCard(todo, false, index))}
 
                       {sortedCompleted.length > 0 && (
                         <>
