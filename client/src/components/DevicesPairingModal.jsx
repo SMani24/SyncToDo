@@ -450,36 +450,17 @@ export default function DevicesPairingModal({
               )}
             </div>
 
-            {/* Enter 6-Digit Code Form */}
+            {/* Enter 6-Digit Code & QR Scanner Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>
-                  Pair another device:
+              <div>
+                <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text)' }}>
+                  Pair another device
                 </div>
-                {/* Camera QR Scanner Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowScanner(true)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '5px 10px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--tag-bg)',
-                    color: 'var(--primary)',
-                    border: '1px solid var(--primary)',
-                    fontSize: '11.5px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  📷 Scan QR Code
-                </button>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+                  Scan the QR code on your other screen, or enter its 6-digit code below:
+                </div>
               </div>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                Scan the QR code on your other screen, enter its 6-digit code below, or tap a nearby device.
-              </div>
+
               <form onSubmit={handlePairByCode} style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
                 <input
                   type="text"
@@ -490,7 +471,8 @@ export default function DevicesPairingModal({
                   onChange={(e) => setSixDigitInput(e.target.value)}
                   style={{
                     flex: 1,
-                    padding: '9px 12px',
+                    height: '38px',
+                    padding: '0 12px',
                     borderRadius: '10px',
                     border: '1px solid var(--border)',
                     background: 'var(--surface)',
@@ -499,14 +481,16 @@ export default function DevicesPairingModal({
                     fontWeight: 700,
                     fontFamily: 'monospace',
                     letterSpacing: '2px',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                 />
                 <button
                   type="submit"
                   disabled={isSubmittingCode}
                   style={{
-                    padding: '9px 16px',
+                    height: '38px',
+                    padding: '0 18px',
                     borderRadius: '10px',
                     border: 'none',
                     background: 'var(--primary-gradient)',
@@ -514,12 +498,43 @@ export default function DevicesPairingModal({
                     fontSize: '12.5px',
                     fontWeight: 700,
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
                   }}
                 >
                   {isSubmittingCode ? 'Pairing…' : (deviceType === 'phone' ? 'Pair' : 'Pair by Code')}
                 </button>
               </form>
+
+              {/* Camera QR Scanner Button Matching Action */}
+              <button
+                type="button"
+                onClick={() => setShowScanner(true)}
+                style={{
+                  height: '38px',
+                  width: '100%',
+                  borderRadius: '10px',
+                  border: '1.5px solid var(--primary)',
+                  backgroundColor: 'var(--tag-bg)',
+                  color: 'var(--primary)',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  transition: 'background-color 0.15s ease'
+                }}
+              >
+                <Icon name="camera" size={15} />
+                <span>Scan QR Code with Camera</span>
+              </button>
+
               {codeFeedback && (
                 <div style={{
                   fontSize: '11.5px',
@@ -699,39 +714,54 @@ export default function DevicesPairingModal({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                       {dev.ip && (
                         <button
                           onClick={() => syncEngine.p2pEngine?.syncWithPeer(dev.ip, dev.port)}
                           title="Sync now"
                           style={{
-                            padding: '5px 10px',
+                            height: '32px',
+                            padding: '0 12px',
                             borderRadius: '8px',
                             border: '1px solid var(--border)',
                             background: 'var(--surface)',
                             color: 'var(--text)',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            cursor: 'pointer'
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          Sync Now
+                          <Icon name="repeat" size={11} />
+                          <span>Sync Now</span>
                         </button>
                       )}
                       <button
                         onClick={() => syncEngine.p2pEngine?.removePeer(dev.deviceId || dev.ip)}
                         title="Unpair device"
                         style={{
-                          padding: '5px 8px',
+                          height: '32px',
+                          padding: '0 12px',
                           borderRadius: '8px',
                           border: '1px solid var(--border)',
-                          background: 'transparent',
+                          background: 'var(--surface)',
                           color: 'var(--text-muted)',
-                          fontSize: '11px',
-                          cursor: 'pointer'
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          whiteSpace: 'nowrap'
                         }}
                       >
-                        Unpair
+                        <Icon name="x" size={11} />
+                        <span>Unpair</span>
                       </button>
                     </div>
                   </div>

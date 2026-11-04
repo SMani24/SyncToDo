@@ -105,13 +105,32 @@ const DEFAULT_LISTS = [
 // Detect device form factor
 export function detectDeviceType() {
   const width = window.innerWidth;
+  const height = window.innerHeight;
   const userAgent = navigator.userAgent.toLowerCase();
 
-  if (/ipad|tablet|(android(?!.*mobile))/.test(userAgent) || (width >= 640 && width < 1024)) {
-    return 'tablet';
-  } else if (/iphone|ipod|android.*mobile/.test(userAgent) || width < 640) {
+  // 1. Android / iOS Phone User-Agent check (always phone regardless of orientation)
+  if (/iphone|ipod|android.*mobile/.test(userAgent)) {
     return 'phone';
   }
+
+  // 2. Explicit Tablet User-Agent check (iPad or Android tablet without 'mobile')
+  if (/ipad|tablet|(android(?!.*mobile))/.test(userAgent)) {
+    return 'tablet';
+  }
+
+  // 3. Dimension-based detection for web browsers / responsive views:
+  // Shortest side (Smallest Width, SW): Phones have shortest side < 540px
+  const shortestSide = Math.min(width, height);
+  const longestSide = Math.max(width, height);
+
+  if (shortestSide < 540) {
+    return 'phone';
+  }
+
+  if (shortestSide >= 540 && longestSide < 1180) {
+    return 'tablet';
+  }
+
   return 'laptop';
 }
 

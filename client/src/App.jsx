@@ -1032,6 +1032,7 @@ export default function App() {
   const pendingPairCount = syncState.p2pInfo?.pendingRequests?.length || 0;
   const isWsConnected = syncState.status === 'CONNECTED';
   const isSyncedLive = activePeerCount > 0 || isWsConnected;
+  const isLandscapePhone = deviceType === 'phone' && window.innerWidth > window.innerHeight;
 
   return (
     <div style={{
@@ -1043,14 +1044,19 @@ export default function App() {
       color: 'var(--text)',
       paddingTop: 'var(--sat)',
       paddingBottom: deviceType === 'phone' ? 'var(--sab)' : '0px',
+      paddingLeft: deviceType === 'phone' ? 'var(--sal)' : '0px',
+      paddingRight: deviceType === 'phone' ? 'var(--sar)' : '0px',
       overflow: 'hidden'
     }}>
       {/* ==================================================== */}
       {/* APP HEADER                                          */}
       {/* ==================================================== */}
       <header style={{
-        height: deviceType === 'phone' ? '54px' : '58px',
-        padding: deviceType === 'phone' ? '0 12px' : '0 20px',
+        height: isLandscapePhone ? '46px' : (deviceType === 'phone' ? '54px' : '58px'),
+        paddingLeft: 'max(12px, var(--sal))',
+        paddingRight: 'max(12px, var(--sar))',
+        paddingTop: 0,
+        paddingBottom: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -1061,23 +1067,24 @@ export default function App() {
         zIndex: 20
       }}>
         {/* Left: App Logo & Friendly Device Name Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isLandscapePhone ? '7px' : '9px' }}>
           <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '10px',
+            width: isLandscapePhone ? '28px' : '32px',
+            height: isLandscapePhone ? '28px' : '32px',
+            borderRadius: isLandscapePhone ? '8px' : '10px',
             background: 'var(--primary-gradient)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
-            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)'
+            boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
+            flexShrink: 0
           }}>
-            <Icon name="check" size={18} />
+            <Icon name="check" size={isLandscapePhone ? 15 : 18} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 style={{ fontSize: deviceType === 'phone' ? '16px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px', color: 'var(--text)' }}>
+              <h1 style={{ fontSize: isLandscapePhone ? '15px' : (deviceType === 'phone' ? '16px' : '17px'), fontWeight: 800, margin: 0, letterSpacing: '-0.3px', color: 'var(--text)' }}>
                 SyncToDo
               </h1>
               {deviceType !== 'phone' && (
@@ -1096,49 +1103,49 @@ export default function App() {
           </div>
         </div>
 
-        {/* Center: Search (Laptop/Tablet) */}
-        {deviceType !== 'phone' && (
+        {/* Center: Search (Laptop/Tablet or wide landscape phone) */}
+        {((deviceType !== 'phone') || (isLandscapePhone && window.innerWidth >= 680)) && (
           <div style={{
             position: 'relative',
-            width: deviceType === 'laptop' ? '310px' : '220px',
+            width: deviceType === 'laptop' ? '310px' : (isLandscapePhone ? '200px' : '220px'),
             display: 'flex',
             alignItems: 'center'
           }}>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search tasks, notes ( / )..."
+              placeholder={isLandscapePhone ? "Search tasks..." : "Search tasks, notes ( / )..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               dir="auto"
               style={{
                 width: '100%',
-                padding: deviceType === 'phone' ? '8px 28px 8px 32px' : '7px 28px 7px 32px',
-                borderRadius: '9px',
+                padding: isLandscapePhone ? '5px 24px 5px 28px' : (deviceType === 'phone' ? '8px 28px 8px 32px' : '7px 28px 7px 32px'),
+                borderRadius: '8px',
                 border: '1px solid var(--border)',
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text)',
-                fontSize: deviceType === 'phone' ? '16px' : '13px',
+                fontSize: isLandscapePhone ? '12px' : (deviceType === 'phone' ? '16px' : '13px'),
                 outline: 'none',
                 textAlign: 'start'
               }}
             />
-            <span style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', display: 'flex' }}>
-              <Icon name="search" size={14} />
+            <span style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)', display: 'flex' }}>
+              <Icon name="search" size={isLandscapePhone ? 12 : 14} />
             </span>
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                style={{ position: 'absolute', right: '6px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
               >
-                <Icon name="x" size={13} />
+                <Icon name="x" size={12} />
               </button>
             )}
           </div>
         )}
 
         {/* Right: Unified Sync Status Pill & Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: deviceType === 'phone' ? '6px' : '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isLandscapePhone ? '5px' : (deviceType === 'phone' ? '6px' : '8px'), flexShrink: 0 }}>
           {/* Unified Sync Pill */}
           <button
             onClick={() => setShowDevicesModal(true)}
@@ -1146,7 +1153,8 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: deviceType === 'phone' ? '5px 9px' : '6px 12px',
+              height: isLandscapePhone ? '30px' : 'auto',
+              padding: isLandscapePhone ? '0 10px' : (deviceType === 'phone' ? '5px 9px' : '6px 12px'),
               borderRadius: '999px',
               border: pendingPairCount > 0
                 ? '1.5px solid #10b981'
@@ -1155,9 +1163,10 @@ export default function App() {
                 ? 'rgba(16, 185, 129, 0.15)'
                 : 'var(--surface-elevated)',
               color: 'var(--text)',
-              fontSize: '11.5px',
+              fontSize: isLandscapePhone ? '11px' : '11.5px',
               fontWeight: 700,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
             title="Pair & sync devices on your Wi-Fi"
           >
@@ -1172,7 +1181,8 @@ export default function App() {
                 : isSyncedLive
                 ? '#38bdf8'
                 : '#f59e0b',
-              boxShadow: activePeerCount > 0 ? '0 0 8px rgba(16,185,129,0.6)' : 'none'
+              boxShadow: activePeerCount > 0 ? '0 0 8px rgba(16,185,129,0.6)' : 'none',
+              flexShrink: 0
             }} />
             <span>
               {deviceType === 'phone'
@@ -1185,8 +1195,9 @@ export default function App() {
           <button
             onClick={() => setShowThemeModal(true)}
             style={{
-              padding: deviceType === 'phone' ? '6px 8px' : '6px 10px',
-              borderRadius: '9px',
+              height: isLandscapePhone ? '30px' : 'auto',
+              padding: isLandscapePhone ? '0 8px' : (deviceType === 'phone' ? '6px 8px' : '6px 10px'),
+              borderRadius: '8px',
               border: '1px solid var(--border)',
               backgroundColor: 'var(--surface-elevated)',
               color: 'var(--text)',
@@ -1207,8 +1218,9 @@ export default function App() {
           <button
             onClick={() => setShowSettingsModal(true)}
             style={{
-              padding: deviceType === 'phone' ? '6px 8px' : '6px 10px',
-              borderRadius: '9px',
+              height: isLandscapePhone ? '30px' : 'auto',
+              padding: isLandscapePhone ? '0 8px' : (deviceType === 'phone' ? '6px 8px' : '6px 10px'),
+              borderRadius: '8px',
               border: '1px solid var(--border)',
               backgroundColor: 'var(--surface-elevated)',
               color: 'var(--text)',
@@ -2909,7 +2921,7 @@ export default function App() {
 
           {!isInputFocused && (
           <nav style={{
-            height: '60px',
+            height: isLandscapePhone ? '46px' : '60px',
             backgroundColor: 'var(--surface)',
             borderTop: '1px solid var(--border)',
             display: 'flex',
