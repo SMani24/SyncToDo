@@ -10,6 +10,8 @@ Currently there is no way to edit a list's information (name, icon, etc.) which 
 
 ## Bugs to Fix
 
+Typing something in the phone looks weird, can you find the issue? first confirm the issue with me then proceed to fix it.
+
 ## Requests
 
 The icon on the phone app and the laptop version don't match, please provide 10 icon designs and suggest them for me to select the best one.

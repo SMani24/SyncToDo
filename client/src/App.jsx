@@ -12,6 +12,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import ThemeSettingsModal, { ALL_THEMES } from './components/ThemeSettingsModal';
 import DailyPlannerModal from './components/DailyPlannerModal';
 import CustomListsModal from './components/CustomListsModal';
+import EditListModal from './components/EditListModal';
 import DevicesPairingModal from './components/DevicesPairingModal';
 import TaskDetailPanel from './components/TaskDetailPanel';
 import { Icon, parseNaturalTaskInput } from './components/SvgIcons';
@@ -82,6 +83,12 @@ export default function App() {
   const [dragOverTodoId, setDragOverTodoId] = useState(null);
   const [draggedCardHeight, setDraggedCardHeight] = useState(64);
   const touchDragRef = useRef({ id: null, startY: 0, active: false });
+  const didDragRef = useRef(false);
+  const dragTimeoutRef = useRef(null);
+
+  // List Editing state (Option A header edit & Option B context menu / long-press)
+  const [editingList, setEditingList] = useState(null);
+  const [listContextMenu, setListContextMenu] = useState(null); // { x, y, list }
 
   // Save active view & list to localStorage whenever changed
   useEffect(() => {
@@ -492,9 +499,13 @@ export default function App() {
     const draggedIdx = sortedActive.findIndex(t => t.id === draggedTodoId);
     const targetIdx = sortedActive.findIndex(t => t.id === dragOverTodoId);
     if (draggedIdx === -1 || targetIdx === -1) return 0;
-    if (todoId === draggedTodoId) return 0;
 
     const step = (draggedCardHeight || 64) + 8; // card height + 8px gap
+
+    // The dragged item itself moves directly to the target slot (no ghost left behind at old position!)
+    if (todoId === draggedTodoId) {
+      return (targetIdx - draggedIdx) * step;
+    }
 
     if (draggedIdx < targetIdx) {
       // Dragging downwards: items between draggedIdx + 1 and targetIdx shift UP to make room
@@ -511,6 +522,10 @@ export default function App() {
   };
 
   const handleDrop = (targetTodoId) => {
+    didDragRef.current = true;
+    if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
+    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 120);
+
     if (!draggedTodoId || draggedTodoId === targetTodoId) {
       setDraggedTodoId(null);
       setDragOverTodoId(null);
@@ -1074,7 +1089,9 @@ export default function App() {
                       onMouseLeave={handleItemTouchCancel}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        if (!isSystem) handleStartListSelect(list.id);
+                        if (!isSystem) {
+                          setListContextMenu({ x: e.clientX, y: e.clientY, list });
+                        }
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1195,26 +1212,52 @@ export default function App() {
                               {normalizeListIcon(syncState.lists.find(l => l.id === selectedListId)?.icon) || '📁'}{' '}
                               {syncState.lists.find(l => l.id === selectedListId)?.name || 'List'}
                             </span>
-                            {selectedListId && selectedListId !== 'inbox' && (
-                              <button
-                                onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => l.id === selectedListId))}
-                                title="Delete this list"
-                                style={{
-                                  background: 'rgba(239, 68, 68, 0.1)',
-                                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                                  borderRadius: '6px',
-                                  color: '#ef4444',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '2px 8px',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <Icon name="trash" size={12} /> Delete
-                              </button>
+                            {selectedListId && (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  onClick={() => {
+                                    const currList = syncState.lists.find(l => l.id === selectedListId);
+                                    if (currList) setEditingList(currList);
+                                  }}
+                                  title="Edit list name, icon & color"
+                                  style={{
+                                    background: 'var(--tag-bg, rgba(99, 102, 241, 0.1))',
+                                    border: '1px solid var(--border, rgba(99, 102, 241, 0.25))',
+                                    borderRadius: '6px',
+                                    color: 'var(--primary, #6366f1)',
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    padding: '2px 8px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Icon name="pen" size={11} /> Edit List
+                                </button>
+                                {selectedListId !== 'inbox' && (
+                                  <button
+                                    onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => l.id === selectedListId))}
+                                    title="Delete this list"
+                                    style={{
+                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                                      borderRadius: '6px',
+                                      color: '#ef4444',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      padding: '2px 8px',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <Icon name="trash" size={11} /> Delete
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </span>
                         )}
@@ -1492,7 +1535,7 @@ export default function App() {
                       borderRadius: '12px',
                       transform: dragOffset ? `translateY(${dragOffset}px)` : 'none',
                       transition: draggedTodoId ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)' : 'none',
-                      zIndex: isCurrentlyDragged ? 20 : 1
+                      zIndex: isCurrentlyDragged ? 40 : 1
                     }}
                   >
                     {/* Reveal Actions behind card on Left Swipe (Phone/Touch) */}
@@ -1554,6 +1597,7 @@ export default function App() {
 
                     <div
                       onClick={() => {
+                        if (didDragRef.current) return;
                         if (isSwipedOpen) {
                           setSwipedTodoId(null);
                           return;
@@ -1596,6 +1640,7 @@ export default function App() {
                       draggable={!isCompleted}
                       onDragStart={(e) => {
                         if (isCompleted) return;
+                        didDragRef.current = true;
                         e.dataTransfer.effectAllowed = 'move';
                         e.dataTransfer.setData('text/plain', todo.id);
                         const cardEl = e.currentTarget;
@@ -1618,6 +1663,8 @@ export default function App() {
                       onDragEnd={() => {
                         setDraggedTodoId(null);
                         setDragOverTodoId(null);
+                        if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
+                        dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 120);
                       }}
                       style={{
                         display: 'flex',
@@ -1637,10 +1684,10 @@ export default function App() {
                           : isCompleted
                           ? 'none'
                           : 'var(--card-shadow)',
-                        opacity: (!isCompleted && draggedTodoId === todo.id) ? 0.38 : isCompleted ? 0.72 : 1,
+                        opacity: isCompleted ? 0.72 : 1,
                         cursor: 'pointer',
                         gap: deviceType === 'phone' ? '10px' : '12px',
-                        transform: isSwipedOpen ? 'translateX(-158px)' : isCurrentlyDragged ? 'scale(0.99)' : 'translateX(0)',
+                        transform: isSwipedOpen ? 'translateX(-158px)' : isCurrentlyDragged ? 'scale(1.02)' : 'translateX(0)',
                         transition: 'all 0.18s ease',
                         position: 'relative',
                         zIndex: 1
@@ -2449,6 +2496,27 @@ export default function App() {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>{count}</span>
+                          {!isSystem && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingList(list);
+                              }}
+                              title="Edit List"
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Icon name="pen" size={13} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
