@@ -817,14 +817,14 @@ export default function App() {
               dir="auto"
               style={{
                 width: '100%',
-                padding: '7px 28px 7px 32px',
+                padding: deviceType === 'phone' ? '8px 28px 8px 32px' : '7px 28px 7px 32px',
                 borderRadius: '9px',
                 border: '1px solid var(--border)',
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text)',
-                fontSize: '12.5px',
+                fontSize: deviceType === 'phone' ? '16px' : '13px',
                 outline: 'none',
-                unicodeBidi: 'plaintext'
+                textAlign: 'start'
               }}
             />
             <span style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', display: 'flex' }}>
@@ -2178,24 +2178,26 @@ export default function App() {
                   type="text"
                   placeholder={
                     activeView === 'today'
-                      ? 'Add task (e.g. "Buy milk tomorrow 6pm #Shopping !high")...'
+                      ? (deviceType === 'phone' ? 'Add task...' : 'Add task (e.g. "Buy milk tomorrow 6pm #Shopping !high")...')
                       : activeView === 'list' && selectedListId
                       ? `Add task to ${syncState.lists.find(l => l.id === selectedListId)?.name || 'list'}...`
-                      : 'Add a task (supports #List, tomorrow, 6pm, !high, daily)...'
+                      : (deviceType === 'phone' ? 'Add a task...' : 'Add a task (supports #List, tomorrow, 6pm, !high, daily)...')
                   }
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   dir="auto"
+                  autoCapitalize="sentences"
+                  autoComplete="off"
                   style={{
                     flex: 1,
-                    padding: deviceType === 'phone' ? '10px 12px' : '10px 14px',
+                    padding: deviceType === 'phone' ? '12px 14px' : '10px 14px',
                     borderRadius: '10px',
                     border: '1px solid var(--border)',
                     backgroundColor: 'var(--bg-subtle)',
                     color: 'var(--text)',
-                    fontSize: '14px',
+                    fontSize: deviceType === 'phone' ? '16px' : '14px',
                     outline: 'none',
-                    unicodeBidi: 'plaintext'
+                    textAlign: 'start'
                   }}
                 />
 

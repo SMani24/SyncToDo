@@ -166,11 +166,10 @@ export default function TaskDetailPanel({
               border: 'none',
               color: todo.completed ? 'var(--text-muted)' : 'var(--text)',
               textDecoration: todo.completed ? 'line-through' : 'none',
-              fontSize: '15px',
+              fontSize: '16px',
               fontWeight: 700,
               outline: 'none',
               lineHeight: 1.35,
-              unicodeBidi: 'plaintext',
               textAlign: detectBidiDirection(titleText) === 'rtl' ? 'right' : 'left'
             }}
           />
@@ -305,9 +304,9 @@ export default function TaskDetailPanel({
                 border: '1px solid var(--border)',
                 background: 'var(--surface)',
                 color: 'var(--text)',
-                fontSize: '12.5px',
+                fontSize: '15px',
                 outline: 'none',
-                unicodeBidi: 'plaintext'
+                textAlign: 'start'
               }}
             />
             {newStepText.trim() && (
@@ -532,11 +531,10 @@ export default function TaskDetailPanel({
               border: '1px solid var(--border)',
               background: 'var(--bg-subtle)',
               color: 'var(--text)',
-              fontSize: '12.5px',
+              fontSize: '15px',
               lineHeight: 1.45,
               resize: 'vertical',
               outline: 'none',
-              unicodeBidi: 'plaintext',
               textAlign: hasPersianChar(notesText) ? 'right' : 'left'
             }}
           />
