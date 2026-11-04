@@ -2203,13 +2203,17 @@ export default function App() {
                           )}
 
                           {todo.dueDate && (
-                            <span style={{
-                              fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
-                              background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600,
-                              display: 'inline-flex', alignItems: 'center', gap: '4px'
-                            }}>
+                            <span
+                              dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
+                              style={{
+                                fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
+                                background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600,
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                unicodeBidi: 'isolate'
+                              }}
+                            >
                               <Icon name="cal" size={11} />
-                              {formatDueDateBadge(todo.dueDate, todayStr, calendarType)}
+                              <span style={{ unicodeBidi: 'isolate' }}>{formatDueDateBadge(todo.dueDate, todayStr, calendarType)}</span>
                               {todo.reminderTime ? ` · ${todo.reminderTime}` : ''}
                             </span>
                           )}

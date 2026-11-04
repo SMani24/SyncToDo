@@ -11,7 +11,7 @@ export const CALENDAR_TYPES = [
     id: 'shamsi',
     label: 'Solar Hijri (Shamsi)',
     nativeLabel: 'هجری شمسی',
-    description: 'Official Persian / Iranian calendar (e.g. ۱۴ آبان ۱۴۰۵)'
+    description: 'Official Persian / Iranian calendar (e.g. ۱۳ آبان ۱۴۰۵)'
   },
   {
     id: 'islamic',
@@ -37,6 +37,8 @@ export function setStoredCalendarType(calType) {
 
 /**
  * Format a date string (YYYY-MM-DD or ISO string) according to selected calendar
+ * Strictly maintains Persian & Arabic RTL token order: [Day] [Month] [Year]
+ * (Day on right, Month in middle, Year on left when viewed RTL)
  */
 export function formatCalendarDate(dateStr, calendarType = 'gregorian', options = {}) {
   if (!dateStr) return '';
@@ -50,17 +52,30 @@ export function formatCalendarDate(dateStr, calendarType = 'gregorian', options 
     const date = new Date(year, month, day);
 
     if (calendarType === 'shamsi') {
-      return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-        year: options.year !== undefined ? options.year : 'numeric',
-        month: options.month || 'short',
-        day: options.day || 'numeric'
-      }).format(date);
+      const dtParts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+        year: 'numeric',
+        month: options.month || 'long',
+        day: 'numeric'
+      }).formatToParts(date);
+      const d = dtParts.find(p => p.type === 'day')?.value || '';
+      const m = dtParts.find(p => p.type === 'month')?.value || '';
+      const y = dtParts.find(p => p.type === 'year')?.value || '';
+
+      const content = options.includeYear === false ? `${d} ${m}` : `${d} ${m} ${y}`;
+      // Wrap with Unicode Right-To-Left Isolate (\u2067 ... \u2069)
+      return `\u2067${content.trim()}\u2069`;
     } else if (calendarType === 'islamic') {
-      return new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
-        year: options.year !== undefined ? options.year : 'numeric',
-        month: options.month || 'short',
-        day: options.day || 'numeric'
-      }).format(date);
+      const dtParts = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
+        year: 'numeric',
+        month: options.month || 'long',
+        day: 'numeric'
+      }).formatToParts(date);
+      const d = dtParts.find(p => p.type === 'day')?.value || '';
+      const m = dtParts.find(p => p.type === 'month')?.value || '';
+      const y = dtParts.find(p => p.type === 'year')?.value || '';
+
+      const content = options.includeYear === false ? `${d} ${m}` : `${d} ${m} ${y}`;
+      return `\u2067${content.trim()}\u2069`;
     } else {
       // Gregorian
       return new Intl.DateTimeFormat('en-US', {
@@ -75,7 +90,7 @@ export function formatCalendarDate(dateStr, calendarType = 'gregorian', options 
 }
 
 /**
- * Formats a due date for task card badges: e.g. "Today · ۱۴ آبان" or "۱۴ آبان ۱۴۰۵"
+ * Formats a due date for task card badges: e.g. "Today · ۱۳ آبان" or "۱۳ آبان ۱۴۰۵"
  */
 export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregorian') {
   if (!dueDateStr) return '';
@@ -83,9 +98,9 @@ export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregori
 
   if (isToday) {
     if (calendarType === 'shamsi') {
-      return 'امروز';
+      return '\u2067امروز\u2069';
     } else if (calendarType === 'islamic') {
-      return 'اليوم';
+      return '\u2067اليوم\u2069';
     }
     return 'Today';
   }
@@ -93,7 +108,7 @@ export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregori
   return formatCalendarDate(dueDateStr, calendarType, {
     month: 'short',
     day: 'numeric',
-    year: undefined
+    includeYear: false
   });
 }
 
@@ -103,19 +118,29 @@ export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregori
 export function formatFullHeaderDate(dateObj = new Date(), calendarType = 'gregorian') {
   try {
     if (calendarType === 'shamsi') {
-      return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+      const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric'
-      }).format(dateObj);
+      }).formatToParts(dateObj);
+      const w = parts.find(p => p.type === 'weekday')?.value || '';
+      const d = parts.find(p => p.type === 'day')?.value || '';
+      const m = parts.find(p => p.type === 'month')?.value || '';
+      const y = parts.find(p => p.type === 'year')?.value || '';
+      return `\u2067${w}، ${d} ${m} ${y}\u2069`;
     } else if (calendarType === 'islamic') {
-      return new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
+      const parts = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric'
-      }).format(dateObj);
+      }).formatToParts(dateObj);
+      const w = parts.find(p => p.type === 'weekday')?.value || '';
+      const d = parts.find(p => p.type === 'day')?.value || '';
+      const m = parts.find(p => p.type === 'month')?.value || '';
+      const y = parts.find(p => p.type === 'year')?.value || '';
+      return `\u2067${w}، ${d} ${m} ${y}\u2069`;
     } else {
       return new Intl.DateTimeFormat('en-US', {
         weekday: 'long',

@@ -175,17 +175,22 @@ export default function SettingsModal({
                     </div>
                   </div>
 
-                  <div style={{
-                    fontSize: '11.5px',
-                    fontWeight: 700,
-                    color: isSelected ? 'var(--primary)' : 'var(--text)',
-                    fontFamily: 'inherit',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.18)' : 'var(--bg-subtle)',
-                    whiteSpace: 'nowrap',
-                    marginLeft: '8px'
-                  }}>
+                  <div
+                    dir={cal.id === 'gregorian' ? 'ltr' : 'rtl'}
+                    style={{
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      color: isSelected ? 'var(--primary)' : 'var(--text)',
+                      fontFamily: 'inherit',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.18)' : 'var(--bg-subtle)',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '8px',
+                      direction: cal.id === 'gregorian' ? 'ltr' : 'rtl',
+                      unicodeBidi: 'isolate'
+                    }}
+                  >
                     {formattedSample}
                   </div>
                 </div>

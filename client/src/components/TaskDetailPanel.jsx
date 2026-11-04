@@ -503,7 +503,16 @@ export default function TaskDetailPanel({
                 }}
               />
               {todo.dueDate && (
-                <div style={{ marginTop: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)' }}>
+                <div
+                  dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
+                  style={{
+                    marginTop: '4px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--primary)',
+                    unicodeBidi: 'isolate'
+                  }}
+                >
                   {formatCalendarDate(todo.dueDate, calendarType)}
                 </div>
               )}
