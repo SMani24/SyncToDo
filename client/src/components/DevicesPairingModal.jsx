@@ -1,45 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { Icon } from './SvgIcons';
-
-// Generates a crisp deterministic 13x13 QR-style matrix from a seed string
-function buildQrMatrix(seedStr) {
-  const size = 13;
-  const grid = Array.from({ length: size }, () => Array(size).fill(false));
-
-  const drawFinder = (r0, c0) => {
-    for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 4; c++) {
-        const isBorder = r === 0 || r === 3 || c === 0 || c === 3;
-        const isCenter = r >= 1 && r <= 2 && c >= 1 && c <= 2;
-        grid[r0 + r][c0 + c] = isBorder || isCenter;
-      }
-    }
-  };
-
-  drawFinder(0, 0);
-  drawFinder(0, size - 4);
-  drawFinder(size - 4, 0);
-
-  let hash = 2166136261;
-  const str = String(seedStr || 'synctodo');
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const inFinderTL = r < 5 && c < 5;
-      const inFinderTR = r < 5 && c >= size - 5;
-      const inFinderBL = r >= size - 5 && c < 5;
-      if (inFinderTL || inFinderTR || inFinderBL) continue;
-      hash ^= (r * 31 + c * 17) & 0xff;
-      hash = Math.imul(hash, 16777619);
-      grid[r][c] = (Math.abs(hash) % 10) < 5;
-    }
-  }
-  return grid;
-}
+import QrScannerModal from './QrScannerModal';
 
 function formatSixDigit(code) {
   const clean = String(code || '------').replace(/\s+/g, '');
@@ -56,32 +18,69 @@ export default function DevicesPairingModal({
   onClose
 }) {
   const [isEditingName, setIsEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(p2pInfo.deviceName || syncEngine.deviceName || 'My Device');
+  const [nameInput, setNameInput] = useState(syncEngine.deviceName || p2pInfo.deviceName || 'My Device');
   const [sixDigitInput, setSixDigitInput] = useState('');
   const [codeFeedback, setCodeFeedback] = useState(null);
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [manualIpInput, setManualIpInput] = useState('');
   const [serverUrlInput, setServerUrlInput] = useState(syncEngine.serverUrl || '');
+  const [showScanner, setShowScanner] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
 
-  const myName = p2pInfo.deviceName || syncEngine.deviceName || 'My Device';
+  const myName = syncEngine.deviceName || p2pInfo.deviceName || 'My Device';
   const myCode = p2pInfo.pairingCode || '482913';
   const myIp = p2pInfo.myLocalIp || 'Local Wi-Fi';
   const myPort = p2pInfo.port || (deviceType === 'laptop' ? 4000 : 4567);
+  const myDeviceId = p2pInfo.deviceId || syncEngine.deviceId;
 
   const pairedDevices = p2pInfo.pairedDevices || [];
   const nearbyPeers = p2pInfo.nearbyPeers || [];
   const pendingRequests = p2pInfo.pendingRequests || [];
   const outgoingSession = p2pInfo.outgoingPairSession || null;
 
-  const qrSeed = `synctodo://${myIp}:${myPort}?code=${myCode}&name=${encodeURIComponent(myName)}`;
-  const qrGrid = buildQrMatrix(qrSeed);
+  // Generate crisp standard scannable QR Code
+  useEffect(() => {
+    const qrSeed = `synctodo://${myIp}:${myPort}?code=${myCode}&deviceId=${encodeURIComponent(myDeviceId || '')}&name=${encodeURIComponent(myName)}`;
+    QRCode.toDataURL(qrSeed, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#0f172a', light: '#ffffff' },
+      errorCorrectionLevel: 'M'
+    })
+      .then(url => setQrDataUrl(url))
+      .catch(err => console.warn('QR generation error:', err));
+  }, [myIp, myPort, myCode, myDeviceId, myName]);
 
   const handleSaveName = async (e) => {
     e.preventDefault();
     if (!nameInput.trim()) return;
     await syncEngine.p2pEngine?.renameThisDevice(nameInput.trim());
     setIsEditingName(false);
+  };
+
+  const handleQrScan = async (scannedData) => {
+    setShowScanner(false);
+    setIsSubmittingCode(true);
+    setCodeFeedback(null);
+    try {
+      const res = await syncEngine.p2pEngine?.pairWithScannedQr(scannedData);
+      setIsSubmittingCode(false);
+      if (res?.status === 'paired') {
+        setCodeFeedback({
+          type: 'success',
+          text: `Paired & synced with ${res.data?.serverDevice?.deviceName || 'device'}!`
+        });
+      } else {
+        setCodeFeedback({
+          type: 'error',
+          text: res?.message || 'Could not pair with scanned QR code. Try entering the 6-digit code.'
+        });
+      }
+    } catch (err) {
+      setIsSubmittingCode(false);
+      setCodeFeedback({ type: 'error', text: 'Pairing failed: ' + err.message });
+    }
   };
 
   const handlePairByCode = async (e) => {
@@ -426,38 +425,60 @@ export default function DevicesPairingModal({
             paddingTop: '10px',
             borderTop: '1px solid var(--border)'
           }}>
-            {/* Visual QR Matrix */}
+            {/* Visual Crisp Standard QR Code */}
             <div style={{
-              width: '108px',
-              height: '108px',
+              width: '112px',
+              height: '112px',
               margin: deviceType === 'phone' ? '0 auto' : '0',
-              padding: '8px',
+              padding: '6px',
               borderRadius: '12px',
               background: '#ffffff',
               border: '1px solid var(--border)',
-              display: 'grid',
-              gridTemplateColumns: `repeat(${qrGrid.length}, 1fr)`,
-              gap: '1.5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
             }} title={`Pairing QR for ${myName}`}>
-              {qrGrid.flat().map((cell, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    backgroundColor: cell ? '#0f172a' : 'transparent',
-                    borderRadius: '1px'
-                  }}
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt={`QR code for ${myName}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                 />
-              ))}
+              ) : (
+                <div style={{ fontSize: '10px', color: '#64748b', textAlign: 'center' }}>Generating QR…</div>
+              )}
             </div>
 
             {/* Enter 6-Digit Code Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>
-                Have a 6-digit code from another device?
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>
+                  Pair another device:
+                </div>
+                {/* Camera QR Scanner Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--tag-bg)',
+                    color: 'var(--primary)',
+                    border: '1px solid var(--primary)',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  📷 Scan QR Code
+                </button>
               </div>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                Open <b>Devices & Sync</b> on your phone or laptop and enter its 6-digit code below — or simply tap a nearby device from the list.
+                Scan the QR code on your other screen, enter its 6-digit code below, or tap a nearby device.
               </div>
               <form onSubmit={handlePairByCode} style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
                 <input
@@ -821,6 +842,14 @@ export default function DevicesPairingModal({
           )}
         </div>
       </div>
+
+      {/* Camera QR Scanner Overlay Modal */}
+      {showScanner && (
+        <QrScannerModal
+          onScan={handleQrScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }

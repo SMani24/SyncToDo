@@ -1,5 +1,51 @@
 import React, { useRef, useState, useEffect } from 'react';
 
+// Crops blank whitespace from drawn canvas so export is crisp and tightly fitted
+export function cropInkBounds(canvas, pad = 12) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+
+    let minX = w, minY = h, maxX = 0, maxY = 0;
+    let hasInk = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const alpha = d[(y * w + x) * 4 + 3];
+        if (alpha > 14) {
+          hasInk = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (!hasInk) return null;
+
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(w, maxX + pad);
+    maxY = Math.min(h, maxY + pad);
+
+    const cropW = Math.max(1, maxX - minX);
+    const cropH = Math.max(1, maxY - minY);
+
+    const c = document.createElement('canvas');
+    c.width = cropW;
+    c.height = cropH;
+    const cCtx = c.getContext('2d');
+    cCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+    return c.toDataURL('image/png');
+  } catch (err) {
+    return canvas.toDataURL('image/png');
+  }
+}
+
 export default function HandwritingCanvas({ initialImage = null, onSave, onCancel }) {
   const canvasRef = useRef(null);
   const [tool, setTool] = useState('pen'); // 'pen' | 'highlighter' | 'eraser'
@@ -9,6 +55,7 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
   const [history, setHistory] = useState([]);
   const [historyStep, setHistoryStep] = useState(-1);
   const [usePenOnly, setUsePenOnly] = useState(false); // Palm rejection mode
+  const [isBarrelEraser, setIsBarrelEraser] = useState(false); // S-Pen side button eraser mode
 
   const colors = [
     { label: 'Indigo', hex: '#6366f1' },
@@ -20,16 +67,16 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     { label: 'White', hex: '#ffffff' }
   ];
 
-  // Initialize canvas
+  // Initialize canvas with high-resolution Retina / High-DPI scaling
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set internal resolution matching display aspect
+    // Set internal resolution matching display aspect with High-DPI multiplier
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    const dpr = Math.max(2.5, window.devicePixelRatio || 2);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
 
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
@@ -96,12 +143,16 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, rect.width, rect.height);
     saveHistoryState();
   };
 
-  // Pointer event handlers with Stylus pressure support
+  const isStylusButtonEraser = (e) => (
+    e.pointerType === 'pen' &&
+    (((e.buttons & 2) !== 0) || ((e.buttons & 32) !== 0) || e.button === 2 || e.button === 5)
+  );
+
+  // Pointer event handlers with Stylus pressure & hardware button eraser support
   const handlePointerDown = (e) => {
     // If palm rejection is enabled, reject touches that are not pen
     if (usePenOnly && e.pointerType !== 'pen') return;
@@ -117,9 +168,12 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     ctx.beginPath();
     ctx.moveTo(x, y);
 
+    const barrel = isStylusButtonEraser(e);
+    setIsBarrelEraser(barrel);
+
     // Dynamic pressure calculation
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
-    applyContextStyle(ctx, pressure);
+    applyContextStyle(ctx, pressure, barrel);
 
     ctx.lineTo(x + 0.1, y + 0.1);
     ctx.stroke();
@@ -139,8 +193,13 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    const barrel = isStylusButtonEraser(e);
+    if (barrel !== isBarrelEraser) {
+      setIsBarrelEraser(barrel);
+    }
+
     const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
-    applyContextStyle(ctx, pressure);
+    applyContextStyle(ctx, pressure, barrel);
 
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -148,6 +207,7 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
 
   const handlePointerUp = (e) => {
     if (!isDrawing) return;
+    setIsBarrelEraser(false);
     // Reset composite mode so history snapshots always capture correctly
     const canvas = canvasRef.current;
     if (canvas) {
@@ -158,13 +218,14 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     saveHistoryState();
   };
 
-  const applyContextStyle = (ctx, pressure = 0.5) => {
-    if (tool === 'eraser') {
+  const applyContextStyle = (ctx, pressure = 0.5, forceEraser = false) => {
+    const effectiveEraser = forceEraser || tool === 'eraser';
+    if (effectiveEraser) {
       // destination-out punches transparent holes through the ink layer.
       // The white background canvas underneath remains untouched and shows through.
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.lineWidth = strokeWidth * 8;
+      ctx.lineWidth = Math.max(22, strokeWidth * 7.5);
     } else if (tool === 'highlighter') {
       ctx.globalCompositeOperation = 'multiply';
       ctx.strokeStyle = strokeColor + '66'; // 40% translucent
@@ -180,8 +241,8 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
   const handleExport = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-    onSave(dataUrl);
+    const cropped = cropInkBounds(canvas, 10) || canvas.toDataURL('image/png');
+    onSave(cropped);
   };
 
   return (
@@ -295,14 +356,15 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
                 padding: '6px 12px',
                 borderRadius: '8px',
                 border: '1px solid var(--border)',
-                background: tool === 'eraser' ? 'var(--primary)' : 'transparent',
-                color: tool === 'eraser' ? '#ffffff' : 'var(--text)',
+                background: (tool === 'eraser' || isBarrelEraser) ? 'var(--primary)' : 'transparent',
+                color: (tool === 'eraser' || isBarrelEraser) ? '#ffffff' : 'var(--text)',
                 fontSize: '12px',
                 fontWeight: 600,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                boxShadow: isBarrelEraser ? '0 0 8px var(--primary)' : 'none'
               }}
             >
-              🧹 Eraser
+              🧹 {isBarrelEraser ? 'Eraser (S-Pen)' : 'Eraser'}
             </button>
           </div>
 
@@ -410,13 +472,14 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             style={{
               position: 'absolute',
               inset: 0,
               width: '100%',
               height: '100%',
               display: 'block',
-              cursor: tool === 'eraser' ? 'cell' : 'crosshair',
+              cursor: (tool === 'eraser' || isBarrelEraser) ? 'cell' : 'crosshair',
               touchAction: 'none',
               /* canvas itself is transparent so eraser reveals white bg div */
               background: 'transparent'

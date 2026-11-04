@@ -19,9 +19,9 @@ export class P2PEngine {
     this.pendingRequests = []; // incoming pair requests waiting for Allow / Decline on this device
     this.outgoingPairSession = null; // { peer, code, status: 'requesting'|'waiting'|'paired'|'declined'|'error', errorMsg }
     this.localServerInfo = {
-      deviceId: null,
-      deviceName: null,
-      pairingCode: '------'
+      deviceId: this.syncEngine?.deviceId || null,
+      deviceName: this.syncEngine?.deviceName || 'My Device',
+      pairingCode: this.loadOrGeneratePairingCode()
     };
 
     this.listeners = new Set();
@@ -105,9 +105,9 @@ export class P2PEngine {
     return {
       myLocalIp: this.myLocalIp,
       port: this.syncEngine?.deviceType === 'laptop' ? LAPTOP_PORT : P2P_PORT,
-      deviceId: this.localServerInfo.deviceId || this.syncEngine?.deviceId,
-      deviceName: this.localServerInfo.deviceName || this.syncEngine?.deviceName || 'My Device',
-      pairingCode: this.localServerInfo.pairingCode || this.syncEngine?.pairingCode || '------',
+      deviceId: this.syncEngine?.deviceId || this.localServerInfo.deviceId,
+      deviceName: this.syncEngine?.deviceName || this.localServerInfo.deviceName || 'My Device',
+      pairingCode: this.localServerInfo.pairingCode || this.loadOrGeneratePairingCode(),
       knownPeers: this.knownPeers,
       activePeers: peerList,
       pairedDevices: pairedList,
@@ -121,6 +121,24 @@ export class P2PEngine {
 
   getPeersInfo() {
     return this.getInfo();
+  }
+
+  loadOrGeneratePairingCode() {
+    let code = localStorage.getItem('synctodo_pairing_code_v1');
+    if (!code || code.length !== 6) {
+      code = String(Math.floor(100000 + Math.random() * 900000));
+      localStorage.setItem('synctodo_pairing_code_v1', code);
+    }
+    return code;
+  }
+
+  getTokenForHost(host) {
+    if (!host) return null;
+    const cleanHost = String(host).replace(/^.*:\/\//, '').split(':')[0];
+    for (const pd of this.pairedDevices.values()) {
+      if (pd.ip === cleanHost) return pd.token;
+    }
+    return null;
   }
 
   loadPairedDevices() {
@@ -535,6 +553,54 @@ export class P2PEngine {
     };
   }
 
+  // Pair using QR Code data (URI string, JSON string, or object)
+  async pairWithScannedQr(qrData) {
+    if (!qrData) return { status: 'error', message: 'Invalid QR code' };
+
+    let ip, port, code, deviceId, deviceName;
+
+    if (typeof qrData === 'string') {
+      try {
+        if (qrData.startsWith('synctodo://')) {
+          const url = new URL(qrData.replace('synctodo://', 'http://'));
+          ip = url.hostname;
+          port = url.port ? Number(url.port) : P2P_PORT;
+          code = url.searchParams.get('code');
+          deviceId = url.searchParams.get('deviceId');
+          deviceName = url.searchParams.get('name') || url.searchParams.get('deviceName');
+        } else if (qrData.startsWith('{')) {
+          const parsed = JSON.parse(qrData);
+          ip = parsed.ip;
+          port = parsed.port || P2P_PORT;
+          code = parsed.code;
+          deviceId = parsed.deviceId;
+          deviceName = parsed.name || parsed.deviceName;
+        }
+      } catch (err) {
+        return { status: 'error', message: 'Could not parse QR code data' };
+      }
+    } else if (typeof qrData === 'object') {
+      ip = qrData.ip;
+      port = qrData.port || P2P_PORT;
+      code = qrData.code;
+      deviceId = qrData.deviceId;
+      deviceName = qrData.name || qrData.deviceName;
+    }
+
+    if (!ip || !code) {
+      return { status: 'error', message: 'QR code does not contain valid pairing data' };
+    }
+
+    const peer = {
+      ip,
+      port: port || P2P_PORT,
+      deviceId: deviceId || `peer-${ip}`,
+      deviceName: deviceName || `Device (${ip})`
+    };
+
+    return await this.requestPairingWithPeer(peer, code);
+  }
+
   // Allow or Decline an incoming pair request on this device
   async respondToPairRequest(reqObj, action = 'allow') {
     if (!reqObj || !reqObj.deviceId) return;
@@ -572,7 +638,7 @@ export class P2PEngine {
   }
 
   async detectLocalIp() {
-    // 1. Try local Android embedded server
+    // 1. Try local Android embedded server on 127.0.0.1:4567
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1200);
@@ -581,7 +647,16 @@ export class P2PEngine {
       if (res.ok) {
         const data = await res.json();
         if (data.deviceId) this.localServerInfo.deviceId = data.deviceId;
-        if (data.deviceName) this.localServerInfo.deviceName = data.deviceName;
+        if (data.deviceName) {
+          // Keep device name clean if not laptop
+          if (!data.deviceName.toLowerCase().includes('laptop') && !data.deviceName.toLowerCase().includes('g16')) {
+            this.localServerInfo.deviceName = data.deviceName;
+            if (this.syncEngine && this.syncEngine.deviceName !== data.deviceName) {
+              this.syncEngine.deviceName = data.deviceName;
+              localStorage.setItem('synctodo_device_name_v1', data.deviceName);
+            }
+          }
+        }
         if (data.pairingCode) this.localServerInfo.pairingCode = data.pairingCode;
         if (data.ip && data.ip !== '127.0.0.1') {
           this.myLocalIp = data.ip;
@@ -592,26 +667,30 @@ export class P2PEngine {
       }
     } catch {}
 
-    // 2. Try local Laptop server if running in browser
-    try {
-      const host = window.location.hostname || 'localhost';
-      const port = window.location.port || '4000';
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
-      const res = await fetch(`http://${host}:${port}/api/p2p/info`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.deviceId) this.localServerInfo.deviceId = data.deviceId;
-        if (data.deviceName) this.localServerInfo.deviceName = data.deviceName;
-        if (data.pairingCode) this.localServerInfo.pairingCode = data.pairingCode;
-        if (data.ip && data.ip !== '127.0.0.1') {
-          this.myLocalIp = data.ip;
-          this.notify();
-          return;
+    // 2. Try local Laptop server ONLY if running on desktop/laptop on localhost (never overwrite on mobile!)
+    const host = window.location.hostname || 'localhost';
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const isLaptop = this.syncEngine?.deviceType === 'laptop';
+    if (isLocalhost && isLaptop) {
+      try {
+        const port = window.location.port || '4000';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        const res = await fetch(`http://${host}:${port}/api/p2p/info`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.deviceId) this.localServerInfo.deviceId = data.deviceId;
+          if (data.deviceName) this.localServerInfo.deviceName = data.deviceName;
+          if (data.pairingCode) this.localServerInfo.pairingCode = data.pairingCode;
+          if (data.ip && data.ip !== '127.0.0.1') {
+            this.myLocalIp = data.ip;
+            this.notify();
+            return;
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
 
     // 3. Fallback to WebRTC ICE candidate local IP discovery
     try {
@@ -649,39 +728,52 @@ export class P2PEngine {
   }
 
   async fetchDiscoveredPeers() {
-    // 1. Check local Android peer server for UDP/mDNS peers & incoming pair requests
+    // 1. Check local Android peer server on 127.0.0.1:4567
     try {
       const res = await fetch(`http://127.0.0.1:${P2P_PORT}/api/p2p/discovered-peers`);
       if (res.ok) {
         const data = await res.json();
-        this.ingestDiscoveryResponse(data);
+        this.ingestDiscoveryResponse(data, true);
       }
     } catch {}
 
-    // 2. Check laptop server for UDP peers & incoming pair requests
-    try {
-      const host = window.location.hostname || 'localhost';
-      const port = window.location.port || '4000';
-      const res = await fetch(`http://${host}:${port}/api/p2p/discovered-peers`);
-      if (res.ok) {
-        const data = await res.json();
-        this.ingestDiscoveryResponse(data);
-      }
-    } catch {}
+    // 2. Check laptop server ONLY if running locally
+    const host = window.location.hostname || 'localhost';
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    if (isLocalhost) {
+      try {
+        const port = window.location.port || '4000';
+        const res = await fetch(`http://${host}:${port}/api/p2p/discovered-peers`);
+        if (res.ok) {
+          const data = await res.json();
+          this.ingestDiscoveryResponse(data, true);
+        }
+      } catch {}
+    }
   }
 
-  ingestDiscoveryResponse(data) {
+  ingestDiscoveryResponse(data, isLocal = false) {
     if (!data) return;
-    if (data.serverInfo) {
+
+    if (isLocal && data.serverInfo) {
       if (data.serverInfo.deviceId) this.localServerInfo.deviceId = data.serverInfo.deviceId;
       if (data.serverInfo.deviceName) this.localServerInfo.deviceName = data.serverInfo.deviceName;
       if (data.serverInfo.pairingCode) this.localServerInfo.pairingCode = data.serverInfo.pairingCode;
       if (data.serverInfo.ip && data.serverInfo.ip !== '127.0.0.1') {
         this.myLocalIp = data.serverInfo.ip;
       }
+    } else if (!isLocal && data.serverInfo) {
+      // Remote server info belongs to nearby peer, NEVER overwrite this device's identity!
+      this.recordNearbyPeer({
+        ip: data.serverInfo.ip,
+        port: data.serverInfo.port || LAPTOP_PORT,
+        deviceId: data.serverInfo.deviceId,
+        deviceName: data.serverInfo.deviceName,
+        deviceType: data.serverInfo.deviceType || 'laptop'
+      });
     }
 
-    if (Array.isArray(data.pairedDevices)) {
+    if (isLocal && Array.isArray(data.pairedDevices)) {
       data.pairedDevices.forEach(pd => {
         if (pd && pd.deviceId) {
           this.pairedDevices.set(pd.deviceId, pd);
@@ -728,6 +820,17 @@ export class P2PEngine {
         ? [this.peerPorts.get(ip), this.peerPorts.get(ip) === P2P_PORT ? LAPTOP_PORT : P2P_PORT]
         : [LAPTOP_PORT, P2P_PORT];
 
+    // Find pairing token for this peer if known
+    let token = null;
+    let peerMeta = null;
+    for (const pd of this.pairedDevices.values()) {
+      if (pd.ip === ip || (pd.deviceId && this.activePeers.get(ip)?.deviceId === pd.deviceId)) {
+        token = pd.token;
+        peerMeta = pd;
+        break;
+      }
+    }
+
     for (const port of candidatePorts) {
       const startTime = Date.now();
       try {
@@ -736,12 +839,13 @@ export class P2PEngine {
 
         const payload = {
           deviceId: this.localServerInfo.deviceId || this.syncEngine.deviceId,
-          deviceName: this.localServerInfo.deviceName || this.syncEngine.deviceName,
+          deviceName: this.syncEngine?.deviceName || this.localServerInfo.deviceName,
           deviceType: this.syncEngine.deviceType,
           port: this.syncEngine.deviceType === 'laptop' ? LAPTOP_PORT : P2P_PORT,
           todos: this.syncEngine.todos,
           lists: this.syncEngine.lists,
           mutations: this.syncEngine.mutationQueue,
+          token,
           timestamp: Date.now()
         };
 
@@ -754,6 +858,16 @@ export class P2PEngine {
 
         clearTimeout(timeoutId);
 
+        if (res.status === 403) {
+          // Peer rejected sync because device is not authenticated/paired
+          console.warn(`[P2P] Peer ${ip}:${port} rejected sync (unpaired).`);
+          if (this.activePeers.has(ip)) {
+            this.activePeers.get(ip).status = 'unpaired';
+            this.notify();
+          }
+          return;
+        }
+
         if (res.ok) {
           const peerData = await res.json();
           const latency = Date.now() - startTime;
@@ -761,12 +875,11 @@ export class P2PEngine {
           this.peerPorts.set(ip, port);
           this.savePeerPorts();
 
-          if (port === LAPTOP_PORT && this.syncEngine) {
+          // Only switch WebSocket serverUrl if this peer is confirmed paired in pairedDevices!
+          if (port === LAPTOP_PORT && this.syncEngine && peerMeta) {
             const wsTarget = `ws://${ip}:${LAPTOP_PORT}`;
-            if (this.syncEngine.serverUrl.includes('localhost') || this.syncEngine.status !== 'CONNECTED') {
-              if (this.syncEngine.serverUrl !== wsTarget) {
-                this.syncEngine.setServerUrl(wsTarget);
-              }
+            if (this.syncEngine.serverUrl !== wsTarget) {
+              this.syncEngine.setServerUrl(wsTarget);
             }
           }
 
@@ -853,7 +966,7 @@ export class P2PEngine {
 
     for (const subnetPrefix of subnetsToScan) {
       const scanBatches = [];
-      const batchSize = 35;
+      const batchSize = 16;
 
       for (let i = 1; i <= 254; i += batchSize) {
         const batch = [];
@@ -871,7 +984,7 @@ export class P2PEngine {
           for (const port of [LAPTOP_PORT, P2P_PORT]) {
             try {
               const ctrl = new AbortController();
-              const tid = setTimeout(() => ctrl.abort(), 550);
+              const tid = setTimeout(() => ctrl.abort(), 950);
               const res = await fetch(`http://${ip}:${port}/api/p2p/info`, { signal: ctrl.signal });
               clearTimeout(tid);
               if (res.ok) {

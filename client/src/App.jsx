@@ -143,7 +143,7 @@ export function HandwrittenTitle({ src, isCompleted, isDarkTheme }) {
           minX = Math.max(0, minX - pad);
           minY = Math.max(0, minY - pad);
           maxX = Math.min(c.width, maxX + pad);
-          maxY = Math.min(h, maxY + pad);
+          maxY = Math.min(c.height, maxY + pad);
           const cw = Math.max(1, maxX - minX);
           const ch = Math.max(1, maxY - minY);
           const c2 = document.createElement('canvas');
@@ -165,16 +165,24 @@ export function HandwrittenTitle({ src, isCompleted, isDarkTheme }) {
   }, [src]);
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', height: '36px', verticalAlign: 'middle', maxWidth: '100%' }}>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      minHeight: '34px',
+      maxHeight: '44px',
+      verticalAlign: 'middle',
+      maxWidth: '100%',
+      overflow: 'hidden'
+    }}>
       <img
         src={trimmedSrc}
-        alt="Handwritten task"
+        alt="Handwritten note"
         style={{
-          maxHeight: '36px',
+          maxHeight: '42px',
           maxWidth: '100%',
           height: 'auto',
           objectFit: 'contain',
-          filter: isDarkTheme ? 'invert(1) brightness(1.3)' : 'none',
+          filter: isDarkTheme ? 'invert(1) brightness(1.2)' : 'none',
           opacity: isCompleted ? 0.45 : 1,
           pointerEvents: 'none'
         }}
@@ -844,16 +852,35 @@ export default function App() {
   // Live Natural-Language Parsing on Quick-Add Input
   const parsedQuickAdd = parseNaturalTaskInput(newTitle, syncState.lists);
 
-  // Inline Quick-Add Handwriting Strip handlers
+  // Inline Quick-Add Handwriting Strip handlers with High-DPI & S-Pen Button Eraser
+  useEffect(() => {
+    if (showInlinePenStrip && inlineCanvasRef.current) {
+      const canvas = inlineCanvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0) {
+        const dpr = Math.max(2.5, window.devicePixelRatio || 2);
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+    }
+  }, [showInlinePenStrip]);
+
+  const isStylusEraser = (e) => (
+    e.pointerType === 'pen' &&
+    (((e.buttons & 2) !== 0) || ((e.buttons & 32) !== 0) || e.button === 2 || e.button === 5)
+  );
+
   const getInlineCoords = (e) => {
     const canvas = inlineCanvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     };
   };
 
@@ -865,12 +892,21 @@ export default function App() {
     const { x, y } = getInlineCoords(e);
     inlineDrawingRef.current = true;
     setInlineHasInk(true);
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = e.pressure ? Math.max(2, e.pressure * 5) : 3;
+
+    if (isStylusEraser(e)) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.lineWidth = 26;
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = e.pressure ? Math.max(2.5, e.pressure * 6) : 3.5;
+    }
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(x, y);
+    ctx.lineTo(x + 0.1, y + 0.1);
+    ctx.stroke();
   };
 
   const handleInlinePointerMove = (e) => {
@@ -879,6 +915,16 @@ export default function App() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const { x, y } = getInlineCoords(e);
+
+    if (isStylusEraser(e)) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.lineWidth = 26;
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = e.pressure ? Math.max(2.5, e.pressure * 6) : 3.5;
+    }
+
     ctx.lineTo(x, y);
     ctx.stroke();
   };
@@ -888,6 +934,8 @@ export default function App() {
     inlineDrawingRef.current = false;
     const canvas = inlineCanvasRef.current;
     if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.globalCompositeOperation = 'source-over';
       const cropped = cropCanvasInk(canvas) || canvas.toDataURL('image/png');
       setNewHandwriting(cropped);
       setNewHandwritingIsInline(true);
@@ -915,8 +963,8 @@ export default function App() {
     const targetList = parsedQuickAdd.detectedList ? parsedQuickAdd.detectedList.id : defaultList;
     const isMyDay = activeView === 'today' || parsedQuickAdd.detectedDate === todayStr;
 
-    const isInline = newHandwritingIsInline || (!newTitle.trim() && !!newHandwriting);
-    const finalTitle = parsedQuickAdd.cleanTitle || (isInline ? '' : (newHandwriting ? 'Handwritten task' : newTitle.trim()));
+    const isInline = newHandwritingIsInline === true || (!newTitle.trim() && !!newHandwriting && newHandwritingIsInline !== false);
+    const finalTitle = parsedQuickAdd.cleanTitle || (isInline ? '' : (newHandwriting ? 'Handwritten sketch' : newTitle.trim()));
     const finalPriority = parsedQuickAdd.detectedPriority || newPriority;
     const finalDueDate = parsedQuickAdd.detectedDate || newDueDate || (activeView === 'today' ? todayStr : null);
     const finalRecurrence = parsedQuickAdd.detectedRecurrence || newRecurrence;
@@ -1041,7 +1089,7 @@ export default function App() {
                   color: 'var(--tag-text)',
                   fontWeight: 700
                 }}>
-                  {syncState.p2pInfo?.deviceName || syncEngine.deviceName || deviceType}
+                  {syncEngine.deviceName || syncState.p2pInfo?.deviceName || deviceType}
                 </span>
               )}
             </div>
@@ -1787,7 +1835,7 @@ export default function App() {
                 const dragOffset = !isCompleted && index !== -1 ? getDragOffset(todo.id, index) : 0;
                 const isCurrentlyDragged = !isCompleted && draggedTodoId === todo.id;
                 const isHeldByFinger = floatingDrag && floatingDrag.id === todo.id;
-                const isInlineNote = todo.isInlineHandwriting || (todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title.trim() === ''));
+                const isInlineNote = todo.isInlineHandwriting === true || (todo.isInlineHandwriting !== false && todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title === 'Handwritten sketch' || todo.title.trim() === ''));
 
                 return (
                   <div
@@ -2421,11 +2469,10 @@ export default function App() {
                   </div>
                   <canvas
                     ref={inlineCanvasRef}
-                    width={640}
-                    height={92}
                     onPointerDown={handleInlinePointerDown}
                     onPointerMove={handleInlinePointerMove}
                     onPointerUp={handleInlinePointerUp}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                     style={{
                       width: '100%',
                       height: '76px',
@@ -2503,12 +2550,14 @@ export default function App() {
                       return;
                     }
                     setIsInputFocused(true);
-                    requestAnimationFrame(() => {
-                      if (mainRef.current) mainRef.current.scrollTop = 0;
-                    });
+                    if (window.scrollY !== 0) window.scrollTo(0, 0);
+                    if (document.body) document.body.scrollTop = 0;
+                    if (mainRef.current) mainRef.current.scrollTop = 0;
                   }}
                   onBlur={() => {
                     setIsInputFocused(false);
+                    if (window.scrollY !== 0) window.scrollTo(0, 0);
+                    if (document.body) document.body.scrollTop = 0;
                   }}
                   dir="auto"
                   autoCapitalize="sentences"
@@ -3146,7 +3195,7 @@ export default function App() {
                 fontSize: deviceType === 'phone' ? '14.5px' : '15px',
                 fontWeight: 600, lineHeight: 1.4, color: 'var(--text)'
               }}>
-                {(floatingDrag.todo.isInlineHandwriting || (floatingDrag.todo.handwriting && (!floatingDrag.todo.title || floatingDrag.todo.title === 'Handwritten task'))) ? (
+                {(floatingDrag.todo.isInlineHandwriting === true || (floatingDrag.todo.isInlineHandwriting !== false && floatingDrag.todo.handwriting && (!floatingDrag.todo.title || floatingDrag.todo.title === 'Handwritten task' || floatingDrag.todo.title === 'Handwritten sketch' || floatingDrag.todo.title.trim() === ''))) ? (
                   <HandwrittenTitle src={floatingDrag.todo.handwriting} isCompleted={false} isDarkTheme={isDarkTheme} />
                 ) : (
                   <BidiTaskTitle title={floatingDrag.todo.title} />

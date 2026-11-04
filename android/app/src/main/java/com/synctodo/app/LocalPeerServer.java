@@ -58,8 +58,21 @@ public class LocalPeerServer {
         loadOrInitMeta();
     }
 
+    public String getDeviceTypeString() {
+        try {
+            int screenLayout = context.getResources().getConfiguration().screenLayout;
+            boolean isTablet = (screenLayout & android.content.res.Configuration.SCREENLAYOUT_SIZE_MASK) >= android.content.res.Configuration.SCREENLAYOUT_SIZE_LARGE;
+            return isTablet ? "tablet" : "phone";
+        } catch (Exception e) {
+            return "phone";
+        }
+    }
+
     private synchronized void loadOrInitMeta() {
-        String defaultModel = Build.MODEL != null && !Build.MODEL.isEmpty() ? Build.MODEL : "Android Phone";
+        String devType = getDeviceTypeString();
+        String defaultModel = (Build.MODEL != null && !Build.MODEL.trim().isEmpty())
+                ? Build.MODEL.trim()
+                : ("tablet".equals(devType) ? "Android Tablet" : "Android Phone");
         this.deviceId = "android-" + UUID.randomUUID().toString().substring(0, 8);
         this.deviceName = defaultModel;
         this.pairingCode = String.valueOf(100000 + new Random().nextInt(900000));
@@ -71,7 +84,12 @@ public class LocalPeerServer {
                 while ((line = r.readLine()) != null) sb.append(line);
                 JSONObject meta = new JSONObject(sb.toString());
                 this.deviceId = meta.optString("deviceId", this.deviceId);
-                this.deviceName = meta.optString("deviceName", this.deviceName);
+                String savedName = meta.optString("deviceName", this.deviceName);
+                // Sanitize corrupted laptop device name on Android
+                if (savedName.toLowerCase().contains("laptop") || savedName.toLowerCase().contains("g16")) {
+                    savedName = defaultModel;
+                }
+                this.deviceName = savedName;
                 this.pairingCode = meta.optString("pairingCode", this.pairingCode);
                 JSONObject pairedObj = meta.optJSONObject("pairedDevices");
                 if (pairedObj != null) {
@@ -304,7 +322,7 @@ public class LocalPeerServer {
                 JSONObject info = new JSONObject();
                 info.put("status", "ok");
                 info.put("device", "android");
-                info.put("deviceType", "phone");
+                info.put("deviceType", getDeviceTypeString());
                 info.put("deviceId", deviceId);
                 info.put("deviceName", deviceName);
                 info.put("pairingCode", pairingCode);
@@ -326,6 +344,7 @@ public class LocalPeerServer {
                 res.put("status", "ok");
                 res.put("deviceId", deviceId);
                 res.put("deviceName", deviceName);
+                res.put("deviceType", getDeviceTypeString());
                 res.put("pairingCode", pairingCode);
                 sendResponse(out, "200 OK", "application/json", res.toString());
 
@@ -336,7 +355,7 @@ public class LocalPeerServer {
                 JSONObject serverInfo = new JSONObject();
                 serverInfo.put("deviceId", deviceId);
                 serverInfo.put("deviceName", deviceName);
-                serverInfo.put("deviceType", "phone");
+                serverInfo.put("deviceType", getDeviceTypeString());
                 serverInfo.put("pairingCode", pairingCode);
                 serverInfo.put("ip", localIp);
                 serverInfo.put("port", HTTP_PORT);
@@ -456,15 +475,33 @@ public class LocalPeerServer {
                 }
 
             } else if (fullPath.startsWith("/api/p2p/sync")) {
+                String clientIp = socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : "127.0.0.1";
+                boolean isLoopback = "127.0.0.1".equals(clientIp) || "localhost".equalsIgnoreCase(clientIp) || "::1".equals(clientIp);
+
                 if ("POST".equalsIgnoreCase(method) && !body.isEmpty()) {
-                    mergeIncomingSyncPayload(body, socket.getInetAddress().getHostAddress());
+                    JSONObject incoming = new JSONObject(body);
+                    String senderDevId = incoming.optString("deviceId", "");
+                    String senderToken = incoming.optString("token", "");
+
+                    // Non-loopback requests MUST be from a paired device with a valid matching token
+                    if (!isLoopback) {
+                        JSONObject paired = pairedDevices.get(senderDevId);
+                        boolean authorized = paired != null &&
+                                (!paired.optString("token").isEmpty() && senderToken.equals(paired.optString("token")));
+                        if (!authorized) {
+                            sendResponse(out, "403 Forbidden", "application/json", "{\"status\":\"unpaired\",\"message\":\"Device is not paired. Pair devices first.\"}");
+                            return;
+                        }
+                    }
+
+                    mergeIncomingSyncPayload(body, clientIp);
                 }
                 JSONObject currentStore = readCurrentStoreJson();
                 JSONObject res = new JSONObject();
                 res.put("status", "ok");
                 res.put("deviceId", deviceId);
                 res.put("deviceName", deviceName);
-                res.put("deviceType", "phone");
+                res.put("deviceType", getDeviceTypeString());
                 res.put("todos", todosMapToArray(currentStore.optJSONObject("todos")));
                 res.put("lists", currentStore.optJSONArray("lists") != null ? currentStore.optJSONArray("lists") : new JSONArray());
                 res.put("mutations", currentStore.optJSONArray("mutations") != null ? currentStore.optJSONArray("mutations") : new JSONArray());
@@ -619,7 +656,9 @@ public class LocalPeerServer {
 
     private void runUdpDiscoveryLoop() {
         try {
-            udpSocket = new DatagramSocket(UDP_DISCOVERY_PORT);
+            udpSocket = new DatagramSocket(null);
+            udpSocket.setReuseAddress(true);
+            udpSocket.bind(new InetSocketAddress(UDP_DISCOVERY_PORT));
             udpSocket.setBroadcast(true);
             byte[] buf = new byte[1024];
 
@@ -630,7 +669,7 @@ public class LocalPeerServer {
                 String msg = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
                 if (msg.startsWith("SYNCTODO_DISCOVER")) {
                     String encName = URLEncoder.encode(deviceName, "UTF-8");
-                    String reply = "SYNCTODO_OFFER:" + localIp + ":" + HTTP_PORT + ":phone:" + deviceId + ":" + encName + ":" + getActiveTasksCount();
+                    String reply = "SYNCTODO_OFFER:" + localIp + ":" + HTTP_PORT + ":" + getDeviceTypeString() + ":" + deviceId + ":" + encName + ":" + getActiveTasksCount();
                     byte[] replyBytes = reply.getBytes(StandardCharsets.UTF_8);
                     DatagramPacket replyPacket = new DatagramPacket(replyBytes, replyBytes.length, packet.getAddress(), packet.getPort());
                     udpSocket.send(replyPacket);
@@ -685,7 +724,7 @@ public class LocalPeerServer {
                 this.localIp = getLocalWifiIp();
                 if (localIp != null && !localIp.equals("127.0.0.1") && udpSocket != null && !udpSocket.isClosed()) {
                     String encName = URLEncoder.encode(deviceName, "UTF-8");
-                    String beacon = "SYNCTODO_BEACON:" + localIp + ":" + HTTP_PORT + ":phone:" + deviceId + ":" + encName + ":" + getActiveTasksCount();
+                    String beacon = "SYNCTODO_BEACON:" + localIp + ":" + HTTP_PORT + ":" + getDeviceTypeString() + ":" + deviceId + ":" + encName + ":" + getActiveTasksCount();
                     byte[] bytes = beacon.getBytes(StandardCharsets.UTF_8);
                     String discover = "SYNCTODO_DISCOVER";
                     byte[] discoverBytes = discover.getBytes(StandardCharsets.UTF_8);
@@ -700,7 +739,7 @@ public class LocalPeerServer {
             } catch (Exception ignored) {}
 
             try {
-                Thread.sleep(4000);
+                Thread.sleep(3500);
             } catch (InterruptedException e) {
                 break;
             }
@@ -723,6 +762,27 @@ public class LocalPeerServer {
 
     private String getLocalWifiIp() {
         try {
+            // Priority 1: Check Wi-Fi / Ethernet interface names (wlan*, wifi*, eth*)
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                NetworkInterface intf = en.nextElement();
+                if (intf.isLoopback() || !intf.isUp()) continue;
+                String name = intf.getName().toLowerCase(Locale.US);
+                if (name.startsWith("wlan") || name.startsWith("wifi") || name.startsWith("eth")) {
+                    for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                        InetAddress inetAddress = enumIpAddr.nextElement();
+                        if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+                            String addr = inetAddress.getHostAddress();
+                            if (addr != null && !addr.startsWith("127.")) {
+                                return addr;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // Priority 2: Standard WifiManager connection info if available
+        try {
             WifiManager wifiManager = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             if (wifiManager != null && wifiManager.getConnectionInfo() != null) {
                 int ip = wifiManager.getConnectionInfo().getIpAddress();
@@ -736,10 +796,15 @@ public class LocalPeerServer {
             }
         } catch (Exception ignored) {}
 
+        // Priority 3: Fallback non-cellular private IPv4 interface
         try {
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
                 NetworkInterface intf = en.nextElement();
                 if (intf.isLoopback() || !intf.isUp()) continue;
+                String name = intf.getName().toLowerCase(Locale.US);
+                if (name.startsWith("rmnet") || name.startsWith("ccmni") || name.startsWith("tun") || name.startsWith("dummy")) {
+                    continue;
+                }
                 for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
                     InetAddress inetAddress = enumIpAddr.nextElement();
                     if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {

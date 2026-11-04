@@ -64,11 +64,15 @@
       width: 100%;
       height: 100%;
       height: var(--app-height, 100%);
+      max-height: var(--app-height, 100%);
       margin: 0;
       padding: 0;
       overflow: hidden;
       position: fixed;
-      inset: 0;
+      top: var(--app-top, 0px);
+      left: 0;
+      right: 0;
+      bottom: auto;
     }
 
     /* Mobile Input & Caret Fixes (Prevents auto-zoom & caret jumps) */
@@ -267,7 +271,7 @@
       --tag-text: #be185d;
     }
   </style>
-  <script type="module" crossorigin src="/assets/index-CviHVDkI.js"></script>
+  <script type="module" crossorigin src="/assets/index-Dw5_s-sP.js"></script>
 </head>
 <body data-theme="nordic">
   <div id="root"></div>

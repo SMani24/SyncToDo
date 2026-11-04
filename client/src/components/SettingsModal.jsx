@@ -129,7 +129,7 @@ export default function SettingsModal({
               <Icon name="cal" size={16} /> Calendar System / نوع تقویم
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Choose how dates and task due dates are displayed throughout the app
+              Choose date display format
             </div>
           </div>
 
@@ -186,6 +186,7 @@ export default function SettingsModal({
                       borderRadius: '6px',
                       backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.18)' : 'var(--bg-subtle)',
                       whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       marginLeft: '8px',
                       direction: cal.id === 'gregorian' ? 'ltr' : 'rtl',
                       unicodeBidi: 'isolate'

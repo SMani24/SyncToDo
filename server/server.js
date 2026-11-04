@@ -699,6 +699,9 @@ app.post('/api/p2p/unpair', (req, res) => {
 
 // Unified P2P Sync (Merges Todos, Lists, and Mutations safely using LWW CRDT)
 app.all('/api/p2p/sync', (req, res) => {
+  const senderIp = req.ip ? req.ip.replace('::ffff:', '') : '127.0.0.1';
+  const isLoopback = senderIp === '127.0.0.1' || senderIp === 'localhost' || senderIp === '::1';
+
   if (req.method === 'POST') {
     const {
       todos = {},
@@ -707,12 +710,24 @@ app.all('/api/p2p/sync', (req, res) => {
       deviceId = 'unknown',
       deviceName = null,
       deviceType = 'phone',
-      port = 4567
+      port = 4567,
+      token = null
     } = req.body || {};
 
-    const senderIp = req.ip ? req.ip.replace('::ffff:', '') : null;
     if (senderIp && senderIp !== '127.0.0.1') {
       recordDiscoveredPeer({ ip: senderIp, port, deviceType, deviceId, deviceName });
+    }
+
+    // Non-loopback callers MUST be paired with a valid matching token
+    if (!isLoopback) {
+      const paired = state.pairedDevices[deviceId];
+      const isAuthorized = paired && paired.token && paired.token === token;
+      if (!isAuthorized) {
+        return res.status(403).json({
+          status: 'unpaired',
+          message: 'Device is not paired. Please pair devices using the 6-digit code or QR scanner first.'
+        });
+      }
     }
 
     if (deviceId && state.pairedDevices[deviceId]) {
@@ -954,9 +969,11 @@ function applyMutations(mutations, deviceId, senderWs = null) {
       timestamp: now
     });
 
-    for (const [wsClient] of connectedClients) {
+    for (const [wsClient, clientInfo] of connectedClients) {
       if (wsClient !== senderWs && wsClient.readyState === WebSocket.OPEN) {
-        wsClient.send(broadcastMsg);
+        if (clientInfo && (clientInfo.isLoopback || clientInfo.isPaired)) {
+          wsClient.send(broadcastMsg);
+        }
       }
     }
   }
@@ -965,29 +982,52 @@ function applyMutations(mutations, deviceId, senderWs = null) {
 }
 
 wss.on('connection', (ws, req) => {
+  const clientIp = req.socket.remoteAddress ? req.socket.remoteAddress.replace('::ffff:', '') : '127.0.0.1';
+  const isLoopback = clientIp === '127.0.0.1' || clientIp === 'localhost' || clientIp === '::1';
+
   const clientId = `client-${Math.random().toString(36).substring(2, 9)}`;
   connectedClients.set(ws, {
     deviceId: clientId,
     deviceName: 'Device',
     deviceType: 'unknown',
+    isPaired: isLoopback,
+    isLoopback,
+    token: null,
     connectedAt: Date.now()
   });
 
-  console.log(`[WS] Client connected: ${clientId}. Total active: ${connectedClients.size}`);
+  console.log(`[WS] Client connected: ${clientId} (${clientIp}). Total active: ${connectedClients.size}`);
 
   // Send initial welcome & device list
-  ws.send(JSON.stringify({
-    type: 'WELCOME',
-    clientId,
-    serverTime: Date.now(),
-    serverInfo: {
-      deviceId: state.serverDeviceId,
-      deviceName: state.serverDeviceName,
-      pairingCode: state.pairingCode
-    },
-    todos: Object.values(state.todos),
-    lists: state.lists
-  }));
+  // Only send full data store to trusted local loopback or paired devices
+  if (isLoopback) {
+    ws.send(JSON.stringify({
+      type: 'WELCOME',
+      clientId,
+      serverTime: Date.now(),
+      isPaired: true,
+      serverInfo: {
+        deviceId: state.serverDeviceId,
+        deviceName: state.serverDeviceName,
+        pairingCode: state.pairingCode
+      },
+      todos: Object.values(state.todos),
+      lists: state.lists
+    }));
+  } else {
+    // Remote connection: Send handshake notice, full data sent after IDENTIFY with pairing token
+    ws.send(JSON.stringify({
+      type: 'WELCOME',
+      clientId,
+      serverTime: Date.now(),
+      isPaired: false,
+      serverInfo: {
+        deviceId: state.serverDeviceId,
+        deviceName: state.serverDeviceName,
+        pairingCode: state.pairingCode
+      }
+    }));
+  }
 
   broadcastDevices();
   broadcastPairingUpdate();
@@ -1003,6 +1043,29 @@ wss.on('connection', (ws, req) => {
           clientInfo.deviceName = msg.deviceName || msg.deviceType || 'Device';
           clientInfo.deviceType = msg.deviceType || 'desktop';
           clientInfo.localIp = msg.localIp || null;
+          clientInfo.token = msg.token || null;
+
+          // Check if remote client is paired
+          if (!clientInfo.isLoopback) {
+            const paired = state.pairedDevices[clientInfo.deviceId];
+            if (paired && paired.token && paired.token === clientInfo.token) {
+              clientInfo.isPaired = true;
+              ws.send(JSON.stringify({
+                type: 'WELCOME',
+                clientId,
+                serverTime: Date.now(),
+                isPaired: true,
+                serverInfo: {
+                  deviceId: state.serverDeviceId,
+                  deviceName: state.serverDeviceName,
+                  pairingCode: state.pairingCode
+                },
+                todos: Object.values(state.todos),
+                lists: state.lists
+              }));
+            }
+          }
+
           if (msg.localIp && msg.localIp !== '127.0.0.1' && msg.localIp !== 'Detecting...' && msg.localIp.includes('.')) {
             recordDiscoveredPeer({
               ip: msg.localIp,
@@ -1015,8 +1078,13 @@ wss.on('connection', (ws, req) => {
         }
         broadcastDevices();
       } else if (msg.type === 'SYNC_PUSH') {
+        const clientInfo = connectedClients.get(ws);
+        if (!clientInfo || (!clientInfo.isLoopback && !clientInfo.isPaired)) {
+          ws.send(JSON.stringify({ type: 'SYNC_ERROR', message: 'Device not paired' }));
+          return;
+        }
         const mutations = msg.mutations || [];
-        const deviceId = msg.deviceId || 'unknown';
+        const deviceId = msg.deviceId || clientInfo?.deviceId || 'unknown';
         const applied = applyMutations(mutations, deviceId, ws);
 
         ws.send(JSON.stringify({

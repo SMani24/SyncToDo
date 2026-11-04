@@ -5,10 +5,14 @@ import App from './App.jsx';
 // Bind dynamic viewport height to --app-height so Android on-screen keyboard
 // resizes the layout without displacing the header or causing an empty void
 function syncViewportHeight() {
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const vv = window.visualViewport;
+  const h = vv ? vv.height : window.innerHeight;
+  const top = vv ? vv.offsetTop : 0;
   document.documentElement.style.setProperty('--app-height', `${h}px`);
+  document.documentElement.style.setProperty('--app-top', `${top}px`);
   if (window.scrollY !== 0) window.scrollTo(0, 0);
   if (document.body && document.body.scrollTop !== 0) document.body.scrollTop = 0;
+  if (document.documentElement && document.documentElement.scrollTop !== 0) document.documentElement.scrollTop = 0;
 }
 
 if (window.visualViewport) {

@@ -161,6 +161,12 @@ export class SyncEngine {
 
   getOrCreateDeviceName() {
     let name = localStorage.getItem(STORAGE_KEY_DEVICE_NAME);
+    // Sanitize corrupted laptop device name on mobile devices
+    if (name && (this.deviceType === 'phone' || this.deviceType === 'tablet') &&
+        (name.toLowerCase().includes('laptop') || name.toLowerCase().includes('g16'))) {
+      name = null;
+      localStorage.removeItem(STORAGE_KEY_DEVICE_NAME);
+    }
     if (!name) {
       if (this.deviceType === 'phone') name = 'Android Phone';
       else if (this.deviceType === 'tablet') name = 'Android Tablet';
@@ -350,6 +356,14 @@ export class SyncEngine {
       this.ws.onopen = () => {
         this.status = 'CONNECTED';
 
+        // Extract host to look up pairing token
+        let wsHost = null;
+        try {
+          const u = new URL(this.serverUrl);
+          wsHost = u.hostname;
+        } catch (_) {}
+        const token = this.p2pEngine ? this.p2pEngine.getTokenForHost(wsHost) : null;
+
         // Identify this device & announce dynamic IP
         const cleanIp = (this.p2pEngine?.myLocalIp && this.p2pEngine.myLocalIp !== 'Detecting...') ? this.p2pEngine.myLocalIp : null;
         this.ws.send(JSON.stringify({
@@ -357,7 +371,8 @@ export class SyncEngine {
           deviceId: this.deviceId,
           deviceName: this.deviceName,
           deviceType: this.deviceType,
-          localIp: cleanIp
+          localIp: cleanIp,
+          token
         }));
 
         // Flush queued offline mutations
@@ -407,16 +422,20 @@ export class SyncEngine {
 
   handleServerMessage(msg) {
     if (msg.type === 'WELCOME') {
+      const isLocalHost = Boolean(this.serverUrl.includes('localhost') || this.serverUrl.includes('127.0.0.1'));
       if (msg.serverInfo && this.p2pEngine) {
-        this.p2pEngine.ingestDiscoveryResponse({ serverInfo: msg.serverInfo });
+        this.p2pEngine.ingestDiscoveryResponse({ serverInfo: msg.serverInfo }, isLocalHost);
       }
-      if (Array.isArray(msg.todos)) {
-        msg.todos.forEach(t => this.mergeTodo(t));
-        this.saveStoredTodos();
-      }
-      if (Array.isArray(msg.lists)) {
-        msg.lists.forEach(rawList => this.mergeList(rawList));
-        this.saveStoredLists();
+      // Only merge data if device is confirmed paired or running locally
+      if (msg.isPaired !== false) {
+        if (Array.isArray(msg.todos)) {
+          msg.todos.forEach(t => this.mergeTodo(t));
+          this.saveStoredTodos();
+        }
+        if (Array.isArray(msg.lists)) {
+          msg.lists.forEach(rawList => this.mergeList(rawList));
+          this.saveStoredLists();
+        }
       }
       this.notify();
     } else if (msg.type === 'DEVICES_PRESENCE') {
