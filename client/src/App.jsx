@@ -18,7 +18,12 @@ import SettingsModal from './components/SettingsModal';
 import {
   getStoredCalendarType,
   setStoredCalendarType,
+  getStoredDayStartHour,
+  setStoredDayStartHour,
+  getLogicalDateStr,
+  isSameLogicalDay,
   formatCalendarDate,
+  formatDayDateHeader,
   formatDueDateBadge,
   formatFullHeaderDate
 } from './utils/calendar';
@@ -296,10 +301,16 @@ export default function App() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDevicesModal, setShowDevicesModal] = useState(false);
   const [calendarType, setCalendarType] = useState(getStoredCalendarType);
+  const [dayStartHour, setDayStartHour] = useState(getStoredDayStartHour);
 
   const handleSelectCalendarType = (type) => {
     setCalendarType(type);
     setStoredCalendarType(type);
+  };
+
+  const handleSelectDayStartHour = (hour) => {
+    setDayStartHour(hour);
+    setStoredDayStartHour(hour);
   };
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showPlannerModal, setShowPlannerModal] = useState(false);
@@ -651,9 +662,9 @@ export default function App() {
     } catch {}
   }, []);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLogicalDateStr(new Date(), dayStartHour);
 
-  // Check for overdue/yesterday's unfinished tasks
+  // Check for overdue/yesterday's unfinished tasks (ONLY active tasks, NEVER completed!)
   const overdueTasks = syncState.todos.filter(t => {
     if (t.completed || t.deletedAt) return false;
     const isPastDue = t.dueDate && t.dueDate < todayStr;
@@ -669,9 +680,18 @@ export default function App() {
       // Global search across all lists & tasks
     } else {
       if (activeView === 'today') {
-        const isDueToday = todo.dueDate === todayStr;
-        const isMyDay = todo.inMyDay;
-        if (!isDueToday && !isMyDay) return false;
+        if (!todo.completed) {
+          // Active task belongs in My Day if due today OR planned for today
+          const isDueToday = todo.dueDate === todayStr;
+          const isPlannedToday = todo.inMyDay && (!todo.plannedDate || todo.plannedDate === todayStr);
+          if (!isDueToday && !isPlannedToday) return false;
+        } else {
+          // Completed task belongs in today's My Day ONLY if it was completed on today's logical date
+          const completedToday = todo.completedAt
+            ? isSameLogicalDay(todo.completedAt, todayStr, dayStartHour)
+            : (todo.plannedDate === todayStr || todo.dueDate === todayStr);
+          if (!completedToday) return false;
+        }
       } else if (activeView === 'all' || activeView === 'backlog') {
         // Show all tasks
       } else if (activeView === 'list' || activeView === 'projects') {
@@ -1019,7 +1039,7 @@ export default function App() {
 
   // Carry forward yesterday's unfinished tasks (all or selective)
   const handleCarryForward = (subsetIds = null) => {
-    const count = syncEngine.carryForwardUnfinished(subsetIds);
+    const count = syncEngine.carryForwardUnfinished(subsetIds, dayStartHour);
     setShowLeftoversPicker(false);
     setCarryForwardNotice(`Carried forward ${count} task${count === 1 ? '' : 's'} to My Day!`);
     setTimeout(() => setCarryForwardNotice(null), 3500);
@@ -1042,7 +1062,16 @@ export default function App() {
   };
 
   // Progress Ring calculation for My Day
-  const myDayTodos = syncState.todos.filter(t => !t.deletedAt && (t.dueDate === todayStr || t.inMyDay));
+  const myDayTodos = syncState.todos.filter(t => {
+    if (t.deletedAt) return false;
+    if (!t.completed) {
+      return t.dueDate === todayStr || (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr));
+    } else {
+      return t.completedAt
+        ? isSameLogicalDay(t.completedAt, todayStr, dayStartHour)
+        : (t.plannedDate === todayStr || t.dueDate === todayStr);
+    }
+  });
   const myDayDoneCount = myDayTodos.filter(t => t.completed).length;
   const myDayTotalCount = myDayTodos.length;
   const myDayPct = myDayTotalCount > 0 ? Math.round((myDayDoneCount / myDayTotalCount) * 100) : 0;
@@ -1308,7 +1337,7 @@ export default function App() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {[
-                  { id: 'today', icon: 'sun', label: 'My Day', count: syncState.todos.filter(t => !t.completed && !t.deletedAt && (t.dueDate === todayStr || t.inMyDay)).length },
+                  { id: 'today', icon: 'sun', label: 'My Day', count: syncState.todos.filter(t => !t.completed && !t.deletedAt && (t.dueDate === todayStr || (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr)))).length },
                   { id: 'all', icon: 'list', label: 'All Tasks', count: syncState.todos.filter(t => !t.completed && !t.deletedAt).length },
                 ].map(v => {
                   const isActive = activeView === v.id;
@@ -1552,8 +1581,30 @@ export default function App() {
                     ) : (
                       <>
                         {activeView === 'today' && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <Icon name="sun" size={18} style={{ color: '#fbbf24' }} /> My Day
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <Icon name="sun" size={18} style={{ color: '#fbbf24' }} />
+                              <span>My Day</span>
+                            </span>
+                            <span
+                              style={{
+                                fontSize: deviceType === 'phone' ? '12px' : '13px',
+                                fontWeight: 700,
+                                color: 'var(--primary)',
+                                backgroundColor: 'var(--tag-bg)',
+                                border: '1px solid var(--border)',
+                                padding: '2px 8px',
+                                borderRadius: '8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={`Current Date (${calendarType})`}
+                            >
+                              <Icon name="cal" size={13} />
+                              <span>{formatDayDateHeader(new Date(), calendarType, dayStartHour)}</span>
+                            </span>
                           </span>
                         )}
                         {activeView === 'all' && (
@@ -3049,6 +3100,8 @@ export default function App() {
       {showPlannerModal && (
         <DailyPlannerModal
           deviceType={deviceType}
+          calendarType={calendarType}
+          dayStartHour={dayStartHour}
           todos={syncState.todos}
           lists={syncState.lists}
           onToggleInMyDay={(todoId, inMyDay) => {
@@ -3087,6 +3140,8 @@ export default function App() {
         <SettingsModal
           calendarType={calendarType}
           onSelectCalendarType={handleSelectCalendarType}
+          dayStartHour={dayStartHour}
+          onSelectDayStartHour={handleSelectDayStartHour}
           onOpenThemeModal={() => setShowThemeModal(true)}
           onOpenDeviceModal={() => setShowDevicesModal(true)}
           syncEngine={syncEngine}

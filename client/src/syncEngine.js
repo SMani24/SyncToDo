@@ -8,6 +8,7 @@ const STORAGE_KEY_DEVICE = 'synctodo_device_info_v1';
 const STORAGE_KEY_DEVICE_NAME = 'synctodo_device_name_v1';
 
 import { P2PEngine } from './p2pEngine';
+import { getLogicalDateStr, isSameLogicalDay, getStoredDayStartHour } from './utils/calendar';
 
 export const ICON_NAME_MAP = {
   inbox: '📥',
@@ -812,31 +813,55 @@ export class SyncEngine {
     return d.toISOString().split('T')[0];
   }
 
-  carryForwardUnfinished(selectedIds = null) {
-    const today = new Date().toISOString().split('T')[0];
+  carryForwardUnfinished(selectedIds = null, dayStartHour = null) {
+    const startHour = typeof dayStartHour === 'number' ? dayStartHour : getStoredDayStartHour();
+    const today = getLogicalDateStr(new Date(), startHour);
     const now = Date.now();
     let count = 0;
     const allowSet = Array.isArray(selectedIds) ? new Set(selectedIds) : null;
 
     Object.values(this.todos).forEach(t => {
-      if (!t.completed && !t.deletedAt) {
-        if (allowSet && !allowSet.has(t.id)) return;
-        const isPastDue = t.dueDate && t.dueDate < today;
-        const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
-        if (isPastDue || isPastMyDay || allowSet) {
-          t.dueDate = today;
-          t.plannedDate = today;
-          t.inMyDay = true;
-          t.updatedAt = now;
-          this.queueMutation({
-            id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
-            entityId: t.id,
-            type: 'UPSERT',
-            data: t,
-            timestamp: now
-          });
-          count++;
+      if (t.deletedAt) return;
+
+      // Completed tasks from previous days should NEVER be carried forward,
+      // and should have inMyDay reset to false so they never linger into today's My Day!
+      if (t.completed) {
+        if (t.inMyDay) {
+          const completedToday = t.completedAt
+            ? isSameLogicalDay(t.completedAt, today, startHour)
+            : (t.plannedDate === today || t.dueDate === today);
+          if (!completedToday) {
+            t.inMyDay = false;
+            t.updatedAt = now;
+            this.queueMutation({
+              id: `mut-${now}-${t.id.slice(-5)}-purge`,
+              entityId: t.id,
+              type: 'UPSERT',
+              data: t,
+              timestamp: now
+            });
+          }
         }
+        return; // NEVER carry forward completed tasks!
+      }
+
+      // Active / unfinished tasks
+      if (allowSet && !allowSet.has(t.id)) return;
+      const isPastDue = t.dueDate && t.dueDate < today;
+      const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
+      if (isPastDue || isPastMyDay || allowSet) {
+        t.dueDate = today;
+        t.plannedDate = today;
+        t.inMyDay = true;
+        t.updatedAt = now;
+        this.queueMutation({
+          id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+          entityId: t.id,
+          type: 'UPSERT',
+          data: t,
+          timestamp: now
+        });
+        count++;
       }
     });
 

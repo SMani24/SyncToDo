@@ -21,6 +21,105 @@ export const CALENDAR_TYPES = [
   }
 ];
 
+export const DEFAULT_DAY_START_HOUR = 0; // Midnight (00:00) default
+
+export const DAY_START_HOUR_OPTIONS = [
+  { value: 0, label: '00:00 (Midnight - Default)' },
+  { value: 1, label: '01:00 AM' },
+  { value: 2, label: '02:00 AM' },
+  { value: 3, label: '03:00 AM' },
+  { value: 4, label: '04:00 AM (Night Owl)' },
+  { value: 5, label: '05:00 AM (Early Bird)' },
+  { value: 6, label: '06:00 AM (Morning)' },
+  { value: 7, label: '07:00 AM' },
+  { value: 8, label: '08:00 AM' }
+];
+
+export function getStoredDayStartHour() {
+  try {
+    const saved = localStorage.getItem('synctodo_day_start_hour_v1');
+    if (saved !== null && saved !== undefined && saved !== '') {
+      const h = parseInt(saved, 10);
+      if (!isNaN(h) && h >= 0 && h <= 23) return h;
+    }
+  } catch (_) {}
+  return DEFAULT_DAY_START_HOUR;
+}
+
+export function setStoredDayStartHour(hour) {
+  try {
+    localStorage.setItem('synctodo_day_start_hour_v1', String(hour));
+  } catch (_) {}
+}
+
+/**
+ * Returns the logical local YYYY-MM-DD date string taking into account
+ * the user-configured dayStartHour rollover.
+ * If current local hour < dayStartHour, we still belong to the previous calendar day!
+ */
+export function getLogicalDateStr(date = new Date(), dayStartHour = 0) {
+  const d = new Date(date);
+  if (d.getHours() < dayStartHour) {
+    d.setDate(d.getDate() - 1);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Checks if a timestamp (e.g. todo.completedAt) falls on the same logical day as targetDateStr
+ */
+export function isSameLogicalDay(timestamp, targetDateStr, dayStartHour = 0) {
+  if (!timestamp || !targetDateStr) return false;
+  const logicalDate = getLogicalDateStr(new Date(timestamp), dayStartHour);
+  return logicalDate === targetDateStr;
+}
+
+/**
+ * Formats a clean date label for My Day header based on calendar system:
+ * e.g. "پنجشنبه ۱۴ آبان" (Shamsi), "پنجشنبه ۲۵ جمادی‌الاول" (Islamic), or "Thu, Nov 5" (Gregorian)
+ */
+export function formatDayDateHeader(date = new Date(), calendarType = 'gregorian', dayStartHour = 0) {
+  try {
+    const dObj = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date);
+    if (dObj.getHours && dObj.getHours() < dayStartHour) {
+      dObj.setDate(dObj.getDate() - 1);
+    }
+
+    if (calendarType === 'shamsi') {
+      const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      }).formatToParts(dObj);
+      const w = parts.find(p => p.type === 'weekday')?.value || '';
+      const d = parts.find(p => p.type === 'day')?.value || '';
+      const m = parts.find(p => p.type === 'month')?.value || '';
+      return `\u2067${w} ${d} ${m}\u2069`;
+    } else if (calendarType === 'islamic') {
+      const parts = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      }).formatToParts(dObj);
+      const w = parts.find(p => p.type === 'weekday')?.value || '';
+      const d = parts.find(p => p.type === 'day')?.value || '';
+      const m = parts.find(p => p.type === 'month')?.value || '';
+      return `\u2067${w} ${d} ${m}\u2069`;
+    } else {
+      return new Intl.DateTimeFormat('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      }).format(dObj);
+    }
+  } catch (_) {
+    return '';
+  }
+}
+
 export function getStoredCalendarType() {
   try {
     return localStorage.getItem('synctodo_calendar_system_v1') || 'gregorian';

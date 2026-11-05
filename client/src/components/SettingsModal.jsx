@@ -1,10 +1,12 @@
 import React from 'react';
 import { Icon } from './SvgIcons';
-import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate } from '../utils/calendar';
+import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate, DAY_START_HOUR_OPTIONS } from '../utils/calendar';
 
 export default function SettingsModal({
   calendarType = 'gregorian',
   onSelectCalendarType,
+  dayStartHour = 0,
+  onSelectDayStartHour,
   onOpenThemeModal,
   onOpenDeviceModal,
   syncEngine,
@@ -200,7 +202,58 @@ export default function SettingsModal({
           </div>
         </div>
 
-        {/* SECTION 2: APPEARANCE & THEMES */}
+        {/* SECTION 2: DAILY PLAN & NEW DAY ROLLOVER */}
+        <div style={{
+          padding: '14px 16px',
+          borderRadius: '14px',
+          background: 'var(--bg-subtle)',
+          border: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 800 }}>
+              <Icon name="sun" size={16} /> Start of New Day / زمان شروع روز جدید
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+              Choose what time your daily plan resets and prompts to carry forward unfinished tasks:
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <select
+              value={dayStartHour}
+              onChange={(e) => onSelectDayStartHour && onSelectDayStartHour(Number(e.target.value))}
+              style={{
+                flex: 1,
+                minWidth: '200px',
+                height: '38px',
+                padding: '0 12px',
+                borderRadius: '10px',
+                border: '1.5px solid var(--primary)',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                fontSize: '13px',
+                fontWeight: 700,
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {DAY_START_HOUR_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            💡 Tasks completed on previous days stay locked in yesterday's history. At <b>{DAY_START_HOUR_OPTIONS.find(o => o.value === dayStartHour)?.label || 'Midnight'}</b>, any unfinished tasks are offered to carry forward into today.
+          </div>
+        </div>
+
+        {/* SECTION 3: APPEARANCE & THEMES */}
         <div style={{
           padding: '14px 16px',
           borderRadius: '14px',

@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
 import { Icon } from './SvgIcons';
+import { getLogicalDateStr, formatDayDateHeader } from '../utils/calendar';
 
 export default function DailyPlannerModal({
   todos = [],
   lists = [],
   deviceType = 'laptop',
+  calendarType = 'gregorian',
+  dayStartHour = 0,
   onToggleInMyDay,
   onCarryForward,
   onClose
 }) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLogicalDateStr(new Date(), dayStartHour);
   const [selectedListFilter, setSelectedListFilter] = useState('all');
 
   const activeTodos = todos.filter(t => !t.deletedAt);
-  const myDayTodos = activeTodos.filter(t => t.inMyDay && !t.completed);
+  const myDayTodos = activeTodos.filter(t => t.inMyDay && !t.completed && (!t.plannedDate || t.plannedDate === today));
 
-  // Identify unfinished / overdue tasks from past days
+  // Identify unfinished / overdue tasks from past days (ONLY active tasks, NEVER completed!)
   const overdueTasks = activeTodos.filter(t => {
     if (t.completed) return false;
     const isPastDue = t.dueDate && t.dueDate < today;
@@ -88,9 +91,27 @@ export default function DailyPlannerModal({
               ☀️
             </div>
             <div>
-              <h3 style={{ fontSize: isPhone ? '16px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
-                {isPhone ? 'Plan My Day' : 'Daily Planner & Backlog Triage'}
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h3 style={{ fontSize: isPhone ? '16px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>
+                  {isPhone ? 'Plan My Day' : 'Daily Planner & Backlog Triage'}
+                </h3>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'var(--primary)',
+                  backgroundColor: 'var(--tag-bg)',
+                  border: '1px solid var(--border)',
+                  padding: '2px 8px',
+                  borderRadius: '7px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <Icon name="cal" size={12} />
+                  <span>{formatDayDateHeader(new Date(), calendarType, dayStartHour)}</span>
+                </span>
+              </div>
               <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 {isPhone ? 'Pick backlog tasks to focus on today' : 'Pick tasks from your bulk backlog & specific projects to focus on today'}
               </span>

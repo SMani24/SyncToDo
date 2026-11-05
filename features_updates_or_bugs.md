@@ -1,6 +1,9 @@
 # Feature and Bug lists
 
 All reported features, updates, and bugs have been resolved and verified:
+- [x] Configurable "Start of New Day" (Day Rollover Time) in Settings (Midnight 00:00, 1 AM, 2 AM, 3 AM, 4 AM Night Owl, 5 AM Early Bird, 6 AM Morning, etc.)
+- [x] Completed tasks isolation (tasks completed yesterday remain locked in yesterday's history and never carry over into the new day's My Day)
+- [x] Current date badge displayed next to "My Day" title based on selected calendar (e.g. `پنجشنبه ۱۴ آبان` in Shamsi, `Thu, Nov 5` in Gregorian, `پنجشنبه ۲۵ جمادی‌الاول` in Islamic)
 - [x] Restored and enlarged high-DPI QR Code (160px × 160px) in Devices & Sync modal with zero card truncation or flex clipping
 - [x] Eliminated duplicate and self-device entries in paired devices list across phone, tablet, and laptop (deduplicated by normalized device name, guaranteed exact physical device count)
 - [x] S-Pen hardware barrel button momentary hold-to-erase behavior matching Samsung Notes (switches to Eraser while pressed, instantly restores active pen upon release)
