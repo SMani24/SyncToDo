@@ -11,7 +11,7 @@
       "port": 4567,
       "token": "tok-1793832180228-9l8rn9tk",
       "pairedAt": 1793832180228,
-      "lastSeen": 1793881850476
+      "lastSeen": 1793889138733
     },
     "android-0c56aa1d": {
       "deviceId": "android-0c56aa1d",
@@ -770,11 +770,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 4,
+      "order": 7,
       "createdAt": 1793725642461,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0029": {
       "id": "todo-taks-0029",
@@ -890,11 +890,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 5,
+      "order": 8,
       "createdAt": 1793725642491,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0035": {
       "id": "todo-taks-0035",
@@ -3090,11 +3090,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 6,
+      "order": 9,
       "createdAt": 1793725643041,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0145": {
       "id": "todo-taks-0145",
@@ -3170,11 +3170,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 7,
+      "order": 10,
       "createdAt": 1793725643061,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0149": {
       "id": "todo-taks-0149",
@@ -3390,11 +3390,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 8,
+      "order": 12,
       "createdAt": 1793725643116,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0160": {
       "id": "todo-taks-0160",
@@ -3410,11 +3410,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 9,
+      "order": 13,
       "createdAt": 1793725643121,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0161": {
       "id": "todo-taks-0161",
@@ -5570,11 +5570,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 11,
+      "order": 15,
       "createdAt": 1793725643661,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0269": {
       "id": "todo-taks-0269",
@@ -5590,11 +5590,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 10,
+      "order": 14,
       "createdAt": 1793725643666,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0270": {
       "id": "todo-taks-0270",
@@ -5610,11 +5610,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 12,
+      "order": 16,
       "createdAt": 1793725643671,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0271": {
       "id": "todo-taks-0271",
@@ -5990,11 +5990,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 14,
+      "order": 17,
       "createdAt": 1793725643766,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0290": {
       "id": "todo-taks-0290",
@@ -6010,11 +6010,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 15,
+      "order": 18,
       "createdAt": 1793725643771,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0291": {
       "id": "todo-taks-0291",
@@ -6310,11 +6310,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 16,
+      "order": 19,
       "createdAt": 1793725643846,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0306": {
       "id": "todo-taks-0306",
@@ -6330,11 +6330,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 17,
+      "order": 20,
       "createdAt": 1793725643851,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0307": {
       "id": "todo-taks-0307",
@@ -6350,11 +6350,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 18,
+      "order": 21,
       "createdAt": 1793725643856,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 11
+      "version": 13
     },
     "todo-taks-0308": {
       "id": "todo-taks-0308",
@@ -6910,11 +6910,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 19,
+      "order": 22,
       "createdAt": 1793725643996,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0336": {
       "id": "todo-taks-0336",
@@ -7510,11 +7510,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 28,
+      "order": 23,
       "createdAt": 1793725644146,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0366": {
       "id": "todo-taks-0366",
@@ -7770,11 +7770,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 31,
+      "order": 24,
       "createdAt": 1793725644211,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0379": {
       "id": "todo-taks-0379",
@@ -7790,11 +7790,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 32,
+      "order": 25,
       "createdAt": 1793725644216,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0380": {
       "id": "todo-taks-0380",
@@ -8130,11 +8130,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 33,
+      "order": 26,
       "createdAt": 1793725644301,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0397": {
       "id": "todo-taks-0397",
@@ -8450,11 +8450,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 34,
+      "order": 27,
       "createdAt": 1793725644381,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0413": {
       "id": "todo-taks-0413",
@@ -8630,11 +8630,11 @@
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
-      "order": 35,
+      "order": 28,
       "createdAt": 1793725644426,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 9
+      "version": 11
     },
     "todo-taks-0422": {
       "id": "todo-taks-0422",
@@ -9589,16 +9589,16 @@
       "dueDate": "2026-11-05",
       "reminderTime": null,
       "steps": [],
-      "order": 3,
+      "order": 6,
       "inMyDay": true,
       "plannedDate": "2026-11-05",
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793726732878,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 17
+      "version": 19
     },
     "todo-hw-013": {
       "id": "todo-hw-013",
@@ -9810,16 +9810,16 @@
       "dueTime": null,
       "reminderTime": null,
       "steps": [],
-      "order": 2,
+      "order": 5,
       "inMyDay": true,
       "plannedDate": "2026-11-05",
       "recurrence": "none",
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793734522738,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 8
+      "version": 10
     },
     "todo-1793736220859-2rw2d": {
       "id": "todo-1793736220859-2rw2d",
@@ -9840,9 +9840,9 @@
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793736220859,
-      "updatedAt": 1793874686036,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 11
+      "version": 13
     },
     "todo-1793763062187-cbnde": {
       "id": "todo-1793763062187-cbnde",
@@ -10060,9 +10060,9 @@
       "order": 1,
       "steps": [],
       "createdAt": 1793878218890,
-      "updatedAt": 1793881700936,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 2
+      "version": 4
     },
     "todo-os-003": {
       "id": "todo-os-003",
@@ -10075,12 +10075,12 @@
       "dueDate": null,
       "plannedDate": "2026-11-05",
       "inMyDay": true,
-      "order": 2,
+      "order": 3,
       "steps": [],
       "createdAt": 1793878218891,
-      "updatedAt": 1793881701616,
+      "updatedAt": 1793881774499,
       "deletedAt": null,
-      "version": 2
+      "version": 4
     },
     "todo-os-004": {
       "id": "todo-os-004",
@@ -15128,8 +15128,8 @@
       "handwriting": null,
       "order": 4,
       "createdAt": 1793878010000,
-      "updatedAt": 1793878010000,
-      "deletedAt": null,
+      "updatedAt": 1793886801118,
+      "deletedAt": 1793886801118,
       "version": 1
     },
     "inbox-task-6-mw3ketxz": {
@@ -15148,9 +15148,201 @@
       "handwriting": null,
       "order": 5,
       "createdAt": 1793878000000,
-      "updatedAt": 1793878000000,
-      "deletedAt": null,
+      "updatedAt": 1793886802880,
+      "deletedAt": 1793886802880,
       "version": 1
+    },
+    "todo-1793873270567-qqa6u": {
+      "id": "todo-1793873270567-qqa6u",
+      "title": "آپلود فیلم های حل تمرین آمار برای کلاس کیش",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": "2026-11-05",
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": 11,
+      "inMyDay": true,
+      "plannedDate": "2026-11-05",
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793873270567,
+      "updatedAt": 1793881774499,
+      "deletedAt": null,
+      "version": 6,
+      "isInlineHandwriting": false
+    },
+    "todo-1793873321162-cd0ae": {
+      "id": "todo-1793873321162-cd0ae",
+      "title": "آپلود سوالات جلسات حل تمرین برای کیش",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": "2026-11-05",
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": 4,
+      "inMyDay": true,
+      "plannedDate": "2026-11-05",
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793873321162,
+      "updatedAt": 1793881774499,
+      "deletedAt": null,
+      "version": 4,
+      "isInlineHandwriting": false
+    },
+    "todo-1793873341031-670gk": {
+      "id": "todo-1793873341031-670gk",
+      "title": "تصحیح تمرین ۱ استاتیک",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": "2026-11-05",
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": 2,
+      "inMyDay": true,
+      "plannedDate": "2026-11-05",
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793873341031,
+      "updatedAt": 1793886798970,
+      "deletedAt": 1793886798970,
+      "version": 4,
+      "isInlineHandwriting": false
+    },
+    "todo-1793873364079-8fil6": {
+      "id": "todo-1793873364079-8fil6",
+      "title": "تصحیح تمرین ۳ استاتیک",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": null,
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": -3,
+      "inMyDay": false,
+      "plannedDate": null,
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793873364079,
+      "updatedAt": 1793886796119,
+      "deletedAt": 1793886796119,
+      "version": 2,
+      "isInlineHandwriting": false
+    },
+    "todo-1793873377651-s166s": {
+      "id": "todo-1793873377651-s166s",
+      "title": "تصحیح تمرین ۵ استاتیک",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": null,
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": -4,
+      "inMyDay": false,
+      "plannedDate": null,
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793873377651,
+      "updatedAt": 1793886795665,
+      "deletedAt": 1793886795665,
+      "version": 1,
+      "isInlineHandwriting": false
+    },
+    "todo-1793873385323-y6emr": {
+      "id": "todo-1793873385323-y6emr",
+      "title": "تصحیح تمرین ۷ استاتیک",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": null,
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": -5,
+      "inMyDay": false,
+      "plannedDate": null,
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793873385323,
+      "updatedAt": 1793886794522,
+      "deletedAt": 1793886794522,
+      "version": 1,
+      "isInlineHandwriting": false
+    },
+    "todo-1793878706722-vsrji": {
+      "id": "todo-1793878706722-vsrji",
+      "title": "آپلود نمونه سوال کار کردن با جداول آمار",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": null,
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": -6,
+      "inMyDay": false,
+      "plannedDate": null,
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793878706722,
+      "updatedAt": 1793878706722,
+      "deletedAt": null,
+      "version": 1,
+      "isInlineHandwriting": false
+    },
+    "todo-1793878714030-pn6f1": {
+      "id": "todo-1793878714030-pn6f1",
+      "title": "",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": null,
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": -7,
+      "inMyDay": false,
+      "plannedDate": null,
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": "data:image/png;base64,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",
+      "createdAt": 1793878714030,
+      "updatedAt": 1793878716413,
+      "deletedAt": 1793878716413,
+      "version": 1,
+      "isInlineHandwriting": true
     }
   },
   "lists": [
@@ -63967,7 +64159,185 @@
       },
       "timestamp": 1793881701616,
       "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793886794522-zqs13",
+      "entityId": "todo-1793873385323-y6emr",
+      "type": "DELETE",
+      "data": {
+        "id": "todo-1793873385323-y6emr",
+        "title": "تصحیح تمرین ۷ استاتیک",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": null,
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": -5,
+        "inMyDay": false,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793873385323,
+        "updatedAt": 1793886794522,
+        "deletedAt": 1793886794522,
+        "version": 1,
+        "isInlineHandwriting": false
+      },
+      "timestamp": 1793886794522,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1793886795665-kutfc",
+      "entityId": "todo-1793873377651-s166s",
+      "type": "DELETE",
+      "data": {
+        "id": "todo-1793873377651-s166s",
+        "title": "تصحیح تمرین ۵ استاتیک",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": null,
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": -4,
+        "inMyDay": false,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793873377651,
+        "updatedAt": 1793886795665,
+        "deletedAt": 1793886795665,
+        "version": 1,
+        "isInlineHandwriting": false
+      },
+      "timestamp": 1793886795665,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1793886796119-paaxt",
+      "entityId": "todo-1793873364079-8fil6",
+      "type": "DELETE",
+      "data": {
+        "id": "todo-1793873364079-8fil6",
+        "title": "تصحیح تمرین ۳ استاتیک",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": null,
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": -3,
+        "inMyDay": false,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793873364079,
+        "updatedAt": 1793886796119,
+        "deletedAt": 1793886796119,
+        "version": 2,
+        "isInlineHandwriting": false
+      },
+      "timestamp": 1793886796119,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1793886798970-fk03x",
+      "entityId": "todo-1793873341031-670gk",
+      "type": "DELETE",
+      "data": {
+        "id": "todo-1793873341031-670gk",
+        "title": "تصحیح تمرین ۱ استاتیک",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": "2026-11-05",
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": 2,
+        "inMyDay": true,
+        "plannedDate": "2026-11-05",
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793873341031,
+        "updatedAt": 1793886798970,
+        "deletedAt": 1793886798970,
+        "version": 4,
+        "isInlineHandwriting": false
+      },
+      "timestamp": 1793886798970,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1793886801118-pia0b",
+      "entityId": "inbox-task-5-mw3ketxz",
+      "type": "DELETE",
+      "data": {
+        "id": "inbox-task-5-mw3ketxz",
+        "title": "آپلود سوالات جلسات حل تمرین برای کیش",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": "2026-11-05",
+        "inMyDay": true,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "order": 4,
+        "createdAt": 1793878010000,
+        "updatedAt": 1793886801118,
+        "deletedAt": 1793886801118,
+        "version": 1
+      },
+      "timestamp": 1793886801118,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1793886802880-0g7k8",
+      "entityId": "inbox-task-6-mw3ketxz",
+      "type": "DELETE",
+      "data": {
+        "id": "inbox-task-6-mw3ketxz",
+        "title": "آپلود فیلم های حل تمرین آمار برای کلاس کیش",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": "2026-11-05",
+        "inMyDay": true,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "order": 5,
+        "createdAt": 1793878000000,
+        "updatedAt": 1793886802880,
+        "deletedAt": 1793886802880,
+        "version": 1
+      },
+      "timestamp": 1793886802880,
+      "originDevice": "laptop-22qie7c"
     }
   ],
-  "lastUpdated": 1793881855208
+  "lastUpdated": 1793889138735
 }

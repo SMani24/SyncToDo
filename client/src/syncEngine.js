@@ -305,6 +305,17 @@ export class SyncEngine {
     }
   }
 
+  sortListsArray(lists) {
+    return [...lists].sort((a, b) => {
+      const hasOrderA = typeof a.order === 'number';
+      const hasOrderB = typeof b.order === 'number';
+      if (hasOrderA && hasOrderB) return a.order - b.order;
+      if (hasOrderA) return -1;
+      if (hasOrderB) return 1;
+      return 0;
+    });
+  }
+
   loadStoredLists() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_LISTS);
@@ -327,7 +338,7 @@ export class SyncEngine {
           }
         }
       });
-      return deduped;
+      return this.sortListsArray(deduped);
     } catch {
       return DEFAULT_LISTS;
     }
@@ -564,6 +575,7 @@ export class SyncEngine {
         this.lists.push(l);
       }
     }
+    this.lists = this.sortListsArray(this.lists);
   }
 
   mergeTodo(incoming) {
@@ -780,6 +792,36 @@ export class SyncEngine {
       }
     });
     this.saveStoredTodos();
+    this.notify();
+  }
+
+  reorderLists(orderedIds) {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+    const now = Date.now();
+    const orderMap = new Map(orderedIds.map((id, idx) => [id, idx]));
+    this.lists = this.lists
+      .map((l, idx) => {
+        const newOrder = orderMap.has(l.id) ? orderMap.get(l.id) : (orderedIds.length + idx);
+        return {
+          ...l,
+          order: newOrder,
+          updatedAt: now
+        };
+      })
+      .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
+
+    this.saveStoredLists();
+
+    this.lists.forEach((l, index) => {
+      this.queueMutation({
+        id: `mut-${now}-list-${l.id.slice(-5)}-${index}`,
+        entityId: l.id,
+        type: 'LIST_UPSERT',
+        data: l,
+        timestamp: now
+      });
+    });
+
     this.notify();
   }
 

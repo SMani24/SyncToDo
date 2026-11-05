@@ -6,6 +6,9 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.webkit.JavascriptInterface;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -106,8 +109,24 @@ public class MainActivity extends BridgeActivity {
         peerServer = new LocalPeerServer(this);
         peerServer.start();
 
+        if (getWindow() != null && getWindow().getDecorView() != null) {
+            getWindow().getDecorView().setBackgroundColor(0xFF090E17);
+        }
+
         if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().setBackgroundColor(0xFF090E17);
             bridge.getWebView().addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
+            // Prevent Chromium WebView from double-subtracting IME keyboard height
+            // because DecorView (SystemBars + adjustResize) already pads for IME & systemBars
+            ViewCompat.setOnApplyWindowInsetsListener(bridge.getWebView(), (v, windowInsets) -> {
+                WindowInsetsCompat stripped = new WindowInsetsCompat.Builder(windowInsets)
+                    .setInsets(
+                        WindowInsetsCompat.Type.ime() | WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(),
+                        Insets.NONE
+                    )
+                    .build();
+                return ViewCompat.onApplyWindowInsets(v, stripped);
+            });
         }
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -137,8 +156,24 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        if (getWindow() != null && getWindow().getDecorView() != null) {
+            getWindow().getDecorView().setBackgroundColor(0xFF090E17);
+        }
+
         if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().setBackgroundColor(0xFF090E17);
             bridge.getWebView().addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
+            // Prevent Chromium WebView from double-subtracting IME keyboard height
+            // because DecorView (SystemBars + adjustResize) already pads for IME & systemBars
+            ViewCompat.setOnApplyWindowInsetsListener(bridge.getWebView(), (v, windowInsets) -> {
+                WindowInsetsCompat stripped = new WindowInsetsCompat.Builder(windowInsets)
+                    .setInsets(
+                        WindowInsetsCompat.Type.ime() | WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(),
+                        Insets.NONE
+                    )
+                    .build();
+                return ViewCompat.onApplyWindowInsets(v, stripped);
+            });
         }
     }
 

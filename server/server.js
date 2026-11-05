@@ -797,6 +797,14 @@ app.all('/api/p2p/sync', (req, res) => {
           stateChanged = true;
         }
       });
+      state.lists.sort((a, b) => {
+        const hasA = typeof a.order === 'number';
+        const hasB = typeof b.order === 'number';
+        if (hasA && hasB) return a.order - b.order;
+        if (hasA) return -1;
+        if (hasB) return 1;
+        return 0;
+      });
     }
 
     // 3. Merge Todos by ID & updatedAt (Last-Write-Wins)
@@ -948,6 +956,14 @@ function applyMutations(mutations, deviceId, senderWs = null) {
       } else if (normalizedData) {
         state.lists.push(normalizedData);
       }
+      state.lists.sort((a, b) => {
+        const hasA = typeof a.order === 'number';
+        const hasB = typeof b.order === 'number';
+        if (hasA && hasB) return a.order - b.order;
+        if (hasA) return -1;
+        if (hasB) return 1;
+        return 0;
+      });
       const entry = { id: mutation.id || `mut-${now}`, entityId, type, data: normalizedData, timestamp: timestamp || now, originDevice: deviceId };
       state.mutations.push(entry);
       applied.push(entry);
