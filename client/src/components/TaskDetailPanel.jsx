@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from './SvgIcons';
 import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
 import { formatCalendarDate } from '../utils/calendar';
+import CalendarPickerModal from './CalendarPickerModal';
 
 export default function TaskDetailPanel({
   calendarType = 'gregorian',
@@ -17,6 +18,7 @@ export default function TaskDetailPanel({
   const [titleText, setTitleText] = useState(todo?.title || '');
   const [notesText, setNotesText] = useState(todo?.notes || '');
   const [newStepText, setNewStepText] = useState('');
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   useEffect(() => {
     setTitleText(todo?.title || '');
@@ -490,32 +492,44 @@ export default function TaskDetailPanel({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
-                Date
+                Date ({calendarType === 'shamsi' ? 'شمسی' : (calendarType === 'islamic' ? 'قمری' : 'Gregorian')})
               </label>
-              <input
-                type="date"
-                value={todo.dueDate || ''}
-                onChange={(e) => syncEngine.updateTodo(todo.id, { dueDate: e.target.value || null })}
+              <button
+                type="button"
+                onClick={() => setShowCalendarModal(true)}
                 style={{
-                  width: '100%', padding: '7px 8px', borderRadius: '8px',
-                  border: '1px solid var(--border)', background: 'var(--surface)',
-                  color: 'var(--text)', fontSize: '12px'
+                  width: '100%',
+                  padding: '7px 8px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: todo.dueDate ? 'var(--text)' : 'var(--text-muted)',
+                  fontSize: '12px',
+                  fontWeight: todo.dueDate ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  textAlign: 'left',
+                  gap: '6px'
                 }}
-              />
-              {todo.dueDate && (
-                <div
+              >
+                <span
                   dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
                   style={{
-                    marginTop: '4px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: 'var(--primary)',
-                    unicodeBidi: 'isolate'
+                    unicodeBidi: 'isolate',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    color: todo.dueDate ? 'var(--primary)' : 'var(--text-muted)'
                   }}
                 >
-                  {formatCalendarDate(todo.dueDate, calendarType)}
-                </div>
-              )}
+                  {todo.dueDate
+                    ? formatCalendarDate(todo.dueDate, calendarType)
+                    : (calendarType === 'shamsi' ? 'انتخاب تاریخ...' : (calendarType === 'islamic' ? 'اختر التاريخ...' : 'Select date...'))}
+                </span>
+                <span style={{ fontSize: '12px', opacity: 0.8, flexShrink: 0 }}>📅</span>
+              </button>
             </div>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', marginBottom: '3px' }}>
@@ -704,23 +718,36 @@ export default function TaskDetailPanel({
     </div>
   );
 
-  if (deviceType === 'phone') {
-    return (
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.55)',
-          zIndex: 180,
-          display: 'flex',
-          alignItems: 'flex-end'
-        }}
-      >
-        {panelContent}
-      </div>
-    );
-  }
+  return (
+    <>
+      {deviceType === 'phone' ? (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            zIndex: 180,
+            display: 'flex',
+            alignItems: 'flex-end'
+          }}
+        >
+          {panelContent}
+        </div>
+      ) : (
+        panelContent
+      )}
 
-  return panelContent;
+      {showCalendarModal && (
+        <CalendarPickerModal
+          isOpen={showCalendarModal}
+          value={todo.dueDate}
+          calendarType={calendarType}
+          deviceType={deviceType}
+          onSelect={(newDate) => syncEngine.updateTodo(todo.id, { dueDate: newDate })}
+          onClose={() => setShowCalendarModal(false)}
+        />
+      )}
+    </>
+  );
 }

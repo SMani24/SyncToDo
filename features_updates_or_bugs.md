@@ -1,6 +1,8 @@
 # Feature and Bug lists
 
 All reported features, updates, and bugs have been resolved and verified:
+- [x] Multi-Calendar Task Date Picker (`CalendarPickerModal`): enables selecting task due dates directly within the user's chosen calendar system (Solar Hijri / Shamsi, Islamic / Hijri Qamari, or Gregorian) with interactive month grids, month & year dropdowns, Saturday-to-Friday Persian/Arabic layouts, and Today/Tomorrow/Clear shortcuts.
+- [x] Desktop & App Launcher Icon unified with logo: updated `/home/smani24/Desktop/SyncToDo.desktop`, `/home/smani24/.local/share/applications/synctodo.desktop`, Android mipmap launcher icons, and PWA favicons to match the official SyncToDo vibrant emerald green squircle with white checkmark logo.
 - [x] Configurable "Start of New Day" (Day Rollover Time) in Settings (Midnight 00:00, 1 AM, 2 AM, 3 AM, 4 AM Night Owl, 5 AM Early Bird, 6 AM Morning, etc.)
 - [x] Completed tasks isolation (tasks completed yesterday remain locked in yesterday's history and never carry over into the new day's My Day)
 - [x] Current date badge displayed next to "My Day" title based on selected calendar (e.g. `پنجشنبه ۱۴ آبان` in Shamsi, `Thu, Nov 5` in Gregorian, `پنجشنبه ۲۵ جمادی‌الاول` in Islamic)
