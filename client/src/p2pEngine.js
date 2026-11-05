@@ -308,9 +308,12 @@ export class P2PEngine {
       }
 
       if (merged.port === LAPTOP_PORT && this.syncEngine) {
-        const wsTarget = `ws://${merged.ip}:${LAPTOP_PORT}`;
-        if (this.syncEngine.serverUrl !== wsTarget) {
-          this.syncEngine.setServerUrl(wsTarget);
+        const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        if (!isLocalHost) {
+          const wsTarget = `ws://${merged.ip}:${LAPTOP_PORT}`;
+          if (this.syncEngine.serverUrl !== wsTarget) {
+            this.syncEngine.setServerUrl(wsTarget);
+          }
         }
       }
     }
@@ -350,9 +353,12 @@ export class P2PEngine {
     this.savePairedDevices();
 
     if (effectivePort === LAPTOP_PORT && this.syncEngine) {
-      const wsTarget = `ws://${cleanIp}:${LAPTOP_PORT}`;
-      if (this.syncEngine.serverUrl !== wsTarget) {
-        this.syncEngine.setServerUrl(wsTarget);
+      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (!isLocalHost) {
+        const wsTarget = `ws://${cleanIp}:${LAPTOP_PORT}`;
+        if (this.syncEngine.serverUrl !== wsTarget) {
+          this.syncEngine.setServerUrl(wsTarget);
+        }
       }
     }
 
@@ -1009,11 +1015,14 @@ export class P2PEngine {
           this.peerPorts.set(ip, port);
           this.savePeerPorts();
 
-          // Only switch WebSocket serverUrl if this peer is confirmed paired in pairedDevices!
+          // Only switch WebSocket serverUrl if this peer is confirmed paired in pairedDevices and we are not localhost!
           if (port === LAPTOP_PORT && this.syncEngine && peerMeta) {
-            const wsTarget = `ws://${ip}:${LAPTOP_PORT}`;
-            if (this.syncEngine.serverUrl !== wsTarget) {
-              this.syncEngine.setServerUrl(wsTarget);
+            const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+            if (!isLocalHost) {
+              const wsTarget = `ws://${ip}:${LAPTOP_PORT}`;
+              if (this.syncEngine.serverUrl !== wsTarget) {
+                this.syncEngine.setServerUrl(wsTarget);
+              }
             }
           }
 

@@ -697,10 +697,44 @@ app.post('/api/p2p/unpair', (req, res) => {
   res.json({ status: 'ok', pairedDevices: Object.values(state.pairedDevices) });
 });
 
+function isAuthorizedCaller(reqIp, deviceId = null, token = null) {
+  const cleanIp = reqIp ? reqIp.replace('::ffff:', '') : '127.0.0.1';
+  const localIps = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1', ...getLocalIpAddresses()]);
+
+  // Any loopback or local network interface on this machine is always trusted
+  if (localIps.has(cleanIp)) {
+    return true;
+  }
+
+  // 1. Direct deviceId match in pairedDevices
+  if (deviceId && state.pairedDevices[deviceId]) {
+    const pd = state.pairedDevices[deviceId];
+    if (!token || !pd.token || token === pd.token || cleanIp === pd.ip) {
+      return true;
+    }
+  }
+
+  // 2. Token match, IP match, or deviceId match among all paired devices
+  for (const pd of Object.values(state.pairedDevices || {})) {
+    if (token && pd.token && token === pd.token) {
+      return true;
+    }
+    if (cleanIp && pd.ip && (cleanIp === pd.ip || cleanIp === pd.ip.replace('::ffff:', ''))) {
+      return true;
+    }
+    if (deviceId && (deviceId === pd.deviceId || (pd.deviceId && pd.deviceId.includes(deviceId)))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Unified P2P Sync (Merges Todos, Lists, and Mutations safely using LWW CRDT)
 app.all('/api/p2p/sync', (req, res) => {
   const senderIp = req.ip ? req.ip.replace('::ffff:', '') : '127.0.0.1';
-  const isLoopback = senderIp === '127.0.0.1' || senderIp === 'localhost' || senderIp === '::1';
+  const localIps = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1', ...getLocalIpAddresses()]);
+  const isLoopback = localIps.has(senderIp);
 
   if (req.method === 'POST') {
     const {
@@ -714,25 +748,26 @@ app.all('/api/p2p/sync', (req, res) => {
       token = null
     } = req.body || {};
 
-    if (senderIp && senderIp !== '127.0.0.1') {
+    if (senderIp && !localIps.has(senderIp)) {
       recordDiscoveredPeer({ ip: senderIp, port, deviceType, deviceId, deviceName });
     }
 
-    // Non-loopback callers MUST be paired with a valid matching token
-    if (!isLoopback) {
-      const paired = state.pairedDevices[deviceId];
-      const isAuthorized = paired && paired.token && paired.token === token;
-      if (!isAuthorized) {
-        return res.status(403).json({
-          status: 'unpaired',
-          message: 'Device is not paired. Please pair devices using the 6-digit code or QR scanner first.'
-        });
-      }
+    // Callers MUST be loopback/host or paired
+    const isAuthorized = isAuthorizedCaller(senderIp, deviceId, token);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        status: 'unpaired',
+        message: 'Device is not paired. Please pair devices using the 6-digit code or QR scanner first.'
+      });
     }
 
-    if (deviceId && state.pairedDevices[deviceId]) {
-      state.pairedDevices[deviceId].lastSeen = Date.now();
-      if (deviceName) state.pairedDevices[deviceId].deviceName = deviceName;
+    // Update lastSeen and IP for paired device
+    for (const pd of Object.values(state.pairedDevices)) {
+      if (pd.deviceId === deviceId || (token && pd.token === token) || pd.ip === senderIp) {
+        pd.lastSeen = Date.now();
+        if (deviceName) pd.deviceName = deviceName;
+        if (senderIp && !localIps.has(senderIp)) pd.ip = senderIp;
+      }
     }
 
     let stateChanged = false;
@@ -742,12 +777,15 @@ app.all('/api/p2p/sync', (req, res) => {
       applyMutations(mutations, deviceId, null);
     }
 
-    // 2. Merge Lists by ID
+    // 2. Merge Lists by ID and deduplicate by name
     if (Array.isArray(lists) && lists.length > 0) {
       lists.forEach(incomingList => {
         if (!incomingList || !incomingList.id) return;
         const normList = { ...incomingList, icon: normalizeListIcon(incomingList.icon) };
-        const existingIdx = state.lists.findIndex(l => l.id === normList.id);
+        let existingIdx = state.lists.findIndex(l => l.id === normList.id);
+        if (existingIdx < 0 && !normList.isSystem && normList.name) {
+          existingIdx = state.lists.findIndex(l => !l.isSystem && l.name && l.name.trim().toLowerCase() === normList.name.trim().toLowerCase());
+        }
         if (existingIdx >= 0) {
           const existing = state.lists[existingIdx];
           if ((normList.updatedAt || normList.createdAt || 0) >= (existing.updatedAt || existing.createdAt || 0)) {
@@ -767,7 +805,7 @@ app.all('/api/p2p/sync', (req, res) => {
       todoValues.forEach(t => {
         if (t && t.id) {
           const current = state.todos[t.id];
-          if (!current || (t.updatedAt || 0) > (current.updatedAt || 0)) {
+          if (!current || (t.updatedAt || 0) >= (current.updatedAt || 0)) {
             state.todos[t.id] = { ...current, ...t };
             stateChanged = true;
           }
@@ -901,7 +939,10 @@ function applyMutations(mutations, deviceId, senderWs = null) {
 
     if (type === 'LIST_UPSERT') {
       const normalizedData = data ? { ...data, icon: normalizeListIcon(data.icon), updatedAt: timestamp || now } : data;
-      const listIdx = state.lists.findIndex(l => l.id === entityId);
+      let listIdx = state.lists.findIndex(l => l.id === entityId);
+      if (listIdx < 0 && normalizedData && !normalizedData.isSystem && normalizedData.name) {
+        listIdx = state.lists.findIndex(l => !l.isSystem && l.name && l.name.trim().toLowerCase() === normalizedData.name.trim().toLowerCase());
+      }
       if (listIdx >= 0) {
         state.lists[listIdx] = { ...state.lists[listIdx], ...normalizedData };
       } else if (normalizedData) {
@@ -983,24 +1024,26 @@ function applyMutations(mutations, deviceId, senderWs = null) {
 
 wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress ? req.socket.remoteAddress.replace('::ffff:', '') : '127.0.0.1';
-  const isLoopback = clientIp === '127.0.0.1' || clientIp === 'localhost' || clientIp === '::1';
+  const localIps = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1', ...getLocalIpAddresses()]);
+  const isLoopback = localIps.has(clientIp);
+  const isAuthorized = isAuthorizedCaller(clientIp);
 
   const clientId = `client-${Math.random().toString(36).substring(2, 9)}`;
   connectedClients.set(ws, {
     deviceId: clientId,
-    deviceName: 'Device',
-    deviceType: 'unknown',
-    isPaired: isLoopback,
+    deviceName: isLoopback ? (state.serverDeviceName || 'My Laptop') : 'Device',
+    deviceType: isLoopback ? 'laptop' : 'unknown',
+    isPaired: isAuthorized,
     isLoopback,
     token: null,
     connectedAt: Date.now()
   });
 
-  console.log(`[WS] Client connected: ${clientId} (${clientIp}). Total active: ${connectedClients.size}`);
+  console.log(`[WS] Client connected: ${clientId} (${clientIp}), authorized: ${isAuthorized}. Total active: ${connectedClients.size}`);
 
   // Send initial welcome & device list
   // Only send full data store to trusted local loopback or paired devices
-  if (isLoopback) {
+  if (isAuthorized) {
     ws.send(JSON.stringify({
       type: 'WELCOME',
       clientId,
@@ -1040,33 +1083,30 @@ wss.on('connection', (ws, req) => {
         const clientInfo = connectedClients.get(ws);
         if (clientInfo) {
           clientInfo.deviceId = msg.deviceId || clientInfo.deviceId;
-          clientInfo.deviceName = msg.deviceName || msg.deviceType || 'Device';
-          clientInfo.deviceType = msg.deviceType || 'desktop';
-          clientInfo.localIp = msg.localIp || null;
-          clientInfo.token = msg.token || null;
+          clientInfo.deviceName = msg.deviceName || msg.deviceType || clientInfo.deviceName;
+          clientInfo.deviceType = msg.deviceType || clientInfo.deviceType;
+          clientInfo.localIp = msg.localIp || clientInfo.localIp || clientIp;
+          clientInfo.token = msg.token || clientInfo.token;
 
-          // Check if remote client is paired
-          if (!clientInfo.isLoopback) {
-            const paired = state.pairedDevices[clientInfo.deviceId];
-            if (paired && paired.token && paired.token === clientInfo.token) {
-              clientInfo.isPaired = true;
-              ws.send(JSON.stringify({
-                type: 'WELCOME',
-                clientId,
-                serverTime: Date.now(),
-                isPaired: true,
-                serverInfo: {
-                  deviceId: state.serverDeviceId,
-                  deviceName: state.serverDeviceName,
-                  pairingCode: state.pairingCode
-                },
-                todos: Object.values(state.todos),
-                lists: state.lists
-              }));
-            }
+          const authorized = isAuthorizedCaller(clientIp, msg.deviceId, msg.token);
+          if (authorized) {
+            clientInfo.isPaired = true;
+            ws.send(JSON.stringify({
+              type: 'WELCOME',
+              clientId: clientInfo.deviceId,
+              serverTime: Date.now(),
+              isPaired: true,
+              serverInfo: {
+                deviceId: state.serverDeviceId,
+                deviceName: state.serverDeviceName,
+                pairingCode: state.pairingCode
+              },
+              todos: Object.values(state.todos),
+              lists: state.lists
+            }));
           }
 
-          if (msg.localIp && msg.localIp !== '127.0.0.1' && msg.localIp !== 'Detecting...' && msg.localIp.includes('.')) {
+          if (msg.localIp && !localIps.has(msg.localIp) && msg.localIp !== 'Detecting...' && msg.localIp.includes('.')) {
             recordDiscoveredPeer({
               ip: msg.localIp,
               port: msg.deviceType === 'laptop' ? PORT : 4567,
@@ -1079,10 +1119,12 @@ wss.on('connection', (ws, req) => {
         broadcastDevices();
       } else if (msg.type === 'SYNC_PUSH') {
         const clientInfo = connectedClients.get(ws);
-        if (!clientInfo || (!clientInfo.isLoopback && !clientInfo.isPaired)) {
+        const authorized = clientInfo?.isPaired || isAuthorizedCaller(clientIp, msg.deviceId, clientInfo?.token);
+        if (!authorized) {
           ws.send(JSON.stringify({ type: 'SYNC_ERROR', message: 'Device not paired' }));
           return;
         }
+        if (clientInfo) clientInfo.isPaired = true;
         const mutations = msg.mutations || [];
         const deviceId = msg.deviceId || clientInfo?.deviceId || 'unknown';
         const applied = applyMutations(mutations, deviceId, ws);

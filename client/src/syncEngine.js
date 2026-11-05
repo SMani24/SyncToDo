@@ -309,10 +309,25 @@ export class SyncEngine {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_LISTS);
       const parsed = raw ? JSON.parse(raw) : DEFAULT_LISTS;
-      return (parsed || DEFAULT_LISTS).map(l => ({
+      const mapped = (parsed || DEFAULT_LISTS).map(l => ({
         ...l,
         icon: normalizeListIcon(l.icon)
       }));
+      // Deduplicate lists by name
+      const deduped = [];
+      const seenNames = new Set();
+      mapped.forEach(l => {
+        if (l.isSystem) {
+          deduped.push(l);
+        } else {
+          const key = (l.name || '').trim().toLowerCase();
+          if (!seenNames.has(key)) {
+            seenNames.add(key);
+            deduped.push(l);
+          }
+        }
+      });
+      return deduped;
     } catch {
       return DEFAULT_LISTS;
     }
@@ -457,6 +472,7 @@ export class SyncEngine {
           msg.lists.forEach(rawList => this.mergeList(rawList));
           this.saveStoredLists();
         }
+        this.reconcileLocalChangesWithServer(msg.todos, msg.lists);
       }
       this.notify();
     } else if (msg.type === 'DEVICES_PRESENCE') {
@@ -513,7 +529,15 @@ export class SyncEngine {
       this.notify();
     } else if (msg.type === 'SYNC_ACK') {
       this.status = 'CONNECTED';
+      if (this.inFlightMutationIds) {
+        this.mutationQueue = this.mutationQueue.filter(m => !this.inFlightMutationIds.has(m.id));
+        this.inFlightMutationIds = null;
+        this.saveStoredQueue();
+      }
       this.notify();
+    } else if (msg.type === 'SYNC_ERROR') {
+      console.warn('[SyncEngine] Server reported sync error:', msg.message);
+      this.inFlightMutationIds = null;
     }
   }
 
@@ -524,7 +548,21 @@ export class SyncEngine {
     if (idx >= 0) {
       this.lists[idx] = { ...this.lists[idx], ...l };
     } else {
-      this.lists.push(l);
+      // Check if a non-system list with the same name already exists to prevent duplicates
+      const nameMatchIdx = this.lists.findIndex(existing => !existing.isSystem && existing.name && existing.name.trim().toLowerCase() === l.name.trim().toLowerCase());
+      if (nameMatchIdx >= 0) {
+        const existing = this.lists[nameMatchIdx];
+        const oldId = existing.id;
+        this.lists[nameMatchIdx] = { ...existing, ...l };
+        if (oldId !== l.id) {
+          Object.values(this.todos).forEach(t => {
+            if (t.listId === oldId) t.listId = l.id;
+          });
+          this.saveStoredTodos();
+        }
+      } else {
+        this.lists.push(l);
+      }
     }
   }
 
@@ -543,11 +581,16 @@ export class SyncEngine {
 
   // Custom Lists Management
   addList(name, icon = '📁', color = '#6366f1') {
+    const trimmed = name.trim();
+    const existing = this.lists.find(l => !l.isSystem && l.name && l.name.trim().toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      return existing;
+    }
     const now = Date.now();
     const id = `list-${now}-${Math.random().toString(36).substring(2, 6)}`;
     const newList = {
       id,
-      name: name.trim(),
+      name: trimmed,
       icon: normalizeListIcon(icon) || '📁',
       color: color || '#6366f1',
       isSystem: false,
@@ -961,15 +1004,67 @@ export class SyncEngine {
     }
 
     const toSend = [...this.mutationQueue];
+    this.inFlightMutationIds = new Set(toSend.map(m => m.id));
     this.ws.send(JSON.stringify({
       type: 'SYNC_PUSH',
       deviceId: this.deviceId,
       mutations: toSend
     }));
 
-    this.mutationQueue = [];
-    this.saveStoredQueue();
     this.notify();
+  }
+
+  reconcileLocalChangesWithServer(serverTodos, serverLists) {
+    if (!this.isPaired || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const serverMap = new Map();
+    if (Array.isArray(serverTodos)) {
+      serverTodos.forEach(t => {
+        if (t && t.id) serverMap.set(t.id, t);
+      });
+    }
+
+    const mutations = [];
+    const now = Date.now();
+
+    // Check for local todos that are either not on server or newer than server version
+    Object.values(this.todos).forEach(localTodo => {
+      if (!localTodo || !localTodo.id) return;
+      const srv = serverMap.get(localTodo.id);
+      if (!srv || (localTodo.updatedAt || 0) > (srv.updatedAt || 0)) {
+        mutations.push({
+          id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+          type: 'UPSERT',
+          data: localTodo,
+          timestamp: localTodo.updatedAt || now
+        });
+      }
+    });
+
+    // Check for custom lists
+    if (Array.isArray(serverLists)) {
+      const serverListMap = new Map();
+      serverLists.forEach(l => {
+        if (l && l.id) serverListMap.set(l.id, l);
+      });
+      this.lists.forEach(localList => {
+        if (!localList || !localList.id || localList.isSystem) return;
+        const srv = serverListMap.get(localList.id);
+        if (!srv || (localList.updatedAt || 0) > (srv.updatedAt || 0)) {
+          mutations.push({
+            id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+            type: 'LIST_UPSERT',
+            data: localList,
+            timestamp: localList.updatedAt || now
+          });
+        }
+      });
+    }
+
+    if (mutations.length > 0) {
+      mutations.forEach(m => this.mutationQueue.push(m));
+      this.saveStoredQueue();
+      this.flushQueue();
+    }
   }
 }
 
