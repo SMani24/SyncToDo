@@ -39,11 +39,11 @@ export default function DevicesPairingModal({
   const pendingRequests = p2pInfo.pendingRequests || [];
   const outgoingSession = p2pInfo.outgoingPairSession || null;
 
-  // Generate crisp standard scannable QR Code
+  // Generate crisp standard scannable QR Code (320px high-res)
   useEffect(() => {
     const qrSeed = `synctodo://${myIp}:${myPort}?code=${myCode}&deviceId=${encodeURIComponent(myDeviceId || '')}&name=${encodeURIComponent(myName)}`;
     QRCode.toDataURL(qrSeed, {
-      width: 220,
+      width: 320,
       margin: 1,
       color: { dark: '#0f172a', light: '#ffffff' },
       errorCorrectionLevel: 'M'
@@ -157,7 +157,7 @@ export default function DevicesPairingModal({
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '36px',
@@ -210,7 +210,8 @@ export default function DevicesPairingModal({
               border: '1.5px solid rgba(16, 185, 129, 0.4)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px'
+              gap: '10px',
+              flexShrink: 0
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
@@ -276,7 +277,8 @@ export default function DevicesPairingModal({
             border: '1.5px solid var(--primary)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px'
+            gap: '10px',
+            flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--primary)' }}>
@@ -336,7 +338,7 @@ export default function DevicesPairingModal({
           </div>
         )}
 
-        {/* THIS DEVICE + QR & 6-DIGIT CODE CARD */}
+        {/* CARD 1: THIS DEVICE & BIG CRISP QR CODE */}
         <div style={{
           padding: '16px',
           borderRadius: '16px',
@@ -347,17 +349,16 @@ export default function DevicesPairingModal({
           gap: '14px',
           boxSizing: 'border-box',
           width: '100%',
-          maxWidth: '100%',
-          overflow: 'hidden'
+          flexShrink: 0
         }}>
-          {/* Device Name row */}
+          {/* Device Name and Device Code Row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: '34px', height: '34px', borderRadius: '10px',
+                width: '36px', height: '36px', borderRadius: '10px',
                 background: 'var(--surface)', border: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--primary)'
+                color: 'var(--primary)', flexShrink: 0
               }}>
                 {renderDeviceIcon(deviceType)}
               </div>
@@ -420,144 +421,157 @@ export default function DevicesPairingModal({
             </div>
           </div>
 
-          {/* QR + Enter 6-Digit Code Split */}
+          {/* Centered Big Scannable High-DPI QR Code */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: deviceType === 'phone' ? '1fr' : '116px 1fr',
-            gap: '14px',
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            paddingTop: '10px',
-            borderTop: '1px solid var(--border)'
+            justifyContent: 'center',
+            paddingTop: '6px',
+            gap: '8px'
           }}>
-            {/* Visual Crisp Standard QR Code */}
             <div style={{
-              width: '112px',
-              height: '112px',
-              margin: deviceType === 'phone' ? '0 auto' : '0',
-              padding: '6px',
-              borderRadius: '12px',
+              width: '160px',
+              height: '160px',
+              padding: '10px',
+              borderRadius: '16px',
               background: '#ffffff',
               border: '1px solid var(--border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.14)',
+              boxSizing: 'border-box'
             }} title={`Pairing QR for ${myName}`}>
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
                   alt={`QR code for ${myName}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', imageRendering: 'pixelated' }}
                 />
               ) : (
-                <div style={{ fontSize: '10px', color: '#64748b', textAlign: 'center' }}>Generating QR…</div>
+                <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'center' }}>Generating QR…</div>
               )}
             </div>
-
-            {/* Enter 6-Digit Code & QR Scanner Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
-              <div>
-                <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text)' }}>
-                  Pair another device
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
-                  Scan the QR code on your other screen, or enter its 6-digit code below:
-                </div>
-              </div>
-
-              <form onSubmit={handlePairByCode} style={{ display: 'flex', gap: '8px', marginTop: '2px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={7}
-                  placeholder="e.g. 482 913"
-                  value={sixDigitInput}
-                  onChange={(e) => setSixDigitInput(e.target.value)}
-                  style={{
-                    flex: '1 1 0%',
-                    minWidth: 0,
-                    width: '100%',
-                    height: '38px',
-                    padding: '0 10px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface)',
-                    color: 'var(--text)',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    fontFamily: 'monospace',
-                    letterSpacing: '1px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={isSubmittingCode}
-                  style={{
-                    flexShrink: 0,
-                    height: '38px',
-                    padding: '0 14px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: 'var(--primary-gradient)',
-                    color: '#ffffff',
-                    fontSize: '12.5px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxSizing: 'border-box',
-                    boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
-                  }}
-                >
-                  {isSubmittingCode ? 'Pairing…' : (deviceType === 'phone' ? 'Pair' : 'Pair by Code')}
-                </button>
-              </form>
-
-              {/* Camera QR Scanner Button Matching Action */}
-              <button
-                type="button"
-                onClick={() => setShowScanner(true)}
-                style={{
-                  height: '38px',
-                  width: '100%',
-                  borderRadius: '10px',
-                  border: '1.5px solid var(--primary)',
-                  backgroundColor: 'var(--tag-bg)',
-                  color: 'var(--primary)',
-                  fontSize: '12.5px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  boxSizing: 'border-box'
-                }}
-              >
-                <Icon name="camera" size={14} />
-                <span>Scan QR Code with Camera</span>
-              </button>
-
-              {codeFeedback && (
-                <div style={{
-                  fontSize: '11.5px',
-                  fontWeight: 600,
-                  color: codeFeedback.type === 'success' ? '#10b981' : '#ef4444'
-                }}>
-                  {codeFeedback.text}
-                </div>
-              )}
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
+              Scan this QR code from another device's camera to pair instantly
             </div>
           </div>
         </div>
 
+        {/* CARD 2: PAIR ANOTHER DEVICE */}
+        <div style={{
+          padding: '16px',
+          borderRadius: '16px',
+          background: 'var(--bg-subtle)',
+          border: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          boxSizing: 'border-box',
+          width: '100%',
+          flexShrink: 0
+        }}>
+          <div>
+            <div style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text)' }}>
+              Pair another device
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>
+              Scan the QR code on your other screen, or enter its 6-digit code below:
+            </div>
+          </div>
+
+          <form onSubmit={handlePairByCode} style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={7}
+              placeholder="e.g. 482 913"
+              value={sixDigitInput}
+              onChange={(e) => setSixDigitInput(e.target.value)}
+              style={{
+                flex: '1 1 0%',
+                minWidth: 0,
+                width: '100%',
+                height: '40px',
+                padding: '0 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                fontSize: '15px',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                letterSpacing: '1px',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={isSubmittingCode}
+              style={{
+                flexShrink: 0,
+                height: '40px',
+                padding: '0 16px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'var(--primary-gradient)',
+                color: '#ffffff',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
+                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
+              }}
+            >
+              {isSubmittingCode ? 'Pairing…' : (deviceType === 'phone' ? 'Pair' : 'Pair by Code')}
+            </button>
+          </form>
+
+          {/* Camera QR Scanner Button */}
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            style={{
+              height: '40px',
+              width: '100%',
+              borderRadius: '10px',
+              border: '1.5px solid var(--primary)',
+              backgroundColor: 'var(--tag-bg)',
+              color: 'var(--primary)',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+              boxSizing: 'border-box'
+            }}
+          >
+            <Icon name="camera" size={14} />
+            <span>Scan QR Code with Camera</span>
+          </button>
+
+          {codeFeedback && (
+            <div style={{
+              fontSize: '11.5px',
+              fontWeight: 600,
+              color: codeFeedback.type === 'success' ? '#10b981' : '#ef4444'
+            }}>
+              {codeFeedback.text}
+            </div>
+          )}
+        </div>
+
         {/* NEARBY ON THIS WI-FI (Zero-IP 1-Tap Discovery) */}
-        <div>
+        <div style={{ flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)' }}>
               Nearby on this Wi-Fi ({nearbyPeers.length})
@@ -664,7 +678,7 @@ export default function DevicesPairingModal({
         </div>
 
         {/* PAIRED DEVICES (Auto-Reconnecting by Device ID) */}
-        <div>
+        <div style={{ flexShrink: 0 }}>
           <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', marginBottom: '8px' }}>
             Paired Devices ({pairedDevices.length})
           </div>
@@ -826,7 +840,7 @@ export default function DevicesPairingModal({
         </div>
 
         {/* COLLAPSIBLE ADVANCED NETWORK SECTION */}
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', flexShrink: 0 }}>
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}

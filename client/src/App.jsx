@@ -874,10 +874,10 @@ export default function App() {
   useEffect(() => {
     const handleStylusEvent = (e) => {
       const action = e.detail?.action;
-      if (action === 'toggle') {
-        inlineEraserActiveRef.current = !inlineEraserActiveRef.current;
-      } else if (action === 'eraser_active') {
+      if (action === 'down' || action === 'eraser_active') {
         inlineEraserActiveRef.current = true;
+      } else if (action === 'up') {
+        inlineEraserActiveRef.current = false;
       }
     };
     window.addEventListener('stylusbutton', handleStylusEvent);

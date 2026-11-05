@@ -53,9 +53,28 @@ export class P2PEngine {
     }
   }
 
+  isSelfDevice(item) {
+    if (!item) return true;
+    const myDevId = this.syncEngine?.deviceId;
+    const localDevId = this.localServerInfo?.deviceId;
+    const myName = (this.syncEngine?.deviceName || '').trim().toLowerCase();
+    const localName = (this.localServerInfo?.deviceName || '').trim().toLowerCase();
+    const myIp = this.myLocalIp !== 'Detecting...' ? this.myLocalIp : null;
+
+    if (item.deviceId && ((myDevId && item.deviceId === myDevId) || (localDevId && item.deviceId === localDevId))) return true;
+    if (item.ip && (item.ip === '127.0.0.1' || item.ip === 'localhost' || item.ip === '::1')) return true;
+    if (item.ip && myIp && item.ip === myIp) return true;
+    if (item.deviceName) {
+      const devName = item.deviceName.trim().toLowerCase();
+      if ((myName && devName === myName) || (localName && devName === localName)) return true;
+    }
+    return false;
+  }
+
   getInfo() {
     const peerList = [];
     for (const [ip, data] of this.activePeers.entries()) {
+      if (this.isSelfDevice({ ip, deviceId: data.deviceId, deviceName: data.deviceName })) continue;
       peerList.push({
         ip,
         port: data.port || this.peerPorts.get(ip) || P2P_PORT,
@@ -69,8 +88,16 @@ export class P2PEngine {
     }
 
     const onlineDevs = this.syncEngine?.onlineDevices || [];
-    const pairedList = [];
+
+    // Deduplicate paired devices: merge by normalized deviceName
+    const pairedByName = new Map();
     for (const pd of this.pairedDevices.values()) {
+      if (this.isSelfDevice(pd)) {
+        this.pairedDevices.delete(pd.deviceId);
+        continue;
+      }
+
+      const normKey = (pd.deviceName || '').trim().toLowerCase() || pd.deviceId;
       const activeByIp = pd.ip ? this.activePeers.get(pd.ip) : null;
       const activeByDevId = pd.deviceId
         ? Array.from(this.activePeers.values()).find(p => p.deviceId === pd.deviceId)
@@ -85,27 +112,48 @@ export class P2PEngine {
         onlineInMesh ||
         (pd.lastSeen && Date.now() - pd.lastSeen < 60000)
       );
-      pairedList.push({
+
+      const candidate = {
         ...pd,
         status: isOnline ? 'connected' : 'offline',
         latency: activeByIp?.latency || activeByDevId?.latency || (onlineInMesh ? (isOnline ? 120 : null) : null)
-      });
-    }
+      };
 
-    const nearbyList = [];
-    const now = Date.now();
-    for (const np of this.nearbyPeers.values()) {
-      if (now - (np.lastSeen || 0) < 120000) {
-        const isPaired = Boolean(
-          (np.deviceId && this.pairedDevices.has(np.deviceId)) ||
-          (np.ip && this.knownPeers.includes(np.ip))
-        );
-        nearbyList.push({
-          ...np,
-          isPaired
-        });
+      const existing = pairedByName.get(normKey);
+      if (!existing) {
+        pairedByName.set(normKey, candidate);
+      } else {
+        if (candidate.status === 'connected' && existing.status !== 'connected') {
+          pairedByName.set(normKey, candidate);
+        } else if ((candidate.lastSeen || 0) > (existing.lastSeen || 0)) {
+          pairedByName.set(normKey, {
+            ...existing,
+            ...candidate,
+            token: candidate.token || existing.token
+          });
+        }
       }
     }
+    const pairedList = Array.from(pairedByName.values());
+
+    const nearbyByName = new Map();
+    const now = Date.now();
+    for (const np of this.nearbyPeers.values()) {
+      if (this.isSelfDevice(np)) continue;
+      if (now - (np.lastSeen || 0) < 120000) {
+        const normKey = (np.deviceName || '').trim().toLowerCase() || np.deviceId || np.ip;
+        // Don't show in nearby list if already paired
+        if (pairedByName.has(normKey)) continue;
+
+        if (!nearbyByName.has(normKey) || (np.lastSeen || 0) > (nearbyByName.get(normKey).lastSeen || 0)) {
+          nearbyByName.set(normKey, {
+            ...np,
+            isPaired: false
+          });
+        }
+      }
+    }
+    const nearbyList = Array.from(nearbyByName.values());
 
     const activePairedCount = pairedList.filter(p => p.status === 'connected').length;
     const activePeersCount = peerList.filter(p => p.status === 'connected').length;
@@ -170,6 +218,7 @@ export class P2PEngine {
     try {
       const arr = Array.from(this.pairedDevices.values());
       localStorage.setItem(STORAGE_KEY_PAIRED_DEVICES, JSON.stringify(arr));
+      this.syncEngine?.mirrorToLocalEmbeddedServer();
     } catch (e) {
       console.error(e);
     }
@@ -222,9 +271,7 @@ export class P2PEngine {
 
   recordNearbyPeer(peer) {
     if (!peer || !peer.ip || peer.ip === '127.0.0.1' || peer.ip === this.myLocalIp) return;
-    if (peer.deviceId && (peer.deviceId === this.localServerInfo.deviceId || peer.deviceId === this.syncEngine?.deviceId)) {
-      return;
-    }
+    if (this.isSelfDevice(peer)) return;
 
     const key = peer.deviceId || peer.ip;
     const existing = this.nearbyPeers.get(key) || {};
@@ -655,7 +702,13 @@ export class P2PEngine {
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
-        if (data.deviceId) this.localServerInfo.deviceId = data.deviceId;
+        if (data.deviceId) {
+          this.localServerInfo.deviceId = data.deviceId;
+          if (this.syncEngine && this.syncEngine.deviceId !== data.deviceId) {
+            this.syncEngine.deviceId = data.deviceId;
+            localStorage.setItem('synctodo_device_id_v1', data.deviceId);
+          }
+        }
         if (data.deviceName) {
           // Keep device name clean if not laptop
           if (!data.deviceName.toLowerCase().includes('laptop') && !data.deviceName.toLowerCase().includes('g16')) {
@@ -689,7 +742,13 @@ export class P2PEngine {
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
-          if (data.deviceId) this.localServerInfo.deviceId = data.deviceId;
+          if (data.deviceId) {
+          this.localServerInfo.deviceId = data.deviceId;
+          if (this.syncEngine && this.syncEngine.deviceId !== data.deviceId) {
+            this.syncEngine.deviceId = data.deviceId;
+            localStorage.setItem('synctodo_device_id_v1', data.deviceId);
+          }
+        }
           if (data.deviceName) this.localServerInfo.deviceName = data.deviceName;
           if (data.pairingCode) this.localServerInfo.pairingCode = data.pairingCode;
           if (data.ip && data.ip !== '127.0.0.1') {
@@ -782,16 +841,16 @@ export class P2PEngine {
       });
     }
 
-    if (isLocal && Array.isArray(data.pairedDevices)) {
+    if (Array.isArray(data.pairedDevices)) {
       data.pairedDevices.forEach(pd => {
-        if (pd && pd.deviceId) {
-          this.pairedDevices.set(pd.deviceId, pd);
-          if (pd.ip && !this.knownPeers.includes(pd.ip)) {
-            this.knownPeers.push(pd.ip);
-          }
-          if (pd.ip && pd.port) {
-            this.peerPorts.set(pd.ip, Number(pd.port));
-          }
+        if (!pd || !pd.deviceId) return;
+        if (this.isSelfDevice(pd)) return;
+        this.pairedDevices.set(pd.deviceId, pd);
+        if (pd.ip && !this.knownPeers.includes(pd.ip)) {
+          this.knownPeers.push(pd.ip);
+        }
+        if (pd.ip && pd.port) {
+          this.peerPorts.set(pd.ip, Number(pd.port));
         }
       });
       this.savePairedDevices();

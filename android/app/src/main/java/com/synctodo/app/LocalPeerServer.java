@@ -483,14 +483,43 @@ public class LocalPeerServer {
                     String senderDevId = incoming.optString("deviceId", "");
                     String senderToken = incoming.optString("token", "");
 
-                    // Non-loopback requests MUST be from a paired device with a valid matching token
+                    // Non-loopback requests MUST be from a paired device with a valid matching token or IP
                     if (!isLoopback) {
+                        boolean authorized = false;
                         JSONObject paired = pairedDevices.get(senderDevId);
-                        boolean authorized = paired != null &&
-                                (!paired.optString("token").isEmpty() && senderToken.equals(paired.optString("token")));
+                        if (paired != null) {
+                            String token = paired.optString("token", "");
+                            if (token.isEmpty() || senderToken.equals(token)) {
+                                authorized = true;
+                            }
+                        }
+                        if (!authorized) {
+                            for (JSONObject pd : pairedDevices.values()) {
+                                if (clientIp.equals(pd.optString("ip")) ||
+                                    (!senderDevId.isEmpty() && senderDevId.equals(pd.optString("deviceId")))) {
+                                    authorized = true;
+                                    break;
+                                }
+                            }
+                        }
                         if (!authorized) {
                             sendResponse(out, "403 Forbidden", "application/json", "{\"status\":\"unpaired\",\"message\":\"Device is not paired. Pair devices first.\"}");
                             return;
+                        }
+                    } else {
+                        // Loopback sync: Ingest paired devices from WebView client
+                        JSONArray incomingPaired = incoming.optJSONArray("pairedDevices");
+                        if (incomingPaired != null && incomingPaired.length() > 0) {
+                            for (int i = 0; i < incomingPaired.length(); i++) {
+                                JSONObject pd = incomingPaired.optJSONObject(i);
+                                if (pd != null) {
+                                    String pdDevId = pd.optString("deviceId", "");
+                                    if (!pdDevId.isEmpty() && !pdDevId.equals(deviceId)) {
+                                        pairedDevices.put(pdDevId, pd);
+                                    }
+                                }
+                            }
+                            saveMeta();
                         }
                     }
 

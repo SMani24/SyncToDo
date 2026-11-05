@@ -1,10 +1,12 @@
 # Feature and Bug lists
 
 All reported features, updates, and bugs have been resolved and verified:
+- [x] Restored and enlarged high-DPI QR Code (160px × 160px) in Devices & Sync modal with zero card truncation or flex clipping
+- [x] Eliminated duplicate and self-device entries in paired devices list across phone, tablet, and laptop (deduplicated by normalized device name, guaranteed exact physical device count)
+- [x] S-Pen hardware barrel button momentary hold-to-erase behavior matching Samsung Notes (switches to Eraser while pressed, instantly restores active pen upon release)
 - [x] Concurrent multi-device sync mesh (simultaneous Phone, Tablet, and Laptop synchronization without false offline states)
 - [x] Pairing input & submit button boundary overflow fix (guaranteed zero overflow past card borders on all screen widths)
 - [x] Paired devices mobile card layout redesign (spacious 2-row layout, zero text wrapping, live status badge pills, matched action buttons)
-- [x] S-Pen hardware barrel button eraser switching on Samsung devices (native Android key & pointer event interception with contextmenu suppression)
 - [x] Camera QR Code Scanner for instant device pairing on Android (`synctodo://` URI + fallback 6-digit code)
 - [x] Strict pairing code verification (mismatched 6-digit codes are rejected and denied sync tokens)
 - [x] Multi-device CRDT concurrent offline mutation convergence verified via automated test suite

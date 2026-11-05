@@ -139,15 +139,21 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     img.src = nextData;
   };
 
+  const previousToolRef = useRef(tool);
+
   useEffect(() => {
     // Intercept S-Pen / stylus hardware barrel button events dispatched from Android bridge
     const handleStylusEvent = (e) => {
       const action = e.detail?.action;
-      if (action === 'toggle') {
-        setTool(prev => prev === 'eraser' ? 'pen' : 'eraser');
-      } else if (action === 'eraser_active') {
+      if (action === 'down' || action === 'eraser_active') {
+        if (tool !== 'eraser') {
+          previousToolRef.current = tool;
+        }
         setTool('eraser');
         setIsBarrelEraser(true);
+      } else if (action === 'up') {
+        setIsBarrelEraser(false);
+        setTool(previousToolRef.current || 'pen');
       }
     };
     // Suppress context menu triggers from Samsung S-Pen secondary button
@@ -161,7 +167,7 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
       window.removeEventListener('stylusbutton', handleStylusEvent);
       window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
     };
-  }, []);
+  }, [tool]);
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -198,7 +204,8 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
 
     const barrel = isStylusButtonEraser(e);
     setIsBarrelEraser(barrel);
-    if (barrel && tool !== 'eraser') {
+    if (barrel) {
+      if (tool !== 'eraser') previousToolRef.current = tool;
       setTool('eraser');
     }
 
@@ -227,8 +234,11 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     const barrel = isStylusButtonEraser(e);
     if (barrel !== isBarrelEraser) {
       setIsBarrelEraser(barrel);
-      if (barrel && tool !== 'eraser') {
+      if (barrel) {
+        if (tool !== 'eraser') previousToolRef.current = tool;
         setTool('eraser');
+      } else {
+        setTool(previousToolRef.current || 'pen');
       }
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -243,7 +253,10 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
 
   const handlePointerUp = (e) => {
     if (!isDrawing) return;
-    setIsBarrelEraser(false);
+    if (isBarrelEraser) {
+      setIsBarrelEraser(false);
+      setTool(previousToolRef.current || 'pen');
+    }
     // Reset composite mode so history snapshots always capture correctly
     const canvas = canvasRef.current;
     if (canvas) {

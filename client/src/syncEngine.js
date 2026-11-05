@@ -279,6 +279,7 @@ export class SyncEngine {
           todos: this.todos,
           lists: this.lists,
           mutations: this.mutationQueue,
+          pairedDevices: this.p2pEngine ? Array.from(this.p2pEngine.pairedDevices.values()) : [],
           timestamp: Date.now()
         })
       }).catch(() => {});

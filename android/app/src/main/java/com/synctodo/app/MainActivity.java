@@ -11,7 +11,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     private LocalPeerServer peerServer;
     private volatile boolean isModalOpen = false;
-    private long lastStylusToggleTime = 0;
+    private boolean isStylusButtonPressed = false;
 
     public class AndroidBridge {
         @JavascriptInterface
@@ -41,10 +41,15 @@ public class MainActivity extends BridgeActivity {
         if (code == 308 || code == 309 || code == 310 || code == 311 ||
             code == KeyEvent.KEYCODE_BUTTON_1 || code == KeyEvent.KEYCODE_BUTTON_2) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                long now = System.currentTimeMillis();
-                if (now - lastStylusToggleTime > 250) {
-                    lastStylusToggleTime = now;
-                    notifyStylusButton("toggle");
+                if (!isStylusButtonPressed) {
+                    isStylusButtonPressed = true;
+                    notifyStylusButton("down");
+                }
+                return true;
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                if (isStylusButtonPressed) {
+                    isStylusButtonPressed = false;
+                    notifyStylusButton("up");
                 }
                 return true;
             }
@@ -58,8 +63,12 @@ public class MainActivity extends BridgeActivity {
             int buttonState = event.getButtonState();
             boolean isEraserButton = (buttonState & MotionEvent.BUTTON_STYLUS_PRIMARY) != 0 ||
                                      (buttonState & MotionEvent.BUTTON_SECONDARY) != 0;
-            if (isEraserButton) {
-                notifyStylusButton("eraser_active");
+            if (isEraserButton && !isStylusButtonPressed) {
+                isStylusButtonPressed = true;
+                notifyStylusButton("down");
+            } else if (!isEraserButton && isStylusButtonPressed) {
+                isStylusButtonPressed = false;
+                notifyStylusButton("up");
             }
         }
         return super.dispatchGenericMotionEvent(event);
@@ -71,8 +80,18 @@ public class MainActivity extends BridgeActivity {
             int buttonState = event.getButtonState();
             boolean isEraserButton = (buttonState & MotionEvent.BUTTON_STYLUS_PRIMARY) != 0 ||
                                      (buttonState & MotionEvent.BUTTON_SECONDARY) != 0;
-            if (isEraserButton) {
-                notifyStylusButton("eraser_active");
+            if (isEraserButton && !isStylusButtonPressed) {
+                isStylusButtonPressed = true;
+                notifyStylusButton("down");
+            } else if (!isEraserButton && isStylusButtonPressed) {
+                isStylusButtonPressed = false;
+                notifyStylusButton("up");
+            }
+        }
+        if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+            if (isStylusButtonPressed) {
+                isStylusButtonPressed = false;
+                notifyStylusButton("up");
             }
         }
         return super.dispatchTouchEvent(event);

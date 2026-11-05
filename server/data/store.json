@@ -11,7 +11,7 @@
       "port": 4567,
       "token": "tok-1793823690392-6b7yvrse",
       "pairedAt": 1793823690392,
-      "lastSeen": 1793832579438
+      "lastSeen": 1793835552519
     },
     "android-078fbfc5": {
       "deviceId": "android-078fbfc5",
@@ -21,7 +21,7 @@
       "port": 4567,
       "token": "tok-1793832180228-9l8rn9tk",
       "pairedAt": 1793832180228,
-      "lastSeen": 1793832597157
+      "lastSeen": 1793835755221
     }
   },
   "todos": {
@@ -49373,5 +49373,5 @@
       "originDevice": "tablet-o8s4ley"
     }
   ],
-  "lastUpdated": 1793832597158
+  "lastUpdated": 1793835755222
 }
