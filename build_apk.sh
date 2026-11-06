@@ -51,6 +51,7 @@ mkdir -p "$PROJECT_DIR/server/public" "$PROJECT_DIR/android/app/src/main/assets/
 cp -rf "$PROJECT_DIR/client/dist/"* "$PROJECT_DIR/server/public/"
 rm -rf "$PROJECT_DIR/android/app/src/main/assets/public/"*
 cp -rf "$PROJECT_DIR/client/dist/"* "$PROJECT_DIR/android/app/src/main/assets/public/"
+rm -rf "$PROJECT_DIR/android/app/src/main/assets/public/download"
 
 echo "=== 5. Building APK with Gradle ==="
 cd "$PROJECT_DIR/android"
@@ -61,11 +62,9 @@ APK_SOURCE="$PROJECT_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
 APK_DEST="$PROJECT_DIR/SyncToDo.apk"
 cp -f "$APK_SOURCE" "$APK_DEST"
 
-mkdir -p "$PROJECT_DIR/server/public/download" "$PROJECT_DIR/client/dist/download" "$PROJECT_DIR/client/public/download"
+mkdir -p "$PROJECT_DIR/server/public/download"
 cp -f "$APK_SOURCE" "$PROJECT_DIR/server/public/SyncToDo.apk"
 cp -f "$APK_SOURCE" "$PROJECT_DIR/server/public/download/SyncToDo.apk"
-cp -f "$APK_SOURCE" "$PROJECT_DIR/client/dist/download/SyncToDo.apk"
-cp -f "$APK_SOURCE" "$PROJECT_DIR/client/public/download/SyncToDo.apk"
 
 echo "=========================================================="
 echo "SUCCESS! APK built successfully at:"

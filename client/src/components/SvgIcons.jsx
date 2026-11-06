@@ -15,6 +15,13 @@ const PATHS = {
       <path d="M16 2v4M8 2v4M3 10h18" />
     </>
   ),
+  sortDate: (
+    <>
+      <rect x="2.5" y="4.5" width="12" height="12" rx="2" />
+      <path d="M11 2.5v3M6 2.5v3M2.5 8.5h12" />
+      <path d="M19 5v13M16 15l3 3 3-3" />
+    </>
+  ),
   chart: <path d="M3 3v18h18M7 15l4-4 3 3 5-6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   pen: <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />,

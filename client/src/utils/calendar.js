@@ -321,30 +321,41 @@ export function formatCalendarDate(dateStr, calendarType = 'gregorian', options 
       const dtParts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
         year: 'numeric',
         month: options.month || 'long',
-        day: 'numeric'
+        day: 'numeric',
+        ...(options.includeWeekday ? { weekday: options.weekday || 'long' } : {})
       }).formatToParts(date);
+      const w = dtParts.find(p => p.type === 'weekday')?.value || '';
       const d = dtParts.find(p => p.type === 'day')?.value || '';
       const m = dtParts.find(p => p.type === 'month')?.value || '';
       const y = dtParts.find(p => p.type === 'year')?.value || '';
 
-      const content = options.includeYear === false ? `${d} ${m}` : `${d} ${m} ${y}`;
+      let content = options.includeYear === false ? `${d} ${m}` : `${d} ${m} ${y}`;
+      if (options.includeWeekday && w) {
+        content = `${w} ${content}`;
+      }
       // Wrap with Unicode Right-To-Left Isolate (\u2067 ... \u2069)
       return `\u2067${content.trim()}\u2069`;
     } else if (calendarType === 'islamic') {
       const dtParts = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
         year: 'numeric',
         month: options.month || 'long',
-        day: 'numeric'
+        day: 'numeric',
+        ...(options.includeWeekday ? { weekday: options.weekday || 'long' } : {})
       }).formatToParts(date);
+      const w = dtParts.find(p => p.type === 'weekday')?.value || '';
       const d = dtParts.find(p => p.type === 'day')?.value || '';
       const m = dtParts.find(p => p.type === 'month')?.value || '';
       const y = dtParts.find(p => p.type === 'year')?.value || '';
 
-      const content = options.includeYear === false ? `${d} ${m}` : `${d} ${m} ${y}`;
+      let content = options.includeYear === false ? `${d} ${m}` : `${d} ${m} ${y}`;
+      if (options.includeWeekday && w) {
+        content = `${w} ${content}`;
+      }
       return `\u2067${content.trim()}\u2069`;
     } else {
       // Gregorian
       return new Intl.DateTimeFormat('en-US', {
+        ...(options.includeWeekday ? { weekday: options.weekday || 'short' } : {}),
         year: options.year !== undefined ? options.year : (new Date().getFullYear() !== year ? 'numeric' : undefined),
         month: options.month || 'short',
         day: options.day || 'numeric'
@@ -356,25 +367,42 @@ export function formatCalendarDate(dateStr, calendarType = 'gregorian', options 
 }
 
 /**
- * Formats a due date for task card badges: e.g. "Today · ۱۳ آبان" or "۱۳ آبان ۱۴۰۵"
+ * Formats a due date for task card badges: e.g. "Today · ۱۳ آبان" or "چهارشنبه ۲۰ آبان"
  */
-export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregorian') {
+export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregorian', includeWeekday = false) {
   if (!dueDateStr) return '';
   const isToday = dueDateStr === todayStr;
 
   if (isToday) {
-    if (calendarType === 'shamsi') {
-      return '\u2067امروز\u2069';
-    } else if (calendarType === 'islamic') {
-      return '\u2067اليوم\u2069';
+    if (!includeWeekday) {
+      if (calendarType === 'shamsi') return '\u2067امروز\u2069';
+      if (calendarType === 'islamic') return '\u2067اليوم\u2069';
+      return 'Today';
     }
-    return 'Today';
+    try {
+      const raw = String(dueDateStr).split('T')[0];
+      const parts = raw.split('-');
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      if (calendarType === 'shamsi') {
+        const w = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { weekday: 'long' }).format(d);
+        return `\u2067امروز (${w})\u2069`;
+      } else if (calendarType === 'islamic') {
+        const w = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', { weekday: 'long' }).format(d);
+        return `\u2067اليوم (${w})\u2069`;
+      } else {
+        const w = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(d);
+        return `Today (${w})`;
+      }
+    } catch (_) {
+      return calendarType === 'shamsi' ? 'امروز' : 'Today';
+    }
   }
 
   return formatCalendarDate(dueDateStr, calendarType, {
-    month: 'short',
+    month: calendarType === 'shamsi' ? 'long' : 'short',
     day: 'numeric',
-    includeYear: false
+    includeYear: false,
+    includeWeekday: Boolean(includeWeekday)
   });
 }
 

@@ -15,6 +15,7 @@ import CustomListsModal from './components/CustomListsModal';
 import EditListModal from './components/EditListModal';
 import DevicesPairingModal from './components/DevicesPairingModal';
 import SettingsModal from './components/SettingsModal';
+import CalendarPickerModal from './components/CalendarPickerModal';
 import {
   getStoredCalendarType,
   setStoredCalendarType,
@@ -298,12 +299,51 @@ export default function App() {
   const [newRecurrenceInterval, setNewRecurrenceInterval] = useState(1);
   const [newHandwriting, setNewHandwriting] = useState(null);
   const [showInlinePenStrip, setShowInlinePenStrip] = useState(false);
+  const [showQuickAddCalendar, setShowQuickAddCalendar] = useState(false);
 
   // Modals state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDevicesModal, setShowDevicesModal] = useState(false);
   const [calendarType, setCalendarType] = useState(getStoredCalendarType);
   const [dayStartHour, setDayStartHour] = useState(getStoredDayStartHour);
+
+  // Show weekday in task cards preference
+  const [showWeekdayInTasks, setShowWeekdayInTasks] = useState(() => {
+    try {
+      return localStorage.getItem('synctodo_show_weekday_in_tasks') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleShowWeekdayInTasks = (val) => {
+    setShowWeekdayInTasks(val);
+    try {
+      localStorage.setItem('synctodo_show_weekday_in_tasks', String(val));
+    } catch {}
+  };
+
+  // Sort by date in lists (off by default)
+  const [sortByDate, setSortByDate] = useState(() => {
+    try {
+      return localStorage.getItem('synctodo_sort_by_date') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSortByDate = () => {
+    setSortByDate(prev => {
+      const next = !prev;
+      try { localStorage.setItem('synctodo_sort_by_date', String(next)); } catch {}
+      return next;
+    });
+  };
+
+  // Hold-to-drag timer & sheet touch scroll tracking refs
+  const cardHoldTimerRef = useRef(null);
+  const touchStartCoordRef = useRef(null);
+  const isTouchScrollingRef = useRef(false);
 
   const handleSelectCalendarType = (type) => {
     setCalendarType(type);
@@ -533,6 +573,7 @@ export default function App() {
 
   const handleItemTouchStart = (listId, isSystem) => {
     if (isSystem || listSelectMode) return;
+    isTouchScrollingRef.current = false;
     if (listLongPressTimerRef.current) clearTimeout(listLongPressTimerRef.current);
     didLongPressRef.current = false;
     listLongPressTimerRef.current = setTimeout(() => {
@@ -548,6 +589,11 @@ export default function App() {
     if (listLongPressTimerRef.current) {
       clearTimeout(listLongPressTimerRef.current);
       listLongPressTimerRef.current = null;
+    }
+    if (isTouchScrollingRef.current) {
+      isTouchScrollingRef.current = false;
+      didLongPressRef.current = false;
+      return;
     }
     if (!didLongPressRef.current) {
       if (listSelectMode) {
@@ -729,6 +775,17 @@ export default function App() {
   const sortedActive = filteredTodos
     .filter(t => !t.completed)
     .sort((a, b) => {
+      if (sortByDate) {
+        const hasDateA = Boolean(a.dueDate);
+        const hasDateB = Boolean(b.dueDate);
+        if (hasDateA && hasDateB) {
+          if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        } else if (hasDateA) {
+          return -1;
+        } else if (hasDateB) {
+          return 1;
+        }
+      }
       const hasOrderA = typeof a.order === 'number';
       const hasOrderB = typeof b.order === 'number';
       if (hasOrderA && hasOrderB) {
@@ -856,6 +913,10 @@ export default function App() {
     dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 180);
 
     if (d.draggedIdx !== d.dropIndex && d.draggedIdx >= 0 && d.dropIndex >= 0) {
+      if (sortByDate) {
+        setSortByDate(false);
+        try { localStorage.setItem('synctodo_sort_by_date', 'false'); } catch {}
+      }
       const currentItems = [...sortedActiveRef.current];
       if (d.draggedIdx < currentItems.length) {
         const [moved] = currentItems.splice(d.draggedIdx, 1);
@@ -1964,8 +2025,31 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Filter Chips */}
+              {/* Filter Chips & Sort Controls */}
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={toggleSortByDate}
+                  title={sortByDate ? 'Sorted chronologically by Due Date (earliest first) — click to disable' : 'Sort tasks by Due Date (off by default)'}
+                  style={{
+                    padding: deviceType === 'phone' ? '5px 8px' : '5px 10px',
+                    borderRadius: '999px',
+                    border: sortByDate ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                    backgroundColor: sortByDate ? 'var(--tag-bg)' : 'transparent',
+                    color: sortByDate ? 'var(--primary)' : 'var(--text-muted)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Icon name="sortDate" size={13} />
+                  <span>{sortByDate ? 'By Date ✓' : 'By Date'}</span>
+                </button>
+
                 <button
                   onClick={() => setFilterRecurring(!filterRecurring)}
                   style={{
@@ -2306,23 +2390,47 @@ export default function App() {
                       }}
                       onTouchStart={(e) => {
                         if (!e.touches || e.touches.length === 0) return;
+                        const touch = e.touches[0];
                         touchSwipeRef.current = {
                           id: todo.id,
-                          startX: e.touches[0].clientX,
-                          startY: e.touches[0].clientY,
+                          startX: touch.clientX,
+                          startY: touch.clientY,
                           deltaX: 0
                         };
+                        if (cardHoldTimerRef.current) clearTimeout(cardHoldTimerRef.current);
+                        if (!isCompleted && !e.target.closest('button')) {
+                          const cardEl = e.currentTarget.closest('[data-todo-card]');
+                          cardHoldTimerRef.current = setTimeout(() => {
+                            if (cardEl && !isSwipedOpen) {
+                              startTaskDrag(todo, index, touch.clientY, cardEl);
+                              touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
+                            }
+                          }, 260);
+                        }
                       }}
                       onTouchMove={(e) => {
                         if (!e.touches || e.touches.length === 0) return;
-                        if (touchSwipeRef.current.id !== todo.id) return;
-                        const dx = e.touches[0].clientX - touchSwipeRef.current.startX;
-                        const dy = e.touches[0].clientY - touchSwipeRef.current.startY;
-                        if (Math.abs(dx) > Math.abs(dy)) {
-                          touchSwipeRef.current.deltaX = dx;
+                        const touch = e.touches[0];
+                        if (touchSwipeRef.current.id === todo.id) {
+                          const dx = touch.clientX - touchSwipeRef.current.startX;
+                          const dy = touch.clientY - touchSwipeRef.current.startY;
+                          if (Math.abs(dx) > 7 || Math.abs(dy) > 7) {
+                            if (cardHoldTimerRef.current) {
+                              clearTimeout(cardHoldTimerRef.current);
+                              cardHoldTimerRef.current = null;
+                            }
+                          }
+                          if (Math.abs(dx) > Math.abs(dy)) {
+                            touchSwipeRef.current.deltaX = dx;
+                          }
                         }
                       }}
                       onTouchEnd={() => {
+                        if (cardHoldTimerRef.current) {
+                          clearTimeout(cardHoldTimerRef.current);
+                          cardHoldTimerRef.current = null;
+                        }
+                        if (taskDragRef.current && taskDragRef.current.active) return;
                         if (touchSwipeRef.current.id !== todo.id) return;
                         const dx = touchSwipeRef.current.deltaX;
                         if (dx > 65) {
@@ -2558,7 +2666,7 @@ export default function App() {
                               }}
                             >
                               <Icon name="cal" size={11} />
-                              <span style={{ unicodeBidi: 'isolate' }}>{formatDueDateBadge(todo.dueDate, todayStr, calendarType)}</span>
+                              <span style={{ unicodeBidi: 'isolate' }}>{formatDueDateBadge(todo.dueDate, todayStr, calendarType, showWeekdayInTasks)}</span>
                               {todo.reminderTime ? ` · ${todo.reminderTime}` : ''}
                             </span>
                           )}
@@ -2864,6 +2972,117 @@ export default function App() {
                   }}
                 />
 
+                {/* Due Date Button (Laptop / Tablet) */}
+                {deviceType !== 'phone' && (
+                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickAddCalendar(true)}
+                      title={newDueDate ? `Due: ${newDueDate} (click to change)` : 'Set task due date'}
+                      style={{
+                        padding: '8px 11px',
+                        borderRadius: '10px',
+                        border: newDueDate ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                        backgroundColor: newDueDate ? 'var(--tag-bg)' : 'var(--surface-elevated)',
+                        color: newDueDate ? 'var(--primary)' : 'var(--text-muted)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Icon name="cal" size={14} />
+                      <span>
+                        {newDueDate ? formatDueDateBadge(newDueDate, todayStr, calendarType, showWeekdayInTasks) : 'Due Date'}
+                      </span>
+                    </button>
+                    {newDueDate && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewDueDate('');
+                        }}
+                        title="Clear due date"
+                        style={{
+                          position: 'absolute',
+                          right: '-5px',
+                          top: '-4px',
+                          width: '17px',
+                          height: '17px',
+                          borderRadius: '50%',
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          padding: 0,
+                          zIndex: 2
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Priority Selector (Laptop / Tablet) */}
+                {deviceType !== 'phone' && (
+                  <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                    <select
+                      value={newPriority}
+                      onChange={(e) => setNewPriority(e.target.value)}
+                      title="Set task priority"
+                      style={{
+                        padding: '8px 10px 8px 27px',
+                        borderRadius: '10px',
+                        border: newPriority === 'high'
+                          ? '1.5px solid #ef4444'
+                          : newPriority === 'low'
+                          ? '1.5px solid #38bdf8'
+                          : '1px solid var(--border)',
+                        backgroundColor: newPriority === 'high'
+                          ? 'rgba(239, 68, 68, 0.12)'
+                          : 'var(--surface-elevated)',
+                        color: newPriority === 'high'
+                          ? '#ef4444'
+                          : newPriority === 'low'
+                          ? '#38bdf8'
+                          : 'var(--text)',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        outline: 'none',
+                        cursor: 'pointer',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <option value="low" style={{ background: 'var(--surface)', color: 'var(--text)' }}>Low</option>
+                      <option value="medium" style={{ background: 'var(--surface)', color: 'var(--text)' }}>Medium</option>
+                      <option value="high" style={{ background: 'var(--surface)', color: '#ef4444' }}>High</option>
+                    </select>
+                    <span style={{
+                      position: 'absolute',
+                      left: '8px',
+                      pointerEvents: 'none',
+                      color: newPriority === 'high' ? '#ef4444' : newPriority === 'low' ? '#38bdf8' : 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      <Icon name="flag" size={12} />
+                    </span>
+                  </div>
+                )}
+
                 {/* Inline Pen Strip Toggle */}
                 <button
                   type="button"
@@ -3002,6 +3221,10 @@ export default function App() {
             >
               <div
                 onClick={e => e.stopPropagation()}
+                onScroll={() => {
+                  isTouchScrollingRef.current = true;
+                  handleItemTouchCancel();
+                }}
                 style={{
                   width: '100%', backgroundColor: 'var(--surface)',
                   borderRadius: '20px 20px 0 0',
@@ -3119,7 +3342,23 @@ export default function App() {
                       <div
                         key={list.id}
                         data-list-item={list.id}
-                        onTouchStart={() => handleItemTouchStart(list.id, isSystem)}
+                        onTouchStart={(e) => {
+                          if (e.touches && e.touches[0]) {
+                            touchStartCoordRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                            isTouchScrollingRef.current = false;
+                          }
+                          handleItemTouchStart(list.id, isSystem);
+                        }}
+                        onTouchMove={(e) => {
+                          if (e.touches && e.touches[0] && touchStartCoordRef.current) {
+                            const dx = Math.abs(e.touches[0].clientX - touchStartCoordRef.current.x);
+                            const dy = Math.abs(e.touches[0].clientY - touchStartCoordRef.current.y);
+                            if (dx > 7 || dy > 7) {
+                              isTouchScrollingRef.current = true;
+                              handleItemTouchCancel();
+                            }
+                          }
+                        }}
                         onTouchEnd={() => {
                           if (didDragRef.current) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
@@ -3129,7 +3368,6 @@ export default function App() {
                             setShowListPickerSheet(false);
                           });
                         }}
-                        onTouchMove={handleItemTouchCancel}
                         onMouseDown={(e) => {
                           handleItemTouchStart(list.id, isSystem);
                           if (!listSelectMode && e.button === 0 && !e.target.closest('button')) {
@@ -3405,6 +3643,8 @@ export default function App() {
         <SettingsModal
           calendarType={calendarType}
           onSelectCalendarType={handleSelectCalendarType}
+          showWeekdayInTasks={showWeekdayInTasks}
+          onToggleShowWeekdayInTasks={handleToggleShowWeekdayInTasks}
           dayStartHour={dayStartHour}
           onSelectDayStartHour={handleSelectDayStartHour}
           onOpenThemeModal={() => setShowThemeModal(true)}
@@ -3413,6 +3653,19 @@ export default function App() {
           syncState={syncState}
           deviceType={deviceType}
           onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+
+      {/* Quick Add Multi-Calendar Picker Modal (Laptop / Tablet) */}
+      {showQuickAddCalendar && (
+        <CalendarPickerModal
+          calendarType={calendarType}
+          currentDate={newDueDate || todayStr}
+          onSelectDate={(iso) => {
+            setNewDueDate(iso);
+            setShowQuickAddCalendar(false);
+          }}
+          onClose={() => setShowQuickAddCalendar(false)}
         />
       )}
 
@@ -3511,55 +3764,191 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating Card for Task Reordering (Zero ghost in list, follows pointer/finger smoothly) */}
-      {taskDrag && (
-        <div
-          style={{
-            position: 'fixed',
-            top: `${taskDrag.currentY - taskDrag.offsetY}px`,
-            left: `${taskDrag.rect.left}px`,
-            width: `${taskDrag.rect.width}px`,
-            minHeight: `${taskDrag.rect.height}px`,
-            pointerEvents: 'none',
-            zIndex: 999999,
-            transform: 'scale(1.02)',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--primary)',
-            borderRadius: '12px',
-            backgroundColor: 'var(--surface-elevated)',
-            willChange: 'top, transform'
-          }}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            padding: deviceType === 'phone' ? '12px' : '12px 14px',
-            borderRadius: '12px',
-            gap: deviceType === 'phone' ? '10px' : '12px'
-          }}>
-            <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', marginTop: '2px', padding: '4px 3px' }}>
-              <Icon name="grip" size={14} />
-            </div>
+      {/* Floating Card for Task Reordering (Exact visual replica of the lifted card) */}
+      {taskDrag && (() => {
+        const todo = taskDrag.todo;
+        const listObj = syncState.lists.find(l => l.id === todo.listId);
+        const steps = Array.isArray(todo.steps) ? todo.steps : [];
+        const doneSteps = steps.filter(s => s.completed).length;
+        const isInlineNote = todo.isInlineHandwriting === true || (todo.isInlineHandwriting !== false && todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title === 'Handwritten sketch' || todo.title.trim() === ''));
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              top: `${taskDrag.currentY - taskDrag.offsetY}px`,
+              left: `${taskDrag.rect.left}px`,
+              width: `${taskDrag.rect.width}px`,
+              minHeight: `${taskDrag.rect.height}px`,
+              pointerEvents: 'none',
+              zIndex: 999999,
+              transform: 'scale(1.02)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--primary)',
+              borderRadius: '12px',
+              backgroundColor: 'var(--surface-elevated)',
+              willChange: 'top, transform'
+            }}
+          >
             <div style={{
-              width: '22px', height: '22px', minWidth: '22px',
-              borderRadius: '50%',
-              border: taskDrag.todo.priority === 'high' ? '2px solid #ef4444' : '2px solid var(--text-muted)',
-              marginTop: '2px'
-            }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+              display: 'flex',
+              alignItems: 'flex-start',
+              padding: deviceType === 'phone' ? '12px' : '12px 14px',
+              borderRadius: '12px',
+              gap: deviceType === 'phone' ? '10px' : '12px'
+            }}>
+              <div style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', marginTop: '2px', padding: '4px 3px' }}>
+                <Icon name="grip" size={14} />
+              </div>
               <div style={{
-                fontSize: deviceType === 'phone' ? '14.5px' : '15px',
-                fontWeight: 600, lineHeight: 1.4, color: 'var(--text)'
-              }}>
-                {(taskDrag.todo.isInlineHandwriting === true || (taskDrag.todo.isInlineHandwriting !== false && taskDrag.todo.handwriting && (!taskDrag.todo.title || taskDrag.todo.title === 'Handwritten task' || taskDrag.todo.title === 'Handwritten sketch' || taskDrag.todo.title.trim() === ''))) ? (
-                  <HandwrittenTitle src={taskDrag.todo.handwriting} isCompleted={false} isDarkTheme={isDarkTheme} />
-                ) : (
-                  <BidiTaskTitle title={taskDrag.todo.title} />
+                width: '22px', height: '22px', minWidth: '22px',
+                borderRadius: '50%',
+                border: todo.priority === 'high' ? '2px solid #ef4444' : '2px solid var(--text-muted)',
+                marginTop: '2px'
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: deviceType === 'phone' ? '14.5px' : '15px',
+                  fontWeight: 600, lineHeight: 1.4, color: 'var(--text)',
+                  wordBreak: 'break-word'
+                }}>
+                  {isInlineNote ? (
+                    <HandwrittenTitle src={todo.handwriting} isCompleted={false} isDarkTheme={isDarkTheme} />
+                  ) : (
+                    <BidiTaskTitle title={todo.title} />
+                  )}
+                </div>
+
+                {todo.notes && (
+                  <div
+                    dir={hasPersianChar(todo.notes) ? 'rtl' : 'ltr'}
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--text-muted)',
+                      marginTop: '3px',
+                      lineHeight: 1.35,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 1,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      unicodeBidi: 'plaintext',
+                      textAlign: detectBidiDirection(todo.title) === 'rtl' ? 'right' : 'left'
+                    }}
+                  >
+                    {todo.notes}
+                  </div>
                 )}
+
+                {todo.handwriting && !isInlineNote && (
+                  <div style={{
+                    marginTop: '6px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '3px 8px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>
+                      Attachment
+                    </span>
+                  </div>
+                )}
+
+                {/* Badges in Floating Card */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '6px',
+                  justifyContent: detectBidiDirection(todo.title) === 'rtl' ? 'flex-end' : 'flex-start'
+                }}>
+                  {listObj && (activeView !== 'list' || selectedListId !== listObj.id) && (
+                    <span style={{
+                      fontSize: '10.5px',
+                      padding: '2px 7px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-muted)',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <span>{normalizeListIcon(listObj.icon)}</span> {listObj.name}
+                    </span>
+                  )}
+
+                  {steps.length > 0 && (
+                    <span style={{
+                      fontSize: '10.5px',
+                      padding: '2px 7px',
+                      borderRadius: '6px',
+                      backgroundColor: doneSteps === steps.length ? 'rgba(16, 185, 129, 0.14)' : 'var(--tag-bg)',
+                      color: doneSteps === steps.length ? '#10b981' : 'var(--primary)',
+                      fontWeight: 700
+                    }}>
+                      ✓ {doneSteps}/{steps.length}
+                    </span>
+                  )}
+
+                  {todo.priority === 'high' && (
+                    <span style={{
+                      fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
+                      background: 'rgba(239, 68, 68, 0.14)', color: '#ef4444', fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', gap: '3px'
+                    }}>
+                      <Icon name="flag" size={10} /> High
+                    </span>
+                  )}
+
+                  {todo.dueDate && (
+                    <span
+                      dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
+                      style={{
+                        fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
+                        background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600,
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        unicodeBidi: 'isolate'
+                      }}
+                    >
+                      <Icon name="cal" size={11} />
+                      <span style={{ unicodeBidi: 'isolate' }}>
+                        {formatDueDateBadge(todo.dueDate, todayStr, calendarType, showWeekdayInTasks)}
+                      </span>
+                      {todo.reminderTime ? ` · ${todo.reminderTime}` : ''}
+                    </span>
+                  )}
+
+                  {todo.recurrence && todo.recurrence !== 'none' && (
+                    <span style={{
+                      fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
+                      background: 'rgba(99, 102, 241, 0.14)', color: 'var(--primary)', fontWeight: 600,
+                      display: 'inline-flex', alignItems: 'center', gap: '3px'
+                    }}>
+                      <Icon name="repeat" size={10} />
+                      {todo.recurrence === 'custom' ? `Every ${todo.recurrenceInterval}d` : todo.recurrence}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Action Badges */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.65 }}>
+                {activeView !== 'today' && todo.inMyDay && (
+                  <div style={{ color: '#fbbf24', padding: '5px', display: 'flex' }}>
+                    <Icon name="sun" size={15} />
+                  </div>
+                )}
+                <div style={{ color: 'var(--text-muted)', padding: '5px', display: 'flex' }}>
+                  <Icon name="trash" size={15} />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Floating Row for List Reordering (Sidebar & Mobile Bottom Sheet) */}
       {listDrag && (

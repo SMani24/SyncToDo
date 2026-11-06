@@ -1,33 +1,17 @@
 # Feature and Bug lists
 
-All reported features, updates, and bugs have been resolved and verified:
-- [x] Multi-Calendar Task Date Picker (`CalendarPickerModal`): enables selecting task due dates directly within the user's chosen calendar system (Solar Hijri / Shamsi, Islamic / Hijri Qamari, or Gregorian) with interactive month grids, month & year dropdowns, Saturday-to-Friday Persian/Arabic layouts, and Today/Tomorrow/Clear shortcuts.
-- [x] Desktop & App Launcher Icon unified with logo: updated `/home/smani24/Desktop/SyncToDo.desktop`, `/home/smani24/.local/share/applications/synctodo.desktop`, Android mipmap launcher icons, and PWA favicons to match the official SyncToDo vibrant emerald green squircle with white checkmark logo.
-- [x] Configurable "Start of New Day" (Day Rollover Time) in Settings (Midnight 00:00, 1 AM, 2 AM, 3 AM, 4 AM Night Owl, 5 AM Early Bird, 6 AM Morning, etc.)
-- [x] Completed tasks isolation (tasks completed yesterday remain locked in yesterday's history and never carry over into the new day's My Day)
-- [x] Current date badge displayed next to "My Day" title based on selected calendar (e.g. `پنجشنبه ۱۴ آبان` in Shamsi, `Thu, Nov 5` in Gregorian, `پنجشنبه ۲۵ جمادی‌الاول` in Islamic)
-- [x] Restored and enlarged high-DPI QR Code (160px × 160px) in Devices & Sync modal with zero card truncation or flex clipping
-- [x] Eliminated duplicate and self-device entries in paired devices list across phone, tablet, and laptop (deduplicated by normalized device name, guaranteed exact physical device count)
-- [x] S-Pen hardware barrel button momentary hold-to-erase behavior matching Samsung Notes (switches to Eraser while pressed, instantly restores active pen upon release)
-- [x] Concurrent multi-device sync mesh (simultaneous Phone, Tablet, and Laptop synchronization without false offline states)
-- [x] Pairing input & submit button boundary overflow fix (guaranteed zero overflow past card borders on all screen widths)
-- [x] Paired devices mobile card layout redesign (spacious 2-row layout, zero text wrapping, live status badge pills, matched action buttons)
-- [x] Camera QR Code Scanner for instant device pairing on Android (`synctodo://` URI + fallback 6-digit code)
-- [x] Strict pairing code verification (mismatched 6-digit codes are rejected and denied sync tokens)
-- [x] Multi-device CRDT concurrent offline mutation convergence verified via automated test suite
-- [x] Android-to-Android decentralized peer discovery over local Wi-Fi (LAN multicast & multi-subnet broadcast)
-- [x] Local device name identity isolation (prevented mobile devices from adopting remote laptop identity)
-- [x] High-DPI canvas stroke resolution (`Math.max(2.5, window.devicePixelRatio)` with anti-aliasing)
-- [x] Seamless inline handwritten note task title fitting designated task card space
-- [x] Multi-calendar date format correction (Solar Hijri: Day on right, Month in middle, Year on left; Islamic: era-clean RTL token order)
-- [x] Settings modal calendar descriptions shortened and sample pill formatting protected from truncation
-- [x] Phone typing layout fix (zero displacement, no grey void, inputs pinned directly above keyboard with scrollable task list)
-
 ## Features to Add
 *(Add any new feature requests here)*
+- [x] Add the option to sort by date in lists, make this off by default. Make sure the icon looks good both on phone, tablet and laptop. *(Resolved: Added "By Date" toggle with sortDate icon in list filter header, off by default)*
+- [x] When showing the date under the tasks, The user might want to also show the day of the week, this should be configureable in the settings in a clean way (make sure the menus look good on all platforms!). For example the user might choose for the dates to look like چهارشنبه ۲۰ آبان under the tasks. *(Resolved: Added "Show Day of Week under Tasks" setting with live preview in SettingsModal across Shamsi, Islamic & Gregorian)*
+- [x] On laptop, on the bottom line where you add the tasks, add the option to add dates and set priorities too (and make sure your implementation looks good) *(Resolved: Added quick due date calendar picker button with clear badge and priority dropdown selector with flag indicator on laptop/desktop)*
 
 ## Bugs to Fix
 *(Add any new bug reports here)*
+- [x] In the app, when scrolling in the lists list, after I remove my finger, something is pressed and the lists list is closed. This should obviously not be the case, the user might want more time to look the lists over and then select what they want! *(Resolved: Added scroll-vs-tap distance tracking in mobile list sheet so scrolling never triggers list selection or sheet closing)*
+- [x] The desktop icon logo isn't matching the phone app again! Please fix it and make sure this does not happen again, this is the second time! *(Resolved: Restored unified Dual-Ring high-res icon matching Android mipmap launcher icons across desktop .desktop, web icon.png, icon.svg and all client/server public assets)*
+- [x] When selecting a task and begining to move it, the exact task card should be moved, right now some of the task information dissapears when it's hovering (most importantly the date). Make it so the exact task card is moved around! *(Resolved: Floating drag card now renders complete metadata: due date badge with calendar formatting, priority flag, steps, list name, notes, and attachment)*
 
 ## Requests
 *(Add any new design or general requests here)*
+- [x] I would like to be able to hold anywhere on the task cards to pick them and move them around (right now in the app I have to select the left of them to move it, I want it to work anywhere on the app, This is working correctly for the laptop version.) *(Resolved: Added touch hold-to-drag timer anywhere on cards on phone/tablet, vibrating on pick up and smoothly lifting card for reordering)*

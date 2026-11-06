@@ -1,10 +1,12 @@
 import React from 'react';
 import { Icon } from './SvgIcons';
-import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate, DAY_START_HOUR_OPTIONS } from '../utils/calendar';
+import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate, formatDueDateBadge, DAY_START_HOUR_OPTIONS } from '../utils/calendar';
 
 export default function SettingsModal({
   calendarType = 'gregorian',
   onSelectCalendarType,
+  showWeekdayInTasks = false,
+  onToggleShowWeekdayInTasks,
   dayStartHour = 0,
   onSelectDayStartHour,
   onOpenThemeModal,
@@ -199,6 +201,68 @@ export default function SettingsModal({
                 </div>
               );
             })}
+          </div>
+
+          {/* Day of Week in Task Cards Toggle */}
+          <div
+            onClick={() => onToggleShowWeekdayInTasks && onToggleShowWeekdayInTasks(!showWeekdayInTasks)}
+            style={{
+              marginTop: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              borderRadius: '10px',
+              border: showWeekdayInTasks ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+              background: showWeekdayInTasks ? 'var(--tag-bg)' : 'var(--surface)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '5px',
+                border: showWeekdayInTasks ? 'none' : '2px solid var(--text-muted)',
+                backgroundColor: showWeekdayInTasks ? 'var(--primary)' : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: 800,
+                flexShrink: 0
+              }}>
+                {showWeekdayInTasks && '✓'}
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                  Show Day of Week under Tasks
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                  نمایش روز هفته در زیر کارها (مثال: چهارشنبه ۲۰ آبان)
+                </div>
+              </div>
+            </div>
+
+            <div
+              dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
+              style={{
+                fontSize: '11.5px',
+                fontWeight: 700,
+                color: showWeekdayInTasks ? 'var(--primary)' : 'var(--text-muted)',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                backgroundColor: showWeekdayInTasks ? 'rgba(99, 102, 241, 0.18)' : 'var(--bg-subtle)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                marginLeft: '8px',
+                unicodeBidi: 'isolate'
+              }}
+            >
+              {formatDueDateBadge('2026-11-11', todayIso, calendarType, showWeekdayInTasks)}
+            </div>
           </div>
         </div>
 
