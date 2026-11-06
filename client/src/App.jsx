@@ -876,24 +876,114 @@ export default function App() {
 
   // ====================================================
   // UNIFIED SLOT-CENTER REORDERING ENGINE (Tasks & Lists)
+  // With Smooth Continuous Auto-Scroll RAF Loop
   // ====================================================
+  const autoScrollRafRef = useRef(null);
+  const autoScrollSpeedRef = useRef(0);
+  const autoScrollTargetRef = useRef(null);
+
+  const findScrollParent = (el) => {
+    let parent = el ? el.parentElement : null;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      const style = window.getComputedStyle(parent);
+      if (/(auto|scroll)/.test(style.overflowY)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  };
+
+  const stopAutoScroll = () => {
+    if (autoScrollRafRef.current) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+    autoScrollSpeedRef.current = 0;
+    autoScrollTargetRef.current = null;
+  };
+
+  const checkAndRunAutoScroll = (scrollEl, clientY) => {
+    if (!scrollEl) {
+      stopAutoScroll();
+      return;
+    }
+
+    const sRect = scrollEl.getBoundingClientRect();
+    // Edge zone: minimum 56px, up to 90px (or 22% of container height)
+    const edgeZone = Math.min(90, Math.max(56, sRect.height * 0.22));
+
+    let speed = 0;
+    if (clientY < sRect.top + edgeZone) {
+      const dist = (sRect.top + edgeZone) - clientY;
+      const ratio = Math.max(0, Math.min(1.8, dist / edgeZone));
+      speed = -Math.round(ratio * 22 + 3); // -3px to -42px per frame
+    } else if (clientY > sRect.bottom - edgeZone) {
+      const dist = clientY - (sRect.bottom - edgeZone);
+      const ratio = Math.max(0, Math.min(1.8, dist / edgeZone));
+      speed = Math.round(ratio * 22 + 3); // +3px to +42px per frame
+    }
+
+    autoScrollSpeedRef.current = speed;
+    autoScrollTargetRef.current = scrollEl;
+
+    if (speed !== 0) {
+      if (!autoScrollRafRef.current) {
+        const step = () => {
+          const curSpeed = autoScrollSpeedRef.current;
+          const target = autoScrollTargetRef.current;
+          const isTaskActive = Boolean(taskDragRef.current && taskDragRef.current.active);
+          const isListActive = Boolean(listDragRef.current && listDragRef.current.active);
+
+          if (!target || curSpeed === 0 || (!isTaskActive && !isListActive)) {
+            stopAutoScroll();
+            return;
+          }
+
+          const prev = target.scrollTop;
+          target.scrollTop += curSpeed;
+          const didScroll = target.scrollTop !== prev;
+
+          // Update drag slots dynamically while stationary pointer has content scrolling underneath
+          if (isTaskActive) {
+            updateTaskDrag(taskDragRef.current.currentY, true);
+          } else if (isListActive) {
+            updateListDrag(listDragRef.current.currentY, true);
+          }
+
+          if (didScroll && autoScrollSpeedRef.current !== 0) {
+            autoScrollRafRef.current = requestAnimationFrame(step);
+          } else {
+            stopAutoScroll();
+          }
+        };
+        autoScrollRafRef.current = requestAnimationFrame(step);
+      }
+    } else {
+      stopAutoScroll();
+    }
+  };
+
   const startTaskDrag = (todo, index, clientY, cardEl) => {
     if (!cardEl || !todo) return;
     const rect = cardEl.getBoundingClientRect();
-    const containerEl = cardEl.closest('[data-todo-list-container]');
-    const cardEls = containerEl ? Array.from(containerEl.querySelectorAll('[data-todo-card]')) : [];
+    const containerEl = cardEl.closest('[data-todo-list-container]') || document.querySelector('[data-todo-list-container]');
+    const scrollEl = findScrollParent(containerEl) || scrollContainerRef.current;
+    const cardEls = containerEl ? Array.from(containerEl.querySelectorAll('[data-todo-card][data-active-card="true"]')) : [];
     const itemHeights = cardEls.map(el => el.getBoundingClientRect().height || 60);
+    const actualIndex = index >= 0 ? index : sortedActiveRef.current.findIndex(t => t.id === todo.id);
     const dragData = {
       active: true,
       id: todo.id,
-      draggedIdx: index,
-      dropIndex: index,
+      draggedIdx: actualIndex,
+      dropIndex: actualIndex,
       draggedHeight: rect.height || 60,
       gap: 8,
       itemHeights,
       offsetY: clientY - rect.top,
       rect,
       containerEl,
+      scrollEl,
       todo,
       currentY: clientY
     };
@@ -905,20 +995,14 @@ export default function App() {
     }
   };
 
-  const updateTaskDrag = (clientY) => {
+  const updateTaskDrag = (clientY, isAutoScroll = false) => {
     const d = taskDragRef.current;
     if (!d || !d.active) return;
 
-    // Auto-scroll task list container when dragging near top/bottom edges
-    const scrollEl = scrollContainerRef.current;
-    if (scrollEl) {
-      const sRect = scrollEl.getBoundingClientRect();
-      const edgeZone = 52;
-      if (clientY < sRect.top + edgeZone) {
-        scrollEl.scrollTop -= Math.ceil(((sRect.top + edgeZone - clientY) / edgeZone) * 10);
-      } else if (clientY > sRect.bottom - edgeZone) {
-        scrollEl.scrollTop += Math.ceil(((clientY - (sRect.bottom - edgeZone)) / edgeZone) * 10);
-      }
+    if (!isAutoScroll) {
+      d.currentY = clientY;
+      const scrollEl = d.scrollEl || scrollContainerRef.current || findScrollParent(d.containerEl);
+      checkAndRunAutoScroll(scrollEl, clientY);
     }
 
     const floatingTop = clientY - d.offsetY;
@@ -948,11 +1032,11 @@ export default function App() {
     }
 
     d.dropIndex = bestSlot;
-    d.currentY = clientY;
     setTaskDrag({ ...d });
   };
 
   const endTaskDrag = () => {
+    stopAutoScroll();
     const d = taskDragRef.current;
     if (!d || !d.active) return;
     taskDragRef.current = { active: false };
@@ -961,16 +1045,20 @@ export default function App() {
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
     dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 180);
 
-    if (d.draggedIdx !== d.dropIndex && d.draggedIdx >= 0 && d.dropIndex >= 0) {
+    if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       if (sortByDate) {
         setSortByDate(false);
         try { localStorage.setItem('synctodo_sort_by_date', 'false'); } catch {}
       }
       const currentItems = [...sortedActiveRef.current];
-      if (d.draggedIdx < currentItems.length) {
-        const [moved] = currentItems.splice(d.draggedIdx, 1);
-        currentItems.splice(d.dropIndex, 0, moved);
-        syncEngine.reorderTodos(currentItems.map(t => t.id));
+      const actualFromIndex = currentItems.findIndex(t => t.id === d.id);
+      if (actualFromIndex !== -1) {
+        const targetIndex = Math.max(0, Math.min(d.dropIndex, currentItems.length - 1));
+        if (actualFromIndex !== targetIndex) {
+          const [moved] = currentItems.splice(actualFromIndex, 1);
+          currentItems.splice(targetIndex, 0, moved);
+          syncEngine.reorderTodos(currentItems.map(t => t.id));
+        }
       }
     }
   };
@@ -993,19 +1081,22 @@ export default function App() {
     handleItemTouchCancel();
     const rect = itemEl.getBoundingClientRect();
     const containerEl = itemEl.closest('[data-lists-container]');
+    const scrollEl = findScrollParent(containerEl);
     const itemEls = containerEl ? Array.from(containerEl.querySelectorAll('[data-list-item]')) : [];
     const itemHeights = itemEls.map(el => el.getBoundingClientRect().height || 38);
+    const actualIndex = index >= 0 ? index : listsRef.current.findIndex(l => l.id === list.id);
     const dragData = {
       active: true,
       id: list.id,
-      draggedIdx: index,
-      dropIndex: index,
+      draggedIdx: actualIndex,
+      dropIndex: actualIndex,
       draggedHeight: rect.height || 38,
       gap,
       itemHeights,
       offsetY: clientY - rect.top,
       rect,
       containerEl,
+      scrollEl,
       list,
       source,
       currentY: clientY
@@ -1017,9 +1108,15 @@ export default function App() {
     }
   };
 
-  const updateListDrag = (clientY) => {
+  const updateListDrag = (clientY, isAutoScroll = false) => {
     const d = listDragRef.current;
     if (!d || !d.active) return;
+
+    if (!isAutoScroll) {
+      d.currentY = clientY;
+      const scrollEl = d.scrollEl || findScrollParent(d.containerEl);
+      checkAndRunAutoScroll(scrollEl, clientY);
+    }
 
     const floatingTop = clientY - d.offsetY;
     const dragCenterY = floatingTop + d.draggedHeight / 2;
@@ -1048,11 +1145,11 @@ export default function App() {
     }
 
     d.dropIndex = bestSlot;
-    d.currentY = clientY;
     setListDrag({ ...d });
   };
 
   const endListDrag = () => {
+    stopAutoScroll();
     const d = listDragRef.current;
     if (!d || !d.active) return;
     listDragRef.current = { active: false };
@@ -1061,12 +1158,16 @@ export default function App() {
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
     dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 180);
 
-    if (d.draggedIdx !== d.dropIndex && d.draggedIdx >= 0 && d.dropIndex >= 0) {
+    if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       const currentLists = [...listsRef.current];
-      if (d.draggedIdx < currentLists.length) {
-        const [moved] = currentLists.splice(d.draggedIdx, 1);
-        currentLists.splice(d.dropIndex, 0, moved);
-        syncEngine.reorderLists(currentLists.map(l => l.id));
+      const actualFromIndex = currentLists.findIndex(l => l.id === d.id);
+      if (actualFromIndex !== -1) {
+        const targetIndex = Math.max(0, Math.min(d.dropIndex, currentLists.length - 1));
+        if (actualFromIndex !== targetIndex) {
+          const [moved] = currentLists.splice(actualFromIndex, 1);
+          currentLists.splice(targetIndex, 0, moved);
+          syncEngine.reorderLists(currentLists.map(l => l.id));
+        }
       }
     }
   };
@@ -1135,17 +1236,26 @@ export default function App() {
       if (listDragRef.current.active) endListDrag();
     };
 
+    const onWindowBlur = () => {
+      pendingPointerDragRef.current = null;
+      if (taskDragRef.current.active) endTaskDrag();
+      if (listDragRef.current.active) endListDrag();
+    };
+
     window.addEventListener('mousemove', onMouseMove, { passive: false });
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onTouchEnd);
     window.addEventListener('touchcancel', onTouchEnd);
+    window.addEventListener('blur', onWindowBlur);
     return () => {
+      stopAutoScroll();
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
+      window.removeEventListener('blur', onWindowBlur);
     };
   }, []);
 
@@ -2345,6 +2455,7 @@ export default function App() {
                   <div
                     key={todo.id}
                     data-todo-card={todo.id}
+                    data-active-card={!isCompleted ? 'true' : 'false'}
                     style={{
                       position: 'relative',
                       overflow: isSwipedOpen ? 'hidden' : 'visible',

@@ -5,6 +5,6 @@
 
 ## Bugs to Fix
 
-When moving an item in a list over a long distance, the item won't be moved, it will just move up a little! (this was seen on the phone app but check its presense on other platforms too!)
+- [x] When moving an item in a list over a long distance, the item won't be moved, it will just move up a little! (Fixed: continuous RAF auto-scroll loop for stationary touch/mouse pointers at container edges, exact active card query filtering, dynamic ID lookup & reorder commit)
 
 ## Requests
