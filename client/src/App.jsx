@@ -1938,19 +1938,19 @@ export default function App() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {/* Progress Ring on My Day */}
                 {activeView === 'today' && (
-                  <div style={{ position: 'relative', width: '38px', height: '38px', flexShrink: 0 }} title={`${myDayPct}% completed today`}>
-                    <svg width="38" height="38" viewBox="0 0 38 38" style={{ transform: 'rotate(-90deg)' }}>
-                      <circle cx="19" cy="19" r="15" fill="none" stroke="var(--border)" strokeWidth="3.5" />
+                  <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }} title={`${myDayPct}% completed today`}>
+                    <svg width="44" height="44" viewBox="0 0 44 44" style={{ transform: 'rotate(-90deg)' }}>
+                      <circle cx="22" cy="22" r="17.5" fill="none" stroke="var(--border)" strokeWidth="3.2" />
                       <circle
-                        cx="19"
-                        cy="19"
-                        r="15"
+                        cx="22"
+                        cy="22"
+                        r="17.5"
                         fill="none"
                         stroke="#10b981"
-                        strokeWidth="3.5"
+                        strokeWidth="3.2"
                         strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 15}`}
-                        strokeDashoffset={`${2 * Math.PI * 15 * (1 - myDayPct / 100)}`}
+                        strokeDasharray={`${(2 * Math.PI * 17.5).toFixed(2)}`}
+                        strokeDashoffset={`${(2 * Math.PI * 17.5 * (1 - myDayPct / 100)).toFixed(2)}`}
                         style={{ transition: 'stroke-dashoffset 0.35s ease' }}
                       />
                     </svg>
@@ -1960,9 +1960,10 @@ export default function App() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '10px',
+                      fontSize: `${myDayDoneCount}/${myDayTotalCount}`.length > 5 ? '9px' : `${myDayDoneCount}/${myDayTotalCount}`.length > 4 ? '10px' : '11.5px',
                       fontWeight: 800,
-                      color: 'var(--text)'
+                      color: 'var(--text)',
+                      letterSpacing: '-0.2px'
                     }}>
                       {myDayDoneCount}/{myDayTotalCount}
                     </span>
