@@ -403,6 +403,7 @@ export default function App() {
     showThemeModal ||
     showPlannerModal ||
     showListsModal ||
+    showQuickAddCalendar ||
     editingList ||
     (listsToDelete && listsToDelete.length > 0)
   );
@@ -417,6 +418,10 @@ export default function App() {
 
   useEffect(() => {
     window.__handleAndroidBack = () => {
+      if (showQuickAddCalendar) {
+        setShowQuickAddCalendar(false);
+        return true;
+      }
       if (listsToDelete && listsToDelete.length > 0) {
         setListsToDelete(null);
         return true;
@@ -463,7 +468,7 @@ export default function App() {
   }, [
     listsToDelete, showCanvasModal, editingList, showListsModal,
     showPlannerModal, showThemeModal, showDevicesModal, showSettingsModal,
-    showListPickerSheet, selectedTodoId
+    showQuickAddCalendar, showListPickerSheet, selectedTodoId
   ]);
 
 
@@ -3659,10 +3664,12 @@ export default function App() {
       {/* Quick Add Multi-Calendar Picker Modal (Laptop / Tablet) */}
       {showQuickAddCalendar && (
         <CalendarPickerModal
+          isOpen={showQuickAddCalendar}
+          value={newDueDate || todayStr}
           calendarType={calendarType}
-          currentDate={newDueDate || todayStr}
-          onSelectDate={(iso) => {
-            setNewDueDate(iso);
+          deviceType={deviceType}
+          onSelect={(iso) => {
+            setNewDueDate(iso || '');
             setShowQuickAddCalendar(false);
           }}
           onClose={() => setShowQuickAddCalendar(false)}

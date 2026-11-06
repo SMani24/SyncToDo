@@ -21,14 +21,19 @@ import {
 } from '../utils/calendar';
 
 export default function CalendarPickerModal({
-  isOpen,
+  isOpen = true,
   value, // "YYYY-MM-DD" or null
+  currentDate,
   calendarType = 'gregorian',
   onSelect, // (isoDateStr | null) => void
+  onSelectDate,
   onClose,
   deviceType = 'laptop'
 }) {
-  if (!isOpen) return null;
+  if (isOpen === false) return null;
+
+  const finalValue = value !== undefined ? value : currentDate;
+  const triggerSelect = onSelect || onSelectDate || (() => {});
 
   const isPhone = deviceType === 'phone';
   const isRTL = calendarType === 'shamsi' || calendarType === 'islamic';
@@ -39,7 +44,7 @@ export default function CalendarPickerModal({
 
   // Initial state based on current calendarType and selected value
   const [viewYear, setViewYear] = useState(() => {
-    const d = value ? new Date(value + 'T12:00:00') : now;
+    const d = finalValue ? new Date(finalValue + 'T12:00:00') : now;
     if (calendarType === 'shamsi') {
       const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
       return j.jy;
@@ -52,7 +57,7 @@ export default function CalendarPickerModal({
   });
 
   const [viewMonth, setViewMonth] = useState(() => {
-    const d = value ? new Date(value + 'T12:00:00') : now;
+    const d = finalValue ? new Date(finalValue + 'T12:00:00') : now;
     if (calendarType === 'shamsi') {
       const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
       return j.jm; // 1..12
@@ -66,7 +71,7 @@ export default function CalendarPickerModal({
 
   // Keep state in sync if value or calendarType changes externally
   useEffect(() => {
-    const d = value ? new Date(value + 'T12:00:00') : new Date();
+    const d = finalValue ? new Date(finalValue + 'T12:00:00') : new Date();
     if (calendarType === 'shamsi') {
       const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
       setViewYear(j.jy);
@@ -79,7 +84,7 @@ export default function CalendarPickerModal({
       setViewYear(d.getFullYear());
       setViewMonth(d.getMonth() + 1);
     }
-  }, [value, calendarType]);
+  }, [finalValue, calendarType]);
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -140,7 +145,7 @@ export default function CalendarPickerModal({
           displayNum: toPersianDigits(day),
           iso,
           isToday: iso === todayISO,
-          isSelected: iso === value,
+          isSelected: iso === finalValue,
           isWeekend: (offset + day - 1) % 7 === 6 // Friday
         });
       }
@@ -157,7 +162,7 @@ export default function CalendarPickerModal({
           displayNum: toPersianDigits(day),
           iso,
           isToday: iso === todayISO,
-          isSelected: iso === value,
+          isSelected: iso === finalValue,
           isWeekend: (offset + day - 1) % 7 === 6 // Friday
         });
       }
@@ -174,18 +179,18 @@ export default function CalendarPickerModal({
           displayNum: String(day),
           iso,
           isToday: iso === todayISO,
-          isSelected: iso === value,
+          isSelected: iso === finalValue,
           isWeekend: (offset + day - 1) % 7 === 0 || (offset + day - 1) % 7 === 6
         });
       }
     }
 
     return { totalDays: tot, colOffset: offset, daysList: list };
-  }, [viewYear, viewMonth, calendarType, value, todayISO]);
+  }, [viewYear, viewMonth, calendarType, finalValue, todayISO]);
 
   // Quick Select Helpers
   const handleSelectToday = () => {
-    onSelect(todayISO);
+    triggerSelect(todayISO);
     onClose();
   };
 
@@ -193,12 +198,12 @@ export default function CalendarPickerModal({
     const tmrw = new Date();
     tmrw.setDate(tmrw.getDate() + 1);
     const tmrwISO = `${tmrw.getFullYear()}-${String(tmrw.getMonth() + 1).padStart(2, '0')}-${String(tmrw.getDate()).padStart(2, '0')}`;
-    onSelect(tmrwISO);
+    triggerSelect(tmrwISO);
     onClose();
   };
 
   const handleClear = () => {
-    onSelect(null);
+    triggerSelect(null);
     onClose();
   };
 
@@ -438,7 +443,7 @@ export default function CalendarPickerModal({
               key={d.dayNum}
               type="button"
               onClick={() => {
-                onSelect(d.iso);
+                triggerSelect(d.iso);
                 onClose();
               }}
               style={{
@@ -525,7 +530,7 @@ export default function CalendarPickerModal({
           </div>
 
           <div style={{ display: 'flex', gap: '6px' }}>
-            {value && (
+            {finalValue && (
               <button
                 type="button"
                 onClick={handleClear}
