@@ -179,29 +179,43 @@ export default function DailyPlannerModal({
         )}
 
         {/* Filter by Project / List */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: isPhone ? '10px 14px 8px 14px' : '14px 20px 8px 20px',
-          overflowX: 'auto',
-          borderBottom: '1px solid var(--border)'
-        }}>
+        <div
+          className="no-scrollbar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: isPhone ? '10px 14px' : '12px 20px',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0
+          }}
+        >
           <button
+            type="button"
             onClick={() => setSelectedListFilter('all')}
             style={{
-              padding: '6px 12px',
+              padding: '6px 13px',
               borderRadius: '20px',
-              border: selectedListFilter === 'all' ? '1px solid var(--primary)' : '1px solid var(--border)',
+              border: selectedListFilter === 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border)',
               background: selectedListFilter === 'all' ? 'var(--tag-bg)' : 'transparent',
               color: selectedListFilter === 'all' ? 'var(--primary)' : 'var(--text-muted)',
-              fontSize: '11px',
-              fontWeight: 600,
+              fontSize: '12px',
+              fontWeight: selectedListFilter === 'all' ? 700 : 500,
               cursor: 'pointer',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px'
             }}
           >
-            📋 Backlog ({activeTodos.filter(t => !t.completed).length})
+            <span>📋</span>
+            <span>Backlog</span>
+            <span style={{ opacity: 0.75 }}>({activeTodos.filter(t => !t.completed).length})</span>
           </button>
           {lists.map(list => {
             const count = activeTodos.filter(t => !t.completed && t.listId === list.id).length;
@@ -209,25 +223,27 @@ export default function DailyPlannerModal({
             return (
               <button
                 key={list.id}
+                type="button"
                 onClick={() => setSelectedListFilter(list.id)}
                 style={{
-                  padding: '6px 12px',
+                  padding: '6px 13px',
                   borderRadius: '20px',
-                  border: isSel ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  border: isSel ? '1.5px solid var(--primary)' : '1px solid var(--border)',
                   background: isSel ? 'var(--tag-bg)' : 'transparent',
                   color: isSel ? 'var(--primary)' : 'var(--text-muted)',
-                  fontSize: '11px',
-                  fontWeight: 600,
+                  fontSize: '12px',
+                  fontWeight: isSel ? 700 : 500,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  display: 'flex',
+                  flexShrink: 0,
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '5px'
                 }}
               >
                 <span>{normalizeListIcon(list.icon)}</span>
-                <span>{list.name}</span>
-                <span style={{ opacity: 0.7 }}>({count})</span>
+                <span dir="auto" style={{ unicodeBidi: 'plaintext' }}>{list.name}</span>
+                <span style={{ opacity: 0.75 }}>({count})</span>
               </button>
             );
           })}

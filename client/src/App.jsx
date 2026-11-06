@@ -395,6 +395,7 @@ export default function App() {
 
   // Android hardware back button & modal management
   const anyModalOpen = Boolean(
+    isInputFocused ||
     showListPickerSheet ||
     selectedTodoId ||
     showCanvasModal ||
@@ -416,8 +417,51 @@ export default function App() {
     }
   }, [anyModalOpen]);
 
+  // Monitor keyboard visibility & dismissal
+  useEffect(() => {
+    const handleDismissKeyboard = () => {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        document.activeElement.blur();
+      }
+      setIsInputFocused(false);
+    };
+
+    window.addEventListener('keyboardhide', handleDismissKeyboard);
+
+    if (window.visualViewport) {
+      let lastVh = window.visualViewport.height;
+      const onViewportResize = () => {
+        const vh = window.visualViewport.height;
+        const wh = window.innerHeight;
+        // When keyboard closes on phone, visualViewport expands back towards innerHeight
+        if (vh >= wh - 70 && lastVh < wh - 120) {
+          handleDismissKeyboard();
+        }
+        lastVh = vh;
+      };
+      window.visualViewport.addEventListener('resize', onViewportResize);
+      return () => {
+        window.removeEventListener('keyboardhide', handleDismissKeyboard);
+        window.visualViewport.removeEventListener('resize', onViewportResize);
+      };
+    }
+
+    return () => {
+      window.removeEventListener('keyboardhide', handleDismissKeyboard);
+    };
+  }, []);
+
   useEffect(() => {
     window.__handleAndroidBack = () => {
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        document.activeElement.blur();
+        setIsInputFocused(false);
+        return true;
+      }
+      if (isInputFocused) {
+        setIsInputFocused(false);
+        return true;
+      }
       if (showQuickAddCalendar) {
         setShowQuickAddCalendar(false);
         return true;
@@ -466,7 +510,7 @@ export default function App() {
       return false;
     };
   }, [
-    listsToDelete, showCanvasModal, editingList, showListsModal,
+    isInputFocused, listsToDelete, showCanvasModal, editingList, showListsModal,
     showPlannerModal, showThemeModal, showDevicesModal, showSettingsModal,
     showQuickAddCalendar, showListPickerSheet, selectedTodoId
   ]);

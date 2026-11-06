@@ -113,6 +113,17 @@
       border-radius: 999px;
     }
 
+    /* Hide scrollbar utility for horizontal tabs & strips */
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
     /* ================================================= */
     /* 8 BALANCED THEMES (4 Dark, 4 Light)               */
     /* ================================================= */

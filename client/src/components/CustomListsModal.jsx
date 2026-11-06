@@ -85,7 +85,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
 
           {/* New List Form */}
           <form onSubmit={handleCreate} style={{
-            padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px',
+            padding: '16px',
             borderRadius: '14px',
             backgroundColor: 'var(--bg-subtle)',
             border: '1px solid var(--border)',
@@ -95,17 +95,18 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
               Create New Project / List
             </label>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', alignItems: 'center' }}>
               <input
                 type="text"
-                placeholder="List name (e.g. Website Redesign, Fitness)"
+                placeholder="List name (e.g. Work, Studies)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 dir="auto"
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   padding: '9px 12px',
-                  borderRadius: '8px',
+                  borderRadius: '9px',
                   border: '1px solid var(--border)',
                   backgroundColor: 'var(--bg)',
                   color: 'var(--text)',
@@ -119,40 +120,61 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                 disabled={!name.trim()}
                 style={{
                   padding: '9px 16px',
-                  borderRadius: '8px',
+                  borderRadius: '9px',
                   border: 'none',
                   background: 'var(--primary-gradient)',
                   color: '#ffffff',
-                  fontSize: '12px',
-                  fontWeight: 600,
+                  fontSize: '13px',
+                  fontWeight: 700,
                   cursor: name.trim() ? 'pointer' : 'default',
-                  opacity: name.trim() ? 1 : 0.5
+                  opacity: name.trim() ? 1 : 0.5,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}
               >
-                + Add List
+                <span>+</span>
+                <span>Add List</span>
               </button>
             </div>
 
             {/* Icon & Color pickers */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* Emoji Options */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', maxWidth: '300px' }}>
+              <div
+                className="no-scrollbar"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  overflowX: 'auto',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch',
+                  width: '100%',
+                  padding: '3px 0 5px 0'
+                }}
+              >
                 {EMOJI_OPTIONS.map(emoji => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => setSelectedIcon(emoji)}
                     style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '6px',
+                      width: '32px',
+                      height: '32px',
+                      flexShrink: 0,
+                      borderRadius: '8px',
                       border: selectedIcon === emoji ? '2px solid var(--primary)' : '1px solid transparent',
                       background: selectedIcon === emoji ? 'var(--surface-elevated)' : 'transparent',
                       cursor: 'pointer',
-                      fontSize: '14px',
+                      fontSize: '16px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
                     }}
                   >
                     {emoji}
@@ -161,20 +183,22 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
               </div>
 
               {/* Color Options */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '2px 0' }}>
                 {COLOR_OPTIONS.map(hex => (
                   <button
                     key={hex}
                     type="button"
                     onClick={() => setSelectedColor(hex)}
                     style={{
-                      width: '18px',
-                      height: '18px',
+                      width: '20px',
+                      height: '20px',
                       borderRadius: '50%',
                       backgroundColor: hex,
-                      border: selectedColor === hex ? '2px solid var(--text)' : '1px solid var(--border)',
+                      border: selectedColor === hex ? '2.5px solid var(--text)' : '1px solid var(--border)',
                       cursor: 'pointer',
-                      transform: selectedColor === hex ? 'scale(1.2)' : 'scale(1)'
+                      transform: selectedColor === hex ? 'scale(1.2)' : 'scale(1)',
+                      transition: 'all 0.15s ease',
+                      boxShadow: selectedColor === hex ? `0 0 8px ${hex}88` : 'none'
                     }}
                   />
                 ))}

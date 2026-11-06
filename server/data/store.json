@@ -11,7 +11,7 @@
       "port": 4567,
       "token": "tok-1793832180228-9l8rn9tk",
       "pairedAt": 1793832180228,
-      "lastSeen": 1793928737364
+      "lastSeen": 1793945985887
     },
     "android-0c56aa1d": {
       "deviceId": "android-0c56aa1d",
@@ -15607,6 +15607,30 @@
       "deletedAt": null,
       "version": 1,
       "isInlineHandwriting": false
+    },
+    "todo-1793940763852-iow60": {
+      "id": "todo-1793940763852-iow60",
+      "title": "قرار دادن SyncToDo در بازار",
+      "notes": "",
+      "completed": false,
+      "completedAt": null,
+      "listId": "inbox",
+      "priority": "medium",
+      "dueDate": null,
+      "dueTime": null,
+      "reminderTime": null,
+      "steps": [],
+      "order": -3,
+      "inMyDay": false,
+      "plannedDate": null,
+      "recurrence": "none",
+      "recurrenceInterval": 1,
+      "handwriting": null,
+      "createdAt": 1793940763852,
+      "updatedAt": 1793940763852,
+      "deletedAt": null,
+      "version": 1,
+      "isInlineHandwriting": false
     }
   },
   "lists": [
@@ -15615,7 +15639,9 @@
       "name": "Inbox",
       "icon": "📥",
       "color": "#6366f1",
-      "isSystem": true
+      "isSystem": true,
+      "order": 0,
+      "updatedAt": 1793940861066
     },
     {
       "id": "work",
@@ -15623,21 +15649,18 @@
       "icon": "💼",
       "color": "#a855f7",
       "isSystem": false,
-      "updatedAt": 1793650414568
+      "updatedAt": 1793940861066,
+      "order": 1
     },
     {
-      "id": "personal",
-      "name": "Personal",
-      "icon": "❤️",
-      "color": "#10b981",
-      "isSystem": false
-    },
-    {
-      "id": "shopping",
-      "name": "Shopping",
-      "icon": "🛒",
-      "color": "#f59e0b",
-      "isSystem": false
+      "id": "list-1793940844317-f8x1",
+      "name": "Apply",
+      "icon": "✈️",
+      "color": "#6366f1",
+      "isSystem": false,
+      "createdAt": 1793940844317,
+      "updatedAt": 1793940861066,
+      "order": 2
     },
     {
       "id": "list-1793650339578-d6dk",
@@ -15646,7 +15669,8 @@
       "color": "#6366f1",
       "isSystem": false,
       "createdAt": 1793650339578,
-      "updatedAt": 1793650339579
+      "updatedAt": 1793940861066,
+      "order": 3
     },
     {
       "id": "list-1793724538038-kv7n",
@@ -15655,7 +15679,8 @@
       "color": "#6366f1",
       "isSystem": false,
       "createdAt": 1793724538038,
-      "updatedAt": 1793724538038
+      "updatedAt": 1793940861066,
+      "order": 4
     },
     {
       "id": "taks-list",
@@ -15664,7 +15689,8 @@
       "color": "#6366f1",
       "isSystem": false,
       "createdAt": 1793725642326,
-      "updatedAt": 1793726424875
+      "updatedAt": 1793940861066,
+      "order": 5
     },
     {
       "id": "homework-list",
@@ -15673,7 +15699,8 @@
       "color": "#f59e0b",
       "isSystem": false,
       "createdAt": 1793726742878,
-      "updatedAt": 1793726742878
+      "updatedAt": 1793940861066,
+      "order": 6
     },
     {
       "id": "list-os",
@@ -15682,7 +15709,8 @@
       "color": "#6366f1",
       "isSystem": false,
       "createdAt": 1793878218889,
-      "updatedAt": 1793878218889
+      "updatedAt": 1793940861066,
+      "order": 7
     },
     {
       "id": "list-1793929657077-yveh",
@@ -15691,7 +15719,26 @@
       "color": "#f59e0b",
       "isSystem": false,
       "createdAt": 1793929657077,
-      "updatedAt": 1793929657077
+      "updatedAt": 1793940861066,
+      "order": 8
+    },
+    {
+      "id": "shopping",
+      "name": "Shopping",
+      "icon": "🛒",
+      "color": "#f59e0b",
+      "isSystem": false,
+      "order": 9,
+      "updatedAt": 1793940861066
+    },
+    {
+      "id": "personal",
+      "name": "Personal",
+      "icon": "❤️",
+      "color": "#10b981",
+      "isSystem": false,
+      "order": 10,
+      "updatedAt": 1793940861066
     }
   ],
   "mutations": [
@@ -138103,7 +138150,6653 @@
       },
       "timestamp": 1793936213927,
       "originDevice": "android-0c56aa1d"
+    },
+    {
+      "id": "mut-1793940763852-uqn13",
+      "entityId": "todo-1793940763852-iow60",
+      "type": "UPSERT",
+      "data": {
+        "id": "todo-1793940763852-iow60",
+        "title": "قرار دادن SyncToDo در بازار",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": null,
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": -3,
+        "inMyDay": false,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793940763852,
+        "updatedAt": 1793940763852,
+        "deletedAt": null,
+        "version": 1,
+        "isInlineHandwriting": false
+      },
+      "timestamp": 1793940763852,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940763852-uqn13",
+      "entityId": "todo-1793940763852-iow60",
+      "type": "UPSERT",
+      "data": {
+        "id": "todo-1793940763852-iow60",
+        "title": "قرار دادن SyncToDo در بازار",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": null,
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": -3,
+        "inMyDay": false,
+        "plannedDate": null,
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793940763852,
+        "updatedAt": 1793940763852,
+        "deletedAt": null,
+        "version": 1,
+        "isInlineHandwriting": false
+      },
+      "timestamp": 1793940763852,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940844317-vhxga",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940844317
+      },
+      "timestamp": 1793940844317,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940844317-vhxga",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940844317
+      },
+      "timestamp": 1793940844317,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-8",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940856672,
+        "order": 8
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-8",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940856672,
+        "order": 8
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-st-os-9",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940856672,
+        "order": 9
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-8",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940856672,
+        "order": 8
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-st-os-9",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940856672,
+        "order": 9
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--yveh-10",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940856672,
+        "order": 10
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-8",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940856672,
+        "order": 8
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-8",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940856672,
+        "order": 8
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-st-os-9",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940856672,
+        "order": 9
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-sonal-3",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-pping-4",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 4,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--d6dk-5",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940856672,
+        "order": 5
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--kv7n-6",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940856672,
+        "order": 6
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-7",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940856672,
+        "order": 7
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--list-8",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940856672,
+        "order": 8
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-st-os-9",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940856672,
+        "order": 9
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--yveh-10",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940856672,
+        "order": 10
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940856672,
+        "order": 2
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940856672
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940856672-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940856672,
+        "order": 1
+      },
+      "timestamp": 1793940856672,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-st-os-8",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940859204,
+        "order": 8
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-st-os-8",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940859204,
+        "order": 8
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--yveh-9",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940859204,
+        "order": 9
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-st-os-8",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940859204,
+        "order": 8
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--yveh-9",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940859204,
+        "order": 9
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-sonal-10",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 10,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-st-os-8",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940859204,
+        "order": 8
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--yveh-9",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940859204,
+        "order": 9
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-st-os-8",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940859204,
+        "order": 8
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940859204,
+        "order": 1
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940859204,
+        "order": 2
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-pping-3",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 3,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--d6dk-4",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940859204,
+        "order": 4
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--kv7n-5",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940859204,
+        "order": 5
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-6",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940859204,
+        "order": 6
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--list-7",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940859204,
+        "order": 7
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-st-os-8",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940859204,
+        "order": 8
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list--yveh-9",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940859204,
+        "order": 9
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940859204-list-sonal-10",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 10,
+        "updatedAt": 1793940859204
+      },
+      "timestamp": 1793940859204,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--yveh-8",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940861066,
+        "order": 8
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--yveh-8",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940861066,
+        "order": 8
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-pping-9",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 9,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--yveh-8",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940861066,
+        "order": 8
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-pping-9",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 9,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-sonal-10",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 10,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--yveh-8",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940861066,
+        "order": 8
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-pping-9",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 9,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--yveh-8",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940861066,
+        "order": 8
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-inbox-0",
+      "entityId": "inbox",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "inbox",
+        "name": "Inbox",
+        "icon": "📥",
+        "color": "#6366f1",
+        "isSystem": true,
+        "order": 0,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-work-1",
+      "entityId": "work",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "work",
+        "name": "Work",
+        "icon": "💼",
+        "color": "#a855f7",
+        "isSystem": false,
+        "updatedAt": 1793940861066,
+        "order": 1
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--f8x1-2",
+      "entityId": "list-1793940844317-f8x1",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793940844317-f8x1",
+        "name": "Apply",
+        "icon": "✈️",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793940844317,
+        "updatedAt": 1793940861066,
+        "order": 2
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--d6dk-3",
+      "entityId": "list-1793650339578-d6dk",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793650339578-d6dk",
+        "name": "AP",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793650339578,
+        "updatedAt": 1793940861066,
+        "order": 3
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--kv7n-4",
+      "entityId": "list-1793724538038-kv7n",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793724538038-kv7n",
+        "name": "Daily Activities",
+        "icon": "📁",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793724538038,
+        "updatedAt": 1793940861066,
+        "order": 4
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-5",
+      "entityId": "taks-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "taks-list",
+        "name": "Task List",
+        "icon": "📋",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793725642326,
+        "updatedAt": 1793940861066,
+        "order": 5
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--list-6",
+      "entityId": "homework-list",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "homework-list",
+        "name": "Homework",
+        "icon": "📚",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793726742878,
+        "updatedAt": 1793940861066,
+        "order": 6
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-st-os-7",
+      "entityId": "list-os",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-os",
+        "name": "OS",
+        "icon": "💻",
+        "color": "#6366f1",
+        "isSystem": false,
+        "createdAt": 1793878218889,
+        "updatedAt": 1793940861066,
+        "order": 7
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list--yveh-8",
+      "entityId": "list-1793929657077-yveh",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "list-1793929657077-yveh",
+        "name": "Quantum",
+        "icon": "⚡",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "createdAt": 1793929657077,
+        "updatedAt": 1793940861066,
+        "order": 8
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-pping-9",
+      "entityId": "shopping",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "shopping",
+        "name": "Shopping",
+        "icon": "🛒",
+        "color": "#f59e0b",
+        "isSystem": false,
+        "order": 9,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
+    },
+    {
+      "id": "mut-1793940861066-list-sonal-10",
+      "entityId": "personal",
+      "type": "LIST_UPSERT",
+      "data": {
+        "id": "personal",
+        "name": "Personal",
+        "icon": "❤️",
+        "color": "#10b981",
+        "isSystem": false,
+        "order": 10,
+        "updatedAt": 1793940861066
+      },
+      "timestamp": 1793940861066,
+      "originDevice": "android-078fbfc5"
     }
   ],
-  "lastUpdated": 1793937775029
+  "lastUpdated": 1793945985889
 }

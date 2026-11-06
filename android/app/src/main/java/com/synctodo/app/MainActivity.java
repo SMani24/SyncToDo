@@ -15,6 +15,7 @@ public class MainActivity extends BridgeActivity {
     private LocalPeerServer peerServer;
     private volatile boolean isModalOpen = false;
     private boolean isStylusButtonPressed = false;
+    private boolean lastImeVisible = false;
 
     public class AndroidBridge {
         @JavascriptInterface
@@ -37,9 +38,26 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    private void notifyDismissKeyboard() {
+        if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().post(new Runnable() {
+                @Override
+                public void run() {
+                    bridge.getWebView().evaluateJavascript(
+                        "try { if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) { document.activeElement.blur(); } window.dispatchEvent(new CustomEvent('keyboardhide')); } catch(e) {}",
+                        null
+                    );
+                }
+            });
+        }
+    }
+
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
+        if (code == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+            notifyDismissKeyboard();
+        }
         // Android Stylus Button keycodes (308: Primary, 309: Secondary, 310: Tertiary, 311: Tail)
         if (code == 308 || code == 309 || code == 310 || code == 311 ||
             code == KeyEvent.KEYCODE_BUTTON_1 || code == KeyEvent.KEYCODE_BUTTON_2) {
@@ -119,6 +137,12 @@ public class MainActivity extends BridgeActivity {
             // Prevent Chromium WebView from double-subtracting IME keyboard height
             // because DecorView (SystemBars + adjustResize) already pads for IME & systemBars
             ViewCompat.setOnApplyWindowInsetsListener(bridge.getWebView(), (v, windowInsets) -> {
+                boolean imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
+                if (lastImeVisible && !imeVisible) {
+                    notifyDismissKeyboard();
+                }
+                lastImeVisible = imeVisible;
+
                 WindowInsetsCompat stripped = new WindowInsetsCompat.Builder(windowInsets)
                     .setInsets(
                         WindowInsetsCompat.Type.ime() | WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(),
@@ -132,6 +156,7 @@ public class MainActivity extends BridgeActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                notifyDismissKeyboard();
                 if (isModalOpen) {
                     if (bridge != null && bridge.getWebView() != null) {
                         bridge.getWebView().post(new Runnable() {
@@ -166,6 +191,12 @@ public class MainActivity extends BridgeActivity {
             // Prevent Chromium WebView from double-subtracting IME keyboard height
             // because DecorView (SystemBars + adjustResize) already pads for IME & systemBars
             ViewCompat.setOnApplyWindowInsetsListener(bridge.getWebView(), (v, windowInsets) -> {
+                boolean imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
+                if (lastImeVisible && !imeVisible) {
+                    notifyDismissKeyboard();
+                }
+                lastImeVisible = imeVisible;
+
                 WindowInsetsCompat stripped = new WindowInsetsCompat.Builder(windowInsets)
                     .setInsets(
                         WindowInsetsCompat.Type.ime() | WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(),
@@ -179,6 +210,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onBackPressed() {
+        notifyDismissKeyboard();
         if (isModalOpen) {
             if (bridge != null && bridge.getWebView() != null) {
                 bridge.getWebView().post(new Runnable() {
