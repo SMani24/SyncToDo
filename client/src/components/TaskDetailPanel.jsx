@@ -226,35 +226,70 @@ export default function TaskDetailPanel({
           )}
         </div>
 
-        {/* My Day Toggle Button */}
-        <button
-          onClick={() => {
-            const nextInMyDay = !todo.inMyDay;
-            syncEngine.updateTodo(todo.id, {
-              inMyDay: nextInMyDay,
-              plannedDate: nextInMyDay ? todayStr : null
-            });
-          }}
-          style={{
-            padding: '10px 14px',
-            borderRadius: '12px',
-            border: todo.inMyDay ? '1px solid rgba(251, 191, 36, 0.45)' : '1px solid var(--border)',
-            background: todo.inMyDay ? 'rgba(251, 191, 36, 0.12)' : 'var(--bg-subtle)',
-            color: todo.inMyDay ? '#fbbf24' : 'var(--text)',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Icon name="sun" size={16} />
-            <span>{todo.inMyDay ? 'Added to My Day' : 'Add to My Day'}</span>
-          </span>
-          {todo.inMyDay && <span style={{ fontSize: '11px', opacity: 0.85 }}>✓ Active</span>}
-        </button>
+        {/* Quick Toggles: My Day & Pin to Top */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const nextInMyDay = !todo.inMyDay;
+              syncEngine.updateTodo(todo.id, {
+                inMyDay: nextInMyDay,
+                plannedDate: nextInMyDay ? todayStr : null
+              });
+            }}
+            style={{
+              padding: '10px 12px',
+              borderRadius: '12px',
+              border: todo.inMyDay ? '1px solid rgba(251, 191, 36, 0.45)' : '1px solid var(--border)',
+              background: todo.inMyDay ? 'rgba(251, 191, 36, 0.12)' : 'var(--bg-subtle)',
+              color: todo.inMyDay ? '#fbbf24' : 'var(--text)',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '6px'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <Icon name="sun" size={15} />
+              <span>{todo.inMyDay ? 'In My Day' : 'Add to My Day'}</span>
+            </span>
+            {todo.inMyDay && <span style={{ fontSize: '10.5px', opacity: 0.85 }}>✓</span>}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const nextPinned = !todo.pinned;
+              syncEngine.updateTodo(todo.id, {
+                pinned: nextPinned,
+                pinnedAt: nextPinned ? Date.now() : null
+              });
+            }}
+            style={{
+              padding: '10px 12px',
+              borderRadius: '12px',
+              border: todo.pinned ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--border)',
+              background: todo.pinned ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-subtle)',
+              color: todo.pinned ? '#f59e0b' : 'var(--text)',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '6px'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <Icon name={todo.pinned ? 'pinFilled' : 'pin'} size={15} />
+              <span>{todo.pinned ? 'Pinned to Top' : 'Pin to Top'}</span>
+            </span>
+            {todo.pinned && <span style={{ fontSize: '10.5px', opacity: 0.85 }}>✓</span>}
+          </button>
+        </div>
 
         {/* SUBTASKS / STEPS */}
         <div style={{

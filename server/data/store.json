@@ -9840,9 +9840,11 @@
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793736220859,
-      "updatedAt": 1794023836179,
+      "updatedAt": 1794046371670,
       "deletedAt": null,
-      "version": 35
+      "version": 36,
+      "pinned": true,
+      "pinnedAt": 1794046371670
     },
     "todo-1793763062187-cbnde": {
       "id": "todo-1793763062187-cbnde",
@@ -10060,9 +10062,10 @@
       "order": 4,
       "steps": [],
       "createdAt": 1793878218890,
-      "updatedAt": 1794023836179,
+      "updatedAt": 1794045039921,
       "deletedAt": null,
-      "version": 21
+      "version": 22,
+      "pinned": true
     },
     "todo-os-003": {
       "id": "todo-os-003",
@@ -15483,10 +15486,12 @@
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793930063376,
-      "updatedAt": 1794023836179,
+      "updatedAt": 1794046490578,
       "deletedAt": null,
-      "version": 23,
-      "isInlineHandwriting": false
+      "version": 24,
+      "isInlineHandwriting": false,
+      "pinned": true,
+      "pinnedAt": 1794046490578
     },
     "todo-1793930102034-jga14": {
       "id": "todo-1793930102034-jga14",
@@ -15603,10 +15608,11 @@
       "recurrenceInterval": 1,
       "handwriting": null,
       "createdAt": 1793934997760,
-      "updatedAt": 1794023836179,
+      "updatedAt": 1794045072206,
       "deletedAt": null,
-      "version": 16,
-      "isInlineHandwriting": false
+      "version": 17,
+      "isInlineHandwriting": false,
+      "pinned": true
     },
     "todo-1793940763852-iow60": {
       "id": "todo-1793940763852-iow60",
@@ -555480,7 +555486,130 @@
       },
       "timestamp": 1794043461876,
       "originDevice": "phone-h7y8wyn"
+    },
+    {
+      "id": "mut-1794045039921-9zbzb",
+      "entityId": "todo-os-002",
+      "type": "UPSERT",
+      "data": {
+        "id": "todo-os-002",
+        "title": "OS Book - 1.2 Computer-System Organization",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "list-os",
+        "priority": "medium",
+        "dueDate": "2026-11-07",
+        "plannedDate": "2026-11-07",
+        "inMyDay": true,
+        "order": 4,
+        "steps": [],
+        "createdAt": 1793878218890,
+        "updatedAt": 1794045039921,
+        "deletedAt": null,
+        "version": 22,
+        "pinned": true
+      },
+      "timestamp": 1794045039921,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1794045072206-yavbf",
+      "entityId": "todo-1793934997760-13ahx",
+      "type": "UPSERT",
+      "data": {
+        "id": "todo-1793934997760-13ahx",
+        "title": "مرتب کردن فایل های گسسته (تبلت)",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "inbox",
+        "priority": "medium",
+        "dueDate": "2026-11-07",
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": 3,
+        "inMyDay": true,
+        "plannedDate": "2026-11-07",
+        "recurrence": "none",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793934997760,
+        "updatedAt": 1794045072206,
+        "deletedAt": null,
+        "version": 17,
+        "isInlineHandwriting": false,
+        "pinned": true
+      },
+      "timestamp": 1794045072206,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1794046371670-2qeoy",
+      "entityId": "todo-1793736220859-2rw2d",
+      "type": "UPSERT",
+      "data": {
+        "id": "todo-1793736220859-2rw2d",
+        "title": "نماز صبح",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "list-1793724538038-kv7n",
+        "priority": "high",
+        "dueDate": "2026-11-07",
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": 0,
+        "inMyDay": true,
+        "plannedDate": "2026-11-07",
+        "recurrence": "daily",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793736220859,
+        "updatedAt": 1794046371670,
+        "deletedAt": null,
+        "version": 36,
+        "pinned": true,
+        "pinnedAt": 1794046371670
+      },
+      "timestamp": 1794046371670,
+      "originDevice": "laptop-22qie7c"
+    },
+    {
+      "id": "mut-1794046490578-v53f5",
+      "entityId": "todo-1793930063376-1ojqx",
+      "type": "UPSERT",
+      "data": {
+        "id": "todo-1793930063376-1ojqx",
+        "title": "نماز ظهر",
+        "notes": "",
+        "completed": false,
+        "completedAt": null,
+        "listId": "list-1793724538038-kv7n",
+        "priority": "high",
+        "dueDate": "2026-11-07",
+        "dueTime": null,
+        "reminderTime": null,
+        "steps": [],
+        "order": 1,
+        "inMyDay": true,
+        "plannedDate": "2026-11-07",
+        "recurrence": "daily",
+        "recurrenceInterval": 1,
+        "handwriting": null,
+        "createdAt": 1793930063376,
+        "updatedAt": 1794046490578,
+        "deletedAt": null,
+        "version": 24,
+        "isInlineHandwriting": false,
+        "pinned": true,
+        "pinnedAt": 1794046490578
+      },
+      "timestamp": 1794046490578,
+      "originDevice": "laptop-22qie7c"
     }
   ],
-  "lastUpdated": 1794043461912
+  "lastUpdated": 1794046490591
 }

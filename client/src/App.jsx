@@ -570,6 +570,15 @@ export default function App() {
     }
   };
 
+  const handleTogglePinTodo = (todoObj) => {
+    if (!todoObj) return;
+    const nextPinned = !todoObj.pinned;
+    syncEngine.updateTodo(todoObj.id, {
+      pinned: nextPinned,
+      pinnedAt: nextPinned ? Date.now() : null
+    });
+  };
+
   const handleStartListSelect = (initialListId) => {
     if (initialListId === 'inbox') return;
     setListSelectMode(true);
@@ -841,6 +850,11 @@ export default function App() {
   const sortedActive = filteredTodos
     .filter(t => !t.completed)
     .sort((a, b) => {
+      const isPinnedA = Boolean(a.pinned);
+      const isPinnedB = Boolean(b.pinned);
+      if (isPinnedA !== isPinnedB) {
+        return isPinnedA ? -1 : 1;
+      }
       if (sortByDate) {
         const hasDateA = Boolean(a.dueDate);
         const hasDateB = Boolean(b.dueDate);
@@ -861,6 +875,9 @@ export default function App() {
       } else if (hasOrderB) {
         return 1;
       }
+      if (isPinnedA && isPinnedB && a.pinnedAt && b.pinnedAt && a.pinnedAt !== b.pinnedAt) {
+        return b.pinnedAt - a.pinnedAt;
+      }
       const pw = (priorityWeight[b.priority] || 2) - (priorityWeight[a.priority] || 2);
       if (pw !== 0) return pw;
       return (b.createdAt || 0) - (a.createdAt || 0);
@@ -878,14 +895,24 @@ export default function App() {
     if (currentIndex === -1) return;
 
     const newItems = [...sortedActive];
+    let targetIndex = currentIndex;
     if (direction === 'up' && currentIndex > 0) {
-      const [moved] = newItems.splice(currentIndex, 1);
-      newItems.splice(currentIndex - 1, 0, moved);
+      targetIndex = currentIndex - 1;
     } else if (direction === 'down' && currentIndex < newItems.length - 1) {
-      const [moved] = newItems.splice(currentIndex, 1);
-      newItems.splice(currentIndex + 1, 0, moved);
+      targetIndex = currentIndex + 1;
     } else {
       return;
+    }
+
+    const [moved] = newItems.splice(currentIndex, 1);
+    newItems.splice(targetIndex, 0, moved);
+
+    const targetNeighbor = newItems[direction === 'up' ? targetIndex + 1 : targetIndex - 1];
+    if (targetNeighbor && Boolean(moved.pinned) !== Boolean(targetNeighbor.pinned)) {
+      const nextPinned = direction === 'up';
+      moved.pinned = nextPinned;
+      moved.pinnedAt = nextPinned ? Date.now() : null;
+      syncEngine.updateTodo(moved.id, { pinned: nextPinned, pinnedAt: moved.pinnedAt });
     }
 
     syncEngine.reorderTodos(newItems.map(t => t.id));
@@ -1074,6 +1101,19 @@ export default function App() {
         if (actualFromIndex !== targetIndex) {
           const [moved] = currentItems.splice(actualFromIndex, 1);
           currentItems.splice(targetIndex, 0, moved);
+
+          // Pinned partition sync when dragging across boundaries
+          const otherPinnedCount = currentItems.filter(t => t.id !== moved.id && t.pinned).length;
+          if (moved.pinned && targetIndex >= otherPinnedCount) {
+            moved.pinned = false;
+            moved.pinnedAt = null;
+            syncEngine.updateTodo(moved.id, { pinned: false, pinnedAt: null });
+          } else if (!moved.pinned && targetIndex < otherPinnedCount) {
+            moved.pinned = true;
+            moved.pinnedAt = Date.now();
+            syncEngine.updateTodo(moved.id, { pinned: true, pinnedAt: moved.pinnedAt });
+          }
+
           syncEngine.reorderTodos(currentItems.map(t => t.id));
         }
       }
@@ -1314,6 +1354,9 @@ export default function App() {
             inMyDay: nextInMyDay,
             plannedDate: nextInMyDay ? todayStr : null
           });
+        } else if (e.key === 'p' || e.key === 'P') {
+          e.preventDefault();
+          handleTogglePinTodo(selectedTodo);
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
           handleDeleteTodoWithUndo(selectedTodo);
@@ -2501,6 +2544,29 @@ export default function App() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setSwipedTodoId(null);
+                            handleTogglePinTodo(todo);
+                          }}
+                          style={{
+                            padding: '8px 11px',
+                            borderRadius: '9px',
+                            border: 'none',
+                            background: todo.pinned ? '#3b82f6' : '#f59e0b',
+                            color: todo.pinned ? '#ffffff' : '#0f172a',
+                            fontSize: '11.5px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Icon name={todo.pinned ? 'pin' : 'pinFilled'} size={12} />
+                          <span>{todo.pinned ? 'Unpin' : 'Pin'}</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             const d = new Date();
                             d.setDate(d.getDate() + 1);
                             const tmrw = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -2511,7 +2577,7 @@ export default function App() {
                             padding: '8px 12px',
                             borderRadius: '9px',
                             border: 'none',
-                            background: '#f59e0b',
+                            background: '#fbbf24',
                             color: '#0f172a',
                             fontSize: '11.5px',
                             fontWeight: 800,
@@ -2628,19 +2694,32 @@ export default function App() {
                         alignItems: 'flex-start',
                         padding: deviceType === 'phone' ? '12px' : '12px 14px',
                         borderRadius: '12px',
-                        backgroundColor: isSelected ? 'var(--surface-elevated)' : isCompleted ? 'var(--bg-subtle)' : 'var(--surface)',
+                        backgroundColor: isSelected
+                          ? 'var(--surface-elevated)'
+                          : isCompleted
+                          ? 'var(--bg-subtle)'
+                          : todo.pinned
+                          ? (isDarkTheme ? 'rgba(245, 158, 11, 0.05)' : 'rgba(245, 158, 11, 0.04)')
+                          : 'var(--surface)',
                         border: isSelected
-                          ? '1.5px solid var(--primary)'
+                          ? (todo.pinned ? '1.5px solid #f59e0b' : '1.5px solid var(--primary)')
                           : isCompleted
                           ? '1px dashed var(--border)'
+                          : todo.pinned
+                          ? '1px solid rgba(245, 158, 11, 0.38)'
                           : '1px solid var(--border)',
+                        borderLeft: todo.pinned && !isCompleted
+                          ? '3.5px solid #f59e0b'
+                          : undefined,
                         boxShadow: isCompleted
                           ? 'none'
+                          : todo.pinned
+                          ? '0 2px 8px rgba(245, 158, 11, 0.08), var(--card-shadow)'
                           : 'var(--card-shadow)',
                         opacity: isCompleted ? 0.72 : 1,
                         cursor: 'pointer',
                         gap: deviceType === 'phone' ? '10px' : '12px',
-                        transform: isSwipedOpen ? 'translateX(-158px)' : 'translateX(0)',
+                        transform: isSwipedOpen ? 'translateX(-220px)' : 'translateX(0)',
                         transition: 'background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease',
                         position: 'relative',
                         zIndex: 1,
@@ -2794,6 +2873,22 @@ export default function App() {
                           marginTop: '6px',
                           justifyContent: detectBidiDirection(todo.title) === 'rtl' ? 'flex-end' : 'flex-start'
                         }}>
+                          {todo.pinned && !isCompleted && (
+                            <span style={{
+                              fontSize: '10.5px',
+                              padding: '2px 7px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                              color: '#f59e0b',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}>
+                              <Icon name="pinFilled" size={10} /> Pinned
+                            </span>
+                          )}
+
                           {listObj && (activeView !== 'list' || selectedListId !== listObj.id) && (
                             <span style={{
                               fontSize: '10.5px',
@@ -2864,6 +2959,43 @@ export default function App() {
 
                       {/* Streamlined Right Quick Actions */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        {!isCompleted && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTogglePinTodo(todo);
+                            }}
+                            title={todo.pinned ? 'Unpin task from top' : 'Pin task to top'}
+                            aria-label={todo.pinned ? 'Unpin task' : 'Pin task'}
+                            style={{
+                              background: todo.pinned ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                              border: todo.pinned ? '1px solid rgba(245, 158, 11, 0.45)' : 'none',
+                              borderRadius: '7px',
+                              color: todo.pinned ? '#f59e0b' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '5px',
+                              display: 'flex',
+                              opacity: todo.pinned ? 1 : (deviceType === 'phone' ? 0.7 : 0.65),
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!todo.pinned) {
+                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.color = '#f59e0b';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!todo.pinned) {
+                                e.currentTarget.style.opacity = deviceType === 'phone' ? '0.7' : '0.65';
+                                e.currentTarget.style.color = 'var(--text-muted)';
+                              }
+                            }}
+                          >
+                            <Icon name={todo.pinned ? 'pinFilled' : 'pin'} size={15} />
+                          </button>
+                        )}
+
                         {activeView !== 'today' && (
                           <button
                             onClick={(e) => {

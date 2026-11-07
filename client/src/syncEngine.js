@@ -724,6 +724,8 @@ export class SyncEngine {
       recurrence: extra.recurrence || 'none', // 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
       recurrenceInterval: extra.recurrenceInterval || 1,
       handwriting: extra.handwriting || null,
+      pinned: Boolean(extra.pinned) || false,
+      pinnedAt: extra.pinnedAt || (extra.pinned ? now : null),
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -873,6 +875,17 @@ export class SyncEngine {
     });
 
     this.notify();
+  }
+
+  togglePinTodo(id) {
+    const todo = this.todos[id];
+    if (!todo) return false;
+    const nextPinned = !todo.pinned;
+    this.updateTodo(id, {
+      pinned: nextPinned,
+      pinnedAt: nextPinned ? Date.now() : null
+    });
+    return nextPinned;
   }
 
   calculateNextRecurrence(baseDateStr, recurrence, interval = 1) {

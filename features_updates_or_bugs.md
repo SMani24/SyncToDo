@@ -2,6 +2,15 @@
 
 ## Features to Add
 
+- [x] Pin tasks to the top of lists and daily activities across all platforms (Phone, Tablet, Laptop, Desktop):
+  - Prioritized pinned sorting at the top of active tasks across My Day, custom lists, Inbox, and All Tasks.
+  - Clean visual distinction: warm amber left accent border, `📌 Pinned` chip in metadata badges, and golden pin icon indicator.
+  - Desktop / Laptop: One-click card pin toggle on hover/active, keyboard shortcut (`P` key when task is selected), and "Pin to Top" toggle button in TaskDetailPanel inspector.
+  - Tablet: Direct tap card pin toggle and TaskDetailPanel toggle.
+  - Mobile Phone: Direct tap card pin toggle, dedicated swipe-left action drawer button (`[Pin 📌]` / `[Unpin]`, `[Tomorrow]`, `[Delete]`), and TaskDetailPanel bottom sheet toggle.
+  - Drag-and-drop support: Seamless slot-center reordering within pinned and unpinned partitions with automatic boundary partition syncing.
+  - CRDT sync: Syncs pinned state and timestamps in real-time across all paired devices.
+
 
 ## Bugs to Fix
 
