@@ -124,6 +124,26 @@
       height: 0;
     }
 
+    /* Toast Animations */
+    @keyframes toastSlideUp {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 14px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+      }
+    }
+    @keyframes toastCountdown {
+      from {
+        width: 100%;
+      }
+      to {
+        width: 0%;
+      }
+    }
+
     /* ================================================= */
     /* 8 BALANCED THEMES (4 Dark, 4 Light)               */
     /* ================================================= */

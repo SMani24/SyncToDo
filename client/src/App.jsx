@@ -516,12 +516,15 @@ export default function App() {
   ]);
 
 
-  const triggerUndoToast = (message, onUndoFn) => {
+  const triggerUndoToast = (config, onUndoFn) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoToast({ message, onUndo: onUndoFn });
+    const toastData = typeof config === 'string'
+      ? { message: config, actionLabel: config, onUndo: onUndoFn }
+      : { ...config, onUndo: onUndoFn };
+    setUndoToast(toastData);
     undoTimerRef.current = setTimeout(() => {
       setUndoToast(null);
-    }, 5500);
+    }, 5200);
   };
 
   const handleUndoClick = () => {
@@ -542,7 +545,11 @@ export default function App() {
     if (selectedTodoId === todoObj.id) {
       setSelectedTodoId(null);
     }
-    triggerUndoToast(`Deleted “${todoObj.title.slice(0, 28)}”`, () => {
+    triggerUndoToast({
+      action: 'deleted',
+      actionLabel: 'Task deleted',
+      title: todoObj.title || 'Untitled task'
+    }, () => {
       syncEngine.restoreTodoSnapshot(snapshot);
     });
   };
@@ -553,7 +560,11 @@ export default function App() {
     const wasCompleted = Boolean(todoObj.completed);
     syncEngine.toggleTodo(todoObj.id);
     if (!wasCompleted) {
-      triggerUndoToast(`Completed “${todoObj.title.slice(0, 28)}”`, () => {
+      triggerUndoToast({
+        action: 'completed',
+        actionLabel: 'Task completed',
+        title: todoObj.title || 'Untitled task'
+      }, () => {
         syncEngine.restoreTodoSnapshot(snapshot);
       });
     }
@@ -601,7 +612,9 @@ export default function App() {
     const listsSnapshot = JSON.parse(JSON.stringify(syncState.lists));
     const todosSnapshot = JSON.parse(JSON.stringify(syncState.todos));
     const deletedIds = new Set(listsToDelete.map(l => l.id));
-    const label = listsToDelete.length === 1 ? `Deleted list “${listsToDelete[0].name}”` : `Deleted ${listsToDelete.length} lists`;
+    const isSingle = listsToDelete.length === 1;
+    const actionLabel = isSingle ? 'List deleted' : `${listsToDelete.length} lists deleted`;
+    const listTitle = isSingle ? listsToDelete[0].name : '';
 
     listsToDelete.forEach(l => {
       syncEngine.deleteList(l.id);
@@ -615,7 +628,11 @@ export default function App() {
     setListsToDelete(null);
     handleExitListSelect();
 
-    triggerUndoToast(label, () => {
+    triggerUndoToast({
+      action: 'deleted',
+      actionLabel,
+      title: listTitle
+    }, () => {
       syncEngine.restoreListsSnapshot(listsSnapshot, todosSnapshot);
     });
   };
@@ -3322,46 +3339,189 @@ export default function App() {
       )}
 
       {/* ==================================================== */}
-      {/* FLOATING 5-SECOND UNDO TOAST                         */}
+      {/* FLOATING ACTION & UNDO TOAST SNACKBAR                */}
       {/* ==================================================== */}
-      {undoToast && (
-        <div style={{
-          position: 'fixed',
-          left: '50%',
-          bottom: deviceType === 'phone' ? '74px' : '24px',
-          transform: 'translateX(-50%)',
-          backgroundColor: '#0f172a',
-          color: '#f8fafc',
-          border: '1px solid rgba(255,255,255,0.16)',
-          borderRadius: '999px',
-          padding: '9px 16px',
-          boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          zIndex: 260,
-          fontSize: '13px',
-          fontWeight: 600
-        }}>
-          <span>{undoToast.message}</span>
-          <button
-            onClick={handleUndoClick}
+      {undoToast && (() => {
+        const isCompleted = undoToast.action === 'completed';
+        const isDeleted = undoToast.action === 'deleted';
+        const primaryLabel = undoToast.actionLabel || (isCompleted ? 'Task completed' : isDeleted ? 'Task deleted' : undoToast.message || 'Action performed');
+        const secondaryTitle = undoToast.title || '';
+
+        // Position toast comfortably above bottom inputs / bottom nav
+        const bottomPos = deviceType === 'phone'
+          ? (activeView === 'analytics' ? '76px' : '136px')
+          : (activeView === 'analytics' ? '24px' : '76px');
+
+        return (
+          <div
+            role="status"
+            aria-live="polite"
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#38bdf8',
-              fontWeight: 800,
-              fontSize: '13px',
-              cursor: 'pointer',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              padding: 0
+              position: 'fixed',
+              left: '50%',
+              bottom: bottomPos,
+              transform: 'translateX(-50%)',
+              zIndex: 350,
+              backgroundColor: 'var(--surface-elevated, #1e293b)',
+              color: 'var(--text, #f8fafc)',
+              border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
+              borderRadius: '16px',
+              padding: '10px 14px 12px 14px',
+              boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.25)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              maxWidth: 'min(460px, calc(100vw - 32px))',
+              minWidth: '280px',
+              animation: 'toastSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+              userSelect: 'none',
+              overflow: 'hidden'
             }}
           >
-            Undo
-          </button>
-        </div>
-      )}
+            {/* Visual Icon Badge */}
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                backgroundColor: isCompleted
+                  ? 'rgba(16, 185, 129, 0.16)'
+                  : isDeleted
+                  ? 'rgba(239, 68, 68, 0.16)'
+                  : 'var(--tag-bg, rgba(99, 102, 241, 0.16))',
+                color: isCompleted
+                  ? '#10b981'
+                  : isDeleted
+                  ? '#ef4444'
+                  : 'var(--primary, #6366f1)'
+              }}
+            >
+              <Icon name={isCompleted ? 'check' : isDeleted ? 'trash' : 'sparkles'} size={16} />
+            </div>
+
+            {/* Structured Text Content */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--text, #f8fafc)',
+                lineHeight: 1.3,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {primaryLabel}
+              </div>
+              {secondaryTitle && (
+                <div
+                  dir="auto"
+                  style={{
+                    fontSize: '11.5px',
+                    fontWeight: 500,
+                    color: 'var(--text-muted, #94a3b8)',
+                    lineHeight: 1.3,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: deviceType === 'phone' ? '170px' : '240px',
+                    unicodeBidi: 'plaintext',
+                    textAlign: 'start'
+                  }}
+                  title={secondaryTitle}
+                >
+                  {secondaryTitle}
+                </div>
+              )}
+            </div>
+
+            {/* Actions: Undo Button + Dismiss */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              {undoToast.onUndo && (
+                <button
+                  type="button"
+                  onClick={handleUndoClick}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: '999px',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    color: '#38bdf8',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.22)';
+                    e.currentTarget.style.borderColor = '#38bdf8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+                  }}
+                  title="Undo action"
+                >
+                  <Icon name="undo" size={13} />
+                  <span>Undo</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                  setUndoToast(null);
+                }}
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-muted, #94a3b8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                  opacity: 0.7,
+                  transition: 'opacity 0.15s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
+                title="Dismiss"
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+
+            {/* Subtle Countdown Progress Bar */}
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '2px',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)'
+            }}>
+              <div style={{
+                height: '100%',
+                backgroundColor: isCompleted ? '#10b981' : isDeleted ? '#ef4444' : '#38bdf8',
+                animation: 'toastCountdown 5s linear forwards'
+              }} />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ==================================================== */}
       {/* MOBILE BOTTOM NAVIGATION                             */}
