@@ -948,7 +948,7 @@ export class SyncEngine {
       const isPastDue = t.dueDate && t.dueDate < today;
       const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
       if (isPastDue || isPastMyDay || allowSet) {
-        t.dueDate = today;
+        // Carry forward into today's My Day without overwriting original dueDate (keeps future due dates or unset dates)
         t.plannedDate = today;
         t.inMyDay = true;
         t.updatedAt = now;

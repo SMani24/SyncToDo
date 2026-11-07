@@ -5,6 +5,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn, exec } from 'child_process';
 import dgram from 'dgram';
 import os from 'os';
 
@@ -1196,14 +1197,66 @@ function getLocalIpAddresses() {
   return results;
 }
 
+let mdnsProcess = null;
+
+function ensureMdnsPublisher(hostName = 'g16laptop.local') {
+  const ips = getLocalIpAddresses();
+  const primaryIp = ips[0];
+  if (!primaryIp) return;
+
+  // Check if avahi-publish or mDNS is already resolving this hostname
+  exec(`avahi-resolve -n ${hostName}`, (err, stdout) => {
+    if (!err && stdout && stdout.includes(hostName)) {
+      console.log(`📡 [mDNS] Hostname ${hostName} is active and resolving via mDNS.`);
+      return;
+    }
+
+    try {
+      mdnsProcess = spawn('avahi-publish', ['-a', '-R', hostName, primaryIp], {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      mdnsProcess.stdout?.on('data', (d) => {
+        console.log(`[mDNS] ${d.toString().trim()}`);
+      });
+
+      mdnsProcess.stderr?.on('data', (d) => {
+        const msg = d.toString().trim();
+        if (!msg.includes('Name collision')) {
+          console.log(`[mDNS Note] ${msg}`);
+        }
+      });
+
+      mdnsProcess.on('exit', () => {
+        mdnsProcess = null;
+        setTimeout(() => ensureMdnsPublisher(hostName), 4000);
+      });
+    } catch (e) {
+      console.log('[mDNS] Notice: avahi-publish not available:', e.message);
+    }
+  });
+}
+
+process.on('SIGINT', () => {
+  if (mdnsProcess) { try { mdnsProcess.kill('SIGTERM'); } catch {} }
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  if (mdnsProcess) { try { mdnsProcess.kill('SIGTERM'); } catch {} }
+  process.exit(0);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
+  ensureMdnsPublisher('g16laptop.local');
+
   console.log(`===============================================`);
   console.log(`🚀 SyncToDo Server running on http://0.0.0.0:${PORT}`);
   console.log(`📡 WebSocket ready on ws://0.0.0.0:${PORT}`);
   console.log(`🔑 Pairing Code: ${state.pairingCode} (${state.serverDeviceName})`);
+  console.log(`🌐 Available on local network:`);
+  console.log(`   - Hostname:      http://g16laptop.local:${PORT}`);
   const ips = getLocalIpAddresses();
   if (ips.length > 0) {
-    console.log(`🌐 Available on local network:`);
     ips.forEach(ip => {
       console.log(`   - Web App:       http://${ip}:${PORT}`);
       console.log(`   - APK Download:  http://${ip}:${PORT}/download/SyncToDo.apk`);

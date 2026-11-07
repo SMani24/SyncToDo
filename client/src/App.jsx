@@ -1510,7 +1510,7 @@ export default function App() {
     const isInline = newHandwritingIsInline === true || (!newTitle.trim() && !!newHandwriting && newHandwritingIsInline !== false);
     const finalTitle = parsedQuickAdd.cleanTitle || (isInline ? '' : (newHandwriting ? 'Handwritten sketch' : newTitle.trim()));
     const finalPriority = parsedQuickAdd.detectedPriority || newPriority;
-    const finalDueDate = parsedQuickAdd.detectedDate || newDueDate || (activeView === 'today' ? todayStr : null);
+    const finalDueDate = parsedQuickAdd.detectedDate || newDueDate || null;
     const finalRecurrence = parsedQuickAdd.detectedRecurrence || newRecurrence;
     const finalInterval = parsedQuickAdd.detectedRecurrence ? parsedQuickAdd.detectedInterval : newRecurrenceInterval;
 

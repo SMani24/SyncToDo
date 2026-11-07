@@ -10,7 +10,13 @@
   - Mobile Phone: Direct tap card pin toggle, dedicated swipe-left action drawer button (`[Pin 📌]` / `[Unpin]`, `[Tomorrow]`, `[Delete]`), and TaskDetailPanel bottom sheet toggle.
   - Drag-and-drop support: Seamless slot-center reordering within pinned and unpinned partitions with automatic boundary partition syncing.
   - CRDT sync: Syncs pinned state and timestamps in real-time across all paired devices.
-
+- [x] Preserve task due dates when adding to Today / My Day (working ahead of time):
+  - Decoupled `dueDate` (hard deadline) from `inMyDay` / `plannedDate` (daily focus agenda).
+  - Adding a task with a future due date (or no due date) to today's focus list retains its existing deadline without overwriting it with today's date.
+  - Tasks scheduled for future dates can be brought into My Day to tackle ahead of time while their deadline badges clearly display the future due date.
+- [x] Serve app across local network on `http://g16laptop.local:4000` via mDNS:
+  - Configured Avahi mDNS publisher script `server/publish-mdns.sh` and systemd user services (`g16laptop-mdns.service` and `synctodo-server.service`).
+  - Added self-healing mDNS detection in `server/server.js` and displayed the local hostname in Devices & Sync modal.
 
 ## Bugs to Fix
 
@@ -18,3 +24,5 @@
 - [x] Improve action/undo toast notification pop-up: fixed positioning overlap above mobile quick-add bar, isolated bidirectional text/RTL wrapping glitches, added action badge icons, styled pill undo button with icon, dismiss button, and animated countdown progress bar.
 
 ## Requests
+- [x] Serve the app on `g16laptop.local` (Available on `http://g16laptop.local:4000`).
+- [x] Preserve due dates when adding tasks to today's list.

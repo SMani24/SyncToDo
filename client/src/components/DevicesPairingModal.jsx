@@ -456,6 +456,24 @@ export default function DevicesPairingModal({
             <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
               Scan this QR code from another device's camera to pair instantly
             </div>
+
+            <div style={{
+              marginTop: '6px',
+              padding: '6px 12px',
+              borderRadius: '9px',
+              background: 'rgba(99, 102, 241, 0.1)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              fontSize: '11.5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}>
+              <span style={{ color: 'var(--text-muted)' }}>Local URL:</span>
+              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>
+                http://g16laptop.local:{myPort || 4000}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -879,6 +897,13 @@ export default function DevicesPairingModal({
                 <span style={{ color: 'var(--text-muted)' }}>This Device Local Address:</span>
                 <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{myIp}:{myPort}</span>
               </div>
+
+              {deviceType === 'laptop' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>mDNS Local Hostname:</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>g16laptop.local:{myPort}</span>
+                </div>
+              )}
 
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
