@@ -216,11 +216,45 @@ export class SyncEngine {
   }
 
   getStoredServerUrl() {
-    const saved = localStorage.getItem(STORAGE_KEY_SERVER);
-    if (saved) return saved;
+    // 1. If running in a web browser (not Capacitor native app):
+    // ALWAYS use the host where the webpage is served from!
+    // E.g., if loaded from http://localhost:4000 -> ws://localhost:4000
+    // E.g., if loaded from http://g16laptop.local:4000 -> ws://g16laptop.local:4000
+    // E.g., if loaded from http://172.18.132.75:4000 -> ws://172.18.132.75:4000
+    if (typeof window !== 'undefined' && window.location.protocol && window.location.protocol.startsWith('http')) {
+      const host = window.location.hostname;
+      const port = window.location.port || '4000';
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${host}:${port}`;
+      }
+      if (this.deviceType === 'laptop') {
+        return `ws://localhost:4000`;
+      }
+    }
 
-    const host = window.location.hostname || 'localhost';
-    return `ws://${host}:4000`;
+    // 2. On Mobile (Capacitor Android Phone or Tablet):
+    const saved = localStorage.getItem(STORAGE_KEY_SERVER);
+    if (saved && !saved.includes('localhost') && !saved.includes('127.0.0.1')) {
+      return saved;
+    }
+
+    // 3. Fallback to paired laptop IP if available
+    try {
+      const pairedRaw = localStorage.getItem('synctodo_paired_devices_v1');
+      if (pairedRaw) {
+        const list = JSON.parse(pairedRaw);
+        const laptop = Array.isArray(list)
+          ? list.find(d => d.deviceType === 'laptop' || d.port === 4000 || (d.ip && d.ip !== 'localhost' && d.ip !== '127.0.0.1'))
+          : null;
+        if (laptop && laptop.ip) {
+          return `ws://${laptop.ip}:${laptop.port || 4000}`;
+        }
+      }
+    } catch (_) {}
+
+    // 4. Default for mobile discovery
+    return 'ws://g16laptop.local:4000';
   }
 
   setServerUrl(url) {
@@ -491,6 +525,13 @@ export class SyncEngine {
     if (this.reconnectTimer) return;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      // Re-evaluate stored server URL on mobile in case laptop IP changed!
+      if (this.deviceType !== 'laptop') {
+        const freshUrl = this.getStoredServerUrl();
+        if (freshUrl && freshUrl !== this.serverUrl) {
+          this.serverUrl = freshUrl;
+        }
+      }
       this.connect();
     }, 3500);
   }
@@ -627,6 +668,16 @@ export class SyncEngine {
         ...current,
         ...incoming
       };
+    } else {
+      // Intent preservation: if incoming has inMyDay for today, preserve it!
+      const today = getLogicalDateStr(new Date(), getStoredDayStartHour());
+      if (incoming.inMyDay && (incoming.plannedDate === today || incoming.dueDate === today) && !current.completed) {
+        if (!current.inMyDay || current.plannedDate !== today) {
+          current.inMyDay = true;
+          current.plannedDate = incoming.plannedDate || today;
+          current.updatedAt = Math.max(current.updatedAt || 0, incoming.updatedAt || 0) + 100;
+        }
+      }
     }
   }
 
@@ -979,6 +1030,9 @@ export class SyncEngine {
     this.status = 'SYNCING';
     this.notify();
 
+    let wsSucceeded = false;
+    let peerSucceeded = false;
+
     // 1. Flush local queue and pull full state from WebSocket server
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.flushQueue();
@@ -986,6 +1040,7 @@ export class SyncEngine {
         type: 'SYNC_PULL',
         since: 0
       }));
+      wsSucceeded = true;
     } else {
       this.connect();
     }
@@ -993,15 +1048,17 @@ export class SyncEngine {
     // 2. Direct P2P sync with targeted peer or all mesh peers
     if (this.p2pEngine) {
       if (peerIpOrHost) {
-        await this.p2pEngine.syncWithPeer(peerIpOrHost);
+        peerSucceeded = await this.p2pEngine.syncWithPeer(peerIpOrHost);
       } else {
-        await this.p2pEngine.syncAllPeers();
+        const results = await this.p2pEngine.syncAllPeers();
+        peerSucceeded = Array.isArray(results) && results.some(r => r === true);
       }
     }
 
-    this.status = 'CONNECTED';
+    const overallSuccess = wsSucceeded || peerSucceeded;
+    this.status = overallSuccess ? 'CONNECTED' : (navigator.onLine ? 'DISCONNECTED' : 'OFFLINE');
     this.notify();
-    return true;
+    return overallSuccess;
   }
 
   calculateNextRecurrence(baseDateStr, recurrence, interval = 1) {
@@ -1062,6 +1119,7 @@ export class SyncEngine {
 
       // Active / unfinished tasks
       if (allowSet && !allowSet.has(t.id)) return;
+      if (t.inMyDay && t.plannedDate === today) return; // Already in today's focus!
       const isPastDue = t.dueDate && t.dueDate < today;
       const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
       if (isPastDue || isPastMyDay || allowSet) {

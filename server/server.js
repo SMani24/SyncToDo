@@ -846,12 +846,23 @@ app.all('/api/p2p/sync', (req, res) => {
     // 3. Merge Todos by ID & updatedAt (Last-Write-Wins)
     const todoValues = Array.isArray(todos) ? todos : Object.values(todos || {});
     if (todoValues.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
       todoValues.forEach(t => {
         if (t && t.id) {
           const current = state.todos[t.id];
           if (!current || (t.updatedAt || 0) >= (current.updatedAt || 0)) {
             state.todos[t.id] = { ...current, ...t };
             stateChanged = true;
+          } else {
+            // Intent preservation: if incoming has inMyDay for today, preserve it!
+            if (t.inMyDay && (t.plannedDate === today || t.dueDate === today) && !current.completed) {
+              if (!current.inMyDay || current.plannedDate !== today) {
+                current.inMyDay = true;
+                current.plannedDate = t.plannedDate || today;
+                current.updatedAt = Math.max(current.updatedAt || 0, t.updatedAt || 0) + 100;
+                stateChanged = true;
+              }
+            }
           }
         }
       });
@@ -1047,6 +1058,26 @@ function applyMutations(mutations, deviceId, senderWs = null) {
 
       state.mutations.push(changelogEntry);
       applied.push(changelogEntry);
+    } else if (type === 'UPSERT' && data && existing) {
+      // Intent preservation: if incoming UPSERT marks inMyDay for today, preserve it!
+      const today = new Date().toISOString().slice(0, 10);
+      if (data.inMyDay && (data.plannedDate === today || data.dueDate === today) && !existing.completed) {
+        if (!existing.inMyDay || existing.plannedDate !== today) {
+          existing.inMyDay = true;
+          existing.plannedDate = data.plannedDate || today;
+          existing.updatedAt = Math.max(existing.updatedAt || 0, timestamp || now) + 100;
+          const changelogEntry = {
+            id: mutation.id || `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+            entityId,
+            type: 'UPSERT',
+            data: { ...existing },
+            timestamp: existing.updatedAt,
+            originDevice: deviceId
+          };
+          state.mutations.push(changelogEntry);
+          applied.push(changelogEntry);
+        }
+      }
     }
   }
 
@@ -1248,6 +1279,41 @@ function getLocalIpAddresses() {
 }
 
 let mdnsProcess = null;
+let mdnsServiceProcess = null;
+
+function ensureMdnsServicePublisher() {
+  try {
+    if (mdnsServiceProcess) return;
+    mdnsServiceProcess = spawn('avahi-publish-service', [
+      '-s',
+      `SyncToDo-Laptop-${state.serverDeviceId.slice(-4)}`,
+      '_synctodo._tcp',
+      String(PORT),
+      `deviceId=${state.serverDeviceId}`,
+      `deviceName=${state.serverDeviceName}`
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    mdnsServiceProcess.stdout?.on('data', (d) => {
+      console.log(`[mDNS-SD] ${d.toString().trim()}`);
+    });
+
+    mdnsServiceProcess.stderr?.on('data', (d) => {
+      const msg = d.toString().trim();
+      if (!msg.includes('Name collision')) {
+        console.log(`[mDNS-SD Note] ${msg}`);
+      }
+    });
+
+    mdnsServiceProcess.on('exit', () => {
+      mdnsServiceProcess = null;
+      setTimeout(ensureMdnsServicePublisher, 5000);
+    });
+  } catch (e) {
+    console.log('[mDNS-SD] Notice: avahi-publish-service not available:', e.message);
+  }
+}
 
 function ensureMdnsPublisher(hostName = 'g16laptop.local') {
   const ips = getLocalIpAddresses();
@@ -1289,15 +1355,18 @@ function ensureMdnsPublisher(hostName = 'g16laptop.local') {
 
 process.on('SIGINT', () => {
   if (mdnsProcess) { try { mdnsProcess.kill('SIGTERM'); } catch {} }
+  if (mdnsServiceProcess) { try { mdnsServiceProcess.kill('SIGTERM'); } catch {} }
   process.exit(0);
 });
 process.on('SIGTERM', () => {
   if (mdnsProcess) { try { mdnsProcess.kill('SIGTERM'); } catch {} }
+  if (mdnsServiceProcess) { try { mdnsServiceProcess.kill('SIGTERM'); } catch {} }
   process.exit(0);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
   ensureMdnsPublisher('g16laptop.local');
+  ensureMdnsServicePublisher();
 
   console.log(`===============================================`);
   console.log(`🚀 SyncToDo Server running on http://0.0.0.0:${PORT}`);

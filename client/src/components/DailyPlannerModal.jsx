@@ -22,6 +22,7 @@ export default function DailyPlannerModal({
   // Identify unfinished / overdue tasks from past days (ONLY active tasks, NEVER completed!)
   const overdueTasks = activeTodos.filter(t => {
     if (t.completed) return false;
+    if (t.inMyDay && t.plannedDate === today) return false;
     const isPastDue = t.dueDate && t.dueDate < today;
     const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
     return isPastDue || isPastMyDay;

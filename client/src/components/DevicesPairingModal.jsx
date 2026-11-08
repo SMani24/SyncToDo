@@ -29,6 +29,7 @@ export default function DevicesPairingModal({
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [syncingDeviceId, setSyncingDeviceId] = useState(null);
   const [syncedDeviceId, setSyncedDeviceId] = useState(null);
+  const [syncFailedDeviceId, setSyncFailedDeviceId] = useState(null);
 
   const myName = syncEngine.deviceName || p2pInfo.deviceName || 'My Device';
   const myCode = p2pInfo.pairingCode || '482913';
@@ -128,16 +129,24 @@ export default function DevicesPairingModal({
   const handleSyncDevice = async (dev) => {
     const key = dev.deviceId || dev.ip;
     setSyncingDeviceId(key);
+    setSyncFailedDeviceId(null);
     try {
       // Find latest live IP if available in activePeers or onlineDevices
       const livePeer = syncEngine.p2pEngine?.activePeers.get(dev.ip)
         || Array.from(syncEngine.p2pEngine?.activePeers.values() || []).find(p => p.deviceId === dev.deviceId)
         || (syncEngine.onlineDevices || []).find(od => od.deviceId === dev.deviceId);
       const effectiveHost = livePeer?.localIp || livePeer?.ip || dev.ip || 'g16laptop.local';
-      await syncEngine.forceSync(effectiveHost);
-      setSyncedDeviceId(key);
-      setTimeout(() => setSyncedDeviceId(null), 2500);
+      const success = await syncEngine.forceSync(effectiveHost);
+      if (success) {
+        setSyncedDeviceId(key);
+        setTimeout(() => setSyncedDeviceId(null), 2500);
+      } else {
+        setSyncFailedDeviceId(key);
+        setTimeout(() => setSyncFailedDeviceId(null), 3000);
+      }
     } catch (_) {
+      setSyncFailedDeviceId(key);
+      setTimeout(() => setSyncFailedDeviceId(null), 3000);
     } finally {
       setSyncingDeviceId(null);
     }
@@ -834,6 +843,7 @@ export default function DevicesPairingModal({
                         const devKey = dev.deviceId || dev.ip;
                         const isSyncing = syncingDeviceId === devKey;
                         const isJustSynced = syncedDeviceId === devKey;
+                        const isSyncFailed = syncFailedDeviceId === devKey;
 
                         return (
                           <button
@@ -845,9 +855,9 @@ export default function DevicesPairingModal({
                               height: '34px',
                               padding: '0 10px',
                               borderRadius: '8px',
-                              border: isJustSynced ? '1px solid #10b981' : isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
-                              background: isJustSynced ? 'rgba(16, 185, 129, 0.2)' : isOnline ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface)',
-                              color: isJustSynced || isOnline ? '#10b981' : 'var(--text)',
+                              border: isJustSynced ? '1px solid #10b981' : isSyncFailed ? '1px solid #ef4444' : isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
+                              background: isJustSynced ? 'rgba(16, 185, 129, 0.2)' : isSyncFailed ? 'rgba(239, 68, 68, 0.15)' : isOnline ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface)',
+                              color: isJustSynced || isOnline ? '#10b981' : isSyncFailed ? '#ef4444' : 'var(--text)',
                               fontSize: '12px',
                               fontWeight: 700,
                               cursor: isSyncing ? 'wait' : 'pointer',
@@ -862,7 +872,7 @@ export default function DevicesPairingModal({
                             <span style={{ display: 'inline-flex', animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>
                               <Icon name="repeat" size={13} />
                             </span>
-                            <span>{isSyncing ? 'Syncing…' : isJustSynced ? '✓ Synced!' : 'Sync Now'}</span>
+                            <span>{isSyncing ? 'Syncing…' : isJustSynced ? '✓ Synced!' : isSyncFailed ? 'Sync Failed' : 'Sync Now'}</span>
                           </button>
                         );
                       })()}

@@ -837,6 +837,8 @@ export default function App() {
   // Check for overdue/yesterday's unfinished tasks (ONLY active tasks, NEVER completed!)
   const overdueTasks = syncState.todos.filter(t => {
     if (t.completed || t.deletedAt) return false;
+    // If it is ALREADY planned for today in My Day, it is not an unfinished leftover needing carry-forward!
+    if (t.inMyDay && t.plannedDate === todayStr) return false;
     const isPastDue = t.dueDate && t.dueDate < todayStr;
     const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < todayStr;
     return isPastDue || isPastMyDay;
