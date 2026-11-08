@@ -1,6 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
+import { syncEngine } from './syncEngine';
+
+if (typeof window !== 'undefined') {
+  window.syncEngine = syncEngine;
+}
 
 function resetDocumentScroll() {
   if (window.scrollY !== 0) window.scrollTo(0, 0);

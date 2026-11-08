@@ -11,6 +11,9 @@ export default function TaskDetailPanel({
   deviceType = 'laptop',
   todayStr,
   syncEngine,
+  currentPinContext = 'today',
+  isPinnedInCurrentContext = false,
+  onTogglePin = null,
   onOpenCanvas,
   onDeleteTodo,
   onClose
@@ -259,36 +262,47 @@ export default function TaskDetailPanel({
             {todo.inMyDay && <span style={{ fontSize: '10.5px', opacity: 0.85 }}>✓</span>}
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const nextPinned = !todo.pinned;
-              syncEngine.updateTodo(todo.id, {
-                pinned: nextPinned,
-                pinnedAt: nextPinned ? Date.now() : null
-              });
-            }}
-            style={{
-              padding: '10px 12px',
-              borderRadius: '12px',
-              border: todo.pinned ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--border)',
-              background: todo.pinned ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-subtle)',
-              color: todo.pinned ? '#f59e0b' : 'var(--text)',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '6px'
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-              <Icon name={todo.pinned ? 'pinFilled' : 'pin'} size={15} />
-              <span>{todo.pinned ? 'Pinned to Top' : 'Pin to Top'}</span>
-            </span>
-            {todo.pinned && <span style={{ fontSize: '10.5px', opacity: 0.85 }}>✓</span>}
-          </button>
+          {(() => {
+            const isPinned = onTogglePin
+              ? isPinnedInCurrentContext
+              : (Array.isArray(todo.pinnedIn) ? todo.pinnedIn.includes(currentPinContext) : Boolean(todo.pinned));
+            const pinLabel = currentPinContext === 'today'
+              ? (isPinned ? 'Pinned in My Day' : 'Pin in My Day')
+              : (isPinned ? 'Pinned to Top' : 'Pin to Top');
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onTogglePin) {
+                    onTogglePin();
+                  } else {
+                    syncEngine.togglePinTodo(todo.id, currentPinContext);
+                  }
+                }}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  border: isPinned ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid var(--border)',
+                  background: isPinned ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-subtle)',
+                  color: isPinned ? '#f59e0b' : 'var(--text)',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '6px'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <Icon name={isPinned ? 'pinFilled' : 'pin'} size={15} />
+                  <span>{pinLabel}</span>
+                </span>
+                {isPinned && <span style={{ fontSize: '10.5px', opacity: 0.85 }}>✓</span>}
+              </button>
+            );
+          })()}
         </div>
 
         {/* SUBTASKS / STEPS */}

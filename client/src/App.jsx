@@ -344,6 +344,7 @@ export default function App() {
   const cardHoldTimerRef = useRef(null);
   const touchStartCoordRef = useRef(null);
   const isTouchScrollingRef = useRef(false);
+  const appMountedTimeRef = useRef(Date.now());
 
   const handleSelectCalendarType = (type) => {
     setCalendarType(type);
@@ -363,7 +364,13 @@ export default function App() {
   const [canvasInitialImage, setCanvasInitialImage] = useState(null);
 
   // Leftovers / Carry-Forward state
-  const [leftoversDismissedDate, setLeftoversDismissedDate] = useState(null);
+  const [leftoversDismissedDate, setLeftoversDismissedDate] = useState(() => {
+    try {
+      return localStorage.getItem('synctodo_leftovers_dismissed_date') || null;
+    } catch (_) {
+      return null;
+    }
+  });
   const [showLeftoversPicker, setShowLeftoversPicker] = useState(false);
   const [selectedLeftoverIds, setSelectedLeftoverIds] = useState(new Set());
   const [carryForwardNotice, setCarryForwardNotice] = useState(null);
@@ -570,12 +577,51 @@ export default function App() {
     }
   };
 
-  const handleTogglePinTodo = (todoObj) => {
+  const getCurrentPinContext = (todoObj = null) => {
+    if (activeView === 'today') return 'today';
+    if (activeView === 'list' && selectedListId) return selectedListId;
+    if (activeView === 'all' || activeView === 'backlog') return 'all';
+    if (todoObj?.listId) return todoObj.listId;
+    return 'today';
+  };
+
+  const isTodoPinnedInContext = (todoObj, ctx = null) => {
+    if (!todoObj) return false;
+    const context = ctx || getCurrentPinContext(todoObj);
+    if (Array.isArray(todoObj.pinnedIn)) {
+      return todoObj.pinnedIn.includes(context);
+    }
+    // Backwards compatibility for tasks with legacy todo.pinned = true
+    if (todoObj.pinned) {
+      if (context === 'today' && todoObj.inMyDay) return true;
+      if (todoObj.listId && context === todoObj.listId) return true;
+      if (context === 'all') return true;
+    }
+    return false;
+  };
+
+  const handleTogglePinTodo = (todoObj, explicitContext = null) => {
     if (!todoObj) return;
-    const nextPinned = !todoObj.pinned;
+    const context = explicitContext || getCurrentPinContext(todoObj);
+    let currentPinnedIn = Array.isArray(todoObj.pinnedIn)
+      ? [...todoObj.pinnedIn]
+      : (todoObj.pinned
+          ? (todoObj.inMyDay && context === 'today' ? ['today'] : (todoObj.listId ? [todoObj.listId] : ['today']))
+          : []);
+
+    const isCurrentlyPinned = currentPinnedIn.includes(context);
+    let nextPinnedIn;
+    if (isCurrentlyPinned) {
+      nextPinnedIn = currentPinnedIn.filter(c => c !== context);
+    } else {
+      nextPinnedIn = [...currentPinnedIn, context];
+    }
+
+    const isAnyPinned = nextPinnedIn.length > 0;
     syncEngine.updateTodo(todoObj.id, {
-      pinned: nextPinned,
-      pinnedAt: nextPinned ? Date.now() : null
+      pinnedIn: nextPinnedIn,
+      pinned: isAnyPinned,
+      pinnedAt: isAnyPinned ? (todoObj.pinnedAt || Date.now()) : null
     });
   };
 
@@ -847,14 +893,33 @@ export default function App() {
   });
 
   const priorityWeight = { high: 3, medium: 2, low: 1 };
+  const currentPinContext = getCurrentPinContext();
+
   const sortedActive = filteredTodos
     .filter(t => !t.completed)
     .sort((a, b) => {
-      const isPinnedA = Boolean(a.pinned);
-      const isPinnedB = Boolean(b.pinned);
+      const isPinnedA = isTodoPinnedInContext(a, currentPinContext);
+      const isPinnedB = isTodoPinnedInContext(b, currentPinContext);
       if (isPinnedA !== isPinnedB) {
         return isPinnedA ? -1 : 1;
       }
+      // When BOTH items are pinned in current context: order strictly determines ranking!
+      // (Ensures dragging a pinned task to top / index 0 stays rock-solid at top, not overridden by sortByDate!)
+      if (isPinnedA && isPinnedB) {
+        const hasOrderA = typeof a.order === 'number';
+        const hasOrderB = typeof b.order === 'number';
+        if (hasOrderA && hasOrderB) {
+          if (a.order !== b.order) return a.order - b.order;
+        } else if (hasOrderA) {
+          return -1;
+        } else if (hasOrderB) {
+          return 1;
+        }
+        if (a.pinnedAt && b.pinnedAt && a.pinnedAt !== b.pinnedAt) {
+          return b.pinnedAt - a.pinnedAt;
+        }
+      }
+      // For unpinned items: respect sortByDate if enabled
       if (sortByDate) {
         const hasDateA = Boolean(a.dueDate);
         const hasDateB = Boolean(b.dueDate);
@@ -874,9 +939,6 @@ export default function App() {
         return -1;
       } else if (hasOrderB) {
         return 1;
-      }
-      if (isPinnedA && isPinnedB && a.pinnedAt && b.pinnedAt && a.pinnedAt !== b.pinnedAt) {
-        return b.pinnedAt - a.pinnedAt;
       }
       const pw = (priorityWeight[b.priority] || 2) - (priorityWeight[a.priority] || 2);
       if (pw !== 0) return pw;
@@ -908,11 +970,12 @@ export default function App() {
     newItems.splice(targetIndex, 0, moved);
 
     const targetNeighbor = newItems[direction === 'up' ? targetIndex + 1 : targetIndex - 1];
-    if (targetNeighbor && Boolean(moved.pinned) !== Boolean(targetNeighbor.pinned)) {
-      const nextPinned = direction === 'up';
-      moved.pinned = nextPinned;
-      moved.pinnedAt = nextPinned ? Date.now() : null;
-      syncEngine.updateTodo(moved.id, { pinned: nextPinned, pinnedAt: moved.pinnedAt });
+    if (targetNeighbor) {
+      const movedPinned = isTodoPinnedInContext(moved, currentPinContext);
+      const neighborPinned = isTodoPinnedInContext(targetNeighbor, currentPinContext);
+      if (movedPinned !== neighborPinned) {
+        handleTogglePinTodo(moved, currentPinContext);
+      }
     }
 
     syncEngine.reorderTodos(newItems.map(t => t.id));
@@ -1103,15 +1166,12 @@ export default function App() {
           currentItems.splice(targetIndex, 0, moved);
 
           // Pinned partition sync when dragging across boundaries
-          const otherPinnedCount = currentItems.filter(t => t.id !== moved.id && t.pinned).length;
-          if (moved.pinned && targetIndex >= otherPinnedCount) {
-            moved.pinned = false;
-            moved.pinnedAt = null;
-            syncEngine.updateTodo(moved.id, { pinned: false, pinnedAt: null });
-          } else if (!moved.pinned && targetIndex < otherPinnedCount) {
-            moved.pinned = true;
-            moved.pinnedAt = Date.now();
-            syncEngine.updateTodo(moved.id, { pinned: true, pinnedAt: moved.pinnedAt });
+          const otherPinnedCount = currentItems.filter(t => t.id !== moved.id && isTodoPinnedInContext(t, currentPinContext)).length;
+          const wasPinned = isTodoPinnedInContext(moved, currentPinContext);
+          if (wasPinned && targetIndex >= otherPinnedCount) {
+            handleTogglePinTodo(moved, currentPinContext);
+          } else if (!wasPinned && targetIndex < otherPinnedCount) {
+            handleTogglePinTodo(moved, currentPinContext);
           }
 
           syncEngine.reorderTodos(currentItems.map(t => t.id));
@@ -1258,7 +1318,7 @@ export default function App() {
       if (p) {
         const dy = Math.abs(e.clientY - p.startY);
         const dx = Math.abs(e.clientX - p.startX);
-        if (dy > 5 && dy > dx) {
+        if (dy > 18 && dy > dx * 1.5 && e.buttons === 1) {
           pendingPointerDragRef.current = null;
           if (p.kind === 'task') {
             startTaskDrag(p.todo, p.index, e.clientY, p.el);
@@ -1545,8 +1605,14 @@ export default function App() {
   const handleCarryForward = (subsetIds = null) => {
     const count = syncEngine.carryForwardUnfinished(subsetIds, dayStartHour);
     setShowLeftoversPicker(false);
-    setCarryForwardNotice(`Carried forward ${count} task${count === 1 ? '' : 's'} to My Day!`);
-    setTimeout(() => setCarryForwardNotice(null), 3500);
+    setLeftoversDismissedDate(todayStr);
+    try {
+      localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
+    } catch (_) {}
+    if (count > 0) {
+      setCarryForwardNotice(`Carried forward ${count} task${count === 1 ? '' : 's'} to My Day!`);
+      setTimeout(() => setCarryForwardNotice(null), 3500);
+    }
   };
 
   const handleOpenCanvas = (todoId = null, initialImg = null) => {
@@ -2385,7 +2451,12 @@ export default function App() {
                     Choose…
                   </button>
                   <button
-                    onClick={() => setLeftoversDismissedDate(todayStr)}
+                    onClick={() => {
+                      setLeftoversDismissedDate(todayStr);
+                      try {
+                        localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
+                      } catch (_) {}
+                    }}
                     style={{
                       padding: '6px 8px',
                       borderRadius: '8px',
@@ -2504,6 +2575,7 @@ export default function App() {
                 const listObj = syncState.lists.find(l => l.id === todo.listId);
                 const isSelected = selectedTodoId === todo.id;
                 const isSwipedOpen = swipedTodoId === todo.id;
+                const isPinned = isTodoPinnedInContext(todo, currentPinContext);
                 const steps = Array.isArray(todo.steps) ? todo.steps : [];
                 const doneSteps = steps.filter(s => s.completed).length;
 
@@ -2545,14 +2617,14 @@ export default function App() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSwipedTodoId(null);
-                            handleTogglePinTodo(todo);
+                            handleTogglePinTodo(todo, currentPinContext);
                           }}
                           style={{
                             padding: '8px 11px',
                             borderRadius: '9px',
                             border: 'none',
-                            background: todo.pinned ? '#3b82f6' : '#f59e0b',
-                            color: todo.pinned ? '#ffffff' : '#0f172a',
+                            background: isPinned ? '#3b82f6' : '#f59e0b',
+                            color: isPinned ? '#ffffff' : '#0f172a',
                             fontSize: '11.5px',
                             fontWeight: 800,
                             cursor: 'pointer',
@@ -2561,8 +2633,8 @@ export default function App() {
                             gap: '4px'
                           }}
                         >
-                          <Icon name={todo.pinned ? 'pin' : 'pinFilled'} size={12} />
-                          <span>{todo.pinned ? 'Unpin' : 'Pin'}</span>
+                          <Icon name={isPinned ? 'pin' : 'pinFilled'} size={12} />
+                          <span>{isPinned ? 'Unpin' : 'Pin'}</span>
                         </button>
                         <button
                           onClick={(e) => {
@@ -2634,6 +2706,7 @@ export default function App() {
                       }}
                       onTouchStart={(e) => {
                         if (!e.touches || e.touches.length === 0) return;
+                        if (Date.now() - appMountedTimeRef.current < 600) return;
                         const touch = e.touches[0];
                         touchSwipeRef.current = {
                           id: todo.id,
@@ -2645,11 +2718,11 @@ export default function App() {
                         if (!isCompleted && !e.target.closest('button')) {
                           const cardEl = e.currentTarget.closest('[data-todo-card]');
                           cardHoldTimerRef.current = setTimeout(() => {
-                            if (cardEl && !isSwipedOpen) {
+                            if (cardEl && !isSwipedOpen && Date.now() - appMountedTimeRef.current >= 600) {
                               startTaskDrag(todo, index, touch.clientY, cardEl);
                               touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
                             }
-                          }, 260);
+                          }, 480);
                         }
                       }}
                       onTouchMove={(e) => {
@@ -2698,22 +2771,22 @@ export default function App() {
                           ? 'var(--surface-elevated)'
                           : isCompleted
                           ? 'var(--bg-subtle)'
-                          : todo.pinned
+                          : isPinned
                           ? (isDarkTheme ? 'rgba(245, 158, 11, 0.05)' : 'rgba(245, 158, 11, 0.04)')
                           : 'var(--surface)',
                         border: isSelected
-                          ? (todo.pinned ? '1.5px solid #f59e0b' : '1.5px solid var(--primary)')
+                          ? (isPinned ? '1.5px solid #f59e0b' : '1.5px solid var(--primary)')
                           : isCompleted
                           ? '1px dashed var(--border)'
-                          : todo.pinned
+                          : isPinned
                           ? '1px solid rgba(245, 158, 11, 0.38)'
                           : '1px solid var(--border)',
-                        borderLeft: todo.pinned && !isCompleted
+                        borderLeft: isPinned && !isCompleted
                           ? '3.5px solid #f59e0b'
                           : undefined,
                         boxShadow: isCompleted
                           ? 'none'
-                          : todo.pinned
+                          : isPinned
                           ? '0 2px 8px rgba(245, 158, 11, 0.08), var(--card-shadow)'
                           : 'var(--card-shadow)',
                         opacity: isCompleted ? 0.72 : 1,
@@ -2873,7 +2946,7 @@ export default function App() {
                           marginTop: '6px',
                           justifyContent: detectBidiDirection(todo.title) === 'rtl' ? 'flex-end' : 'flex-start'
                         }}>
-                          {todo.pinned && !isCompleted && (
+                          {isPinned && !isCompleted && (
                             <span style={{
                               fontSize: '10.5px',
                               padding: '2px 7px',
@@ -2964,35 +3037,35 @@ export default function App() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleTogglePinTodo(todo);
+                              handleTogglePinTodo(todo, currentPinContext);
                             }}
-                            title={todo.pinned ? 'Unpin task from top' : 'Pin task to top'}
-                            aria-label={todo.pinned ? 'Unpin task' : 'Pin task'}
+                            title={isPinned ? 'Unpin task from top' : 'Pin task to top'}
+                            aria-label={isPinned ? 'Unpin task' : 'Pin task'}
                             style={{
-                              background: todo.pinned ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                              border: todo.pinned ? '1px solid rgba(245, 158, 11, 0.45)' : 'none',
+                              background: isPinned ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                              border: isPinned ? '1px solid rgba(245, 158, 11, 0.45)' : 'none',
                               borderRadius: '7px',
-                              color: todo.pinned ? '#f59e0b' : 'var(--text-muted)',
+                              color: isPinned ? '#f59e0b' : 'var(--text-muted)',
                               cursor: 'pointer',
                               padding: '5px',
                               display: 'flex',
-                              opacity: todo.pinned ? 1 : (deviceType === 'phone' ? 0.7 : 0.65),
+                              opacity: isPinned ? 1 : (deviceType === 'phone' ? 0.7 : 0.65),
                               transition: 'all 0.15s ease'
                             }}
                             onMouseEnter={(e) => {
-                              if (!todo.pinned) {
+                              if (!isPinned) {
                                 e.currentTarget.style.opacity = '1';
                                 e.currentTarget.style.color = '#f59e0b';
                               }
                             }}
                             onMouseLeave={(e) => {
-                              if (!todo.pinned) {
+                              if (!isPinned) {
                                 e.currentTarget.style.opacity = deviceType === 'phone' ? '0.7' : '0.65';
                                 e.currentTarget.style.color = 'var(--text-muted)';
                               }
                             }}
                           >
-                            <Icon name={todo.pinned ? 'pinFilled' : 'pin'} size={15} />
+                            <Icon name={isPinned ? 'pinFilled' : 'pin'} size={15} />
                           </button>
                         )}
 
@@ -3049,6 +3122,12 @@ export default function App() {
               return (
                 <div
                   data-todo-list-container="true"
+                  onClick={(e) => {
+                    if (!e.target.closest('[data-todo-card]') && !e.target.closest('button') && !e.target.closest('input')) {
+                      setSelectedTodoId(null);
+                      setSwipedTodoId(null);
+                    }
+                  }}
                   style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}
                 >
                   {hasNoTasks ? (
@@ -3448,6 +3527,9 @@ export default function App() {
             deviceType={deviceType}
             todayStr={todayStr}
             syncEngine={syncEngine}
+            currentPinContext={currentPinContext}
+            isPinnedInCurrentContext={isTodoPinnedInContext(selectedTodo, currentPinContext)}
+            onTogglePin={() => handleTogglePinTodo(selectedTodo, currentPinContext)}
             onOpenCanvas={handleOpenCanvas}
             onDeleteTodo={handleDeleteTodoWithUndo}
             onClose={() => setSelectedTodoId(null)}
@@ -3464,6 +3546,9 @@ export default function App() {
           deviceType={deviceType}
           todayStr={todayStr}
           syncEngine={syncEngine}
+          currentPinContext={currentPinContext}
+          isPinnedInCurrentContext={isTodoPinnedInContext(selectedTodo, currentPinContext)}
+          onTogglePin={() => handleTogglePinTodo(selectedTodo, currentPinContext)}
           onOpenCanvas={handleOpenCanvas}
           onDeleteTodo={handleDeleteTodoWithUndo}
           onClose={() => setSelectedTodoId(null)}

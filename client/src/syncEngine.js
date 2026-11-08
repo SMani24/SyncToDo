@@ -142,6 +142,7 @@ export class SyncEngine {
     this.deviceName = this.getOrCreateDeviceName();
     this.serverUrl = this.getStoredServerUrl();
     this.status = 'DISCONNECTED'; // 'CONNECTED' | 'SYNCING' | 'OFFLINE' | 'DISCONNECTED'
+    this.isPaired = false;
     this.ws = null;
     this.reconnectTimer = null;
     this.lastSyncTimestamp = 0;
@@ -470,6 +471,7 @@ export class SyncEngine {
   handleServerMessage(msg) {
     if (msg.type === 'WELCOME') {
       const isLocalHost = Boolean(this.serverUrl.includes('localhost') || this.serverUrl.includes('127.0.0.1'));
+      this.isPaired = msg.isPaired !== false;
       if (msg.serverInfo && this.p2pEngine) {
         this.p2pEngine.ingestDiscoveryResponse({ serverInfo: msg.serverInfo }, isLocalHost);
       }
@@ -502,6 +504,11 @@ export class SyncEngine {
     } else if (msg.type === 'P2P_SIGNAL') {
       this.p2pEngine?.handleSignalingMessage(msg);
     } else if (msg.type === 'SYNC_RESPONSE') {
+      // Merge full todos state if provided by server
+      if (Array.isArray(msg.todos)) {
+        msg.todos.forEach(t => this.mergeTodo(t));
+        this.saveStoredTodos();
+      }
       if (Array.isArray(msg.deltas)) {
         msg.deltas.forEach(delta => {
           if (delta.type === 'LIST_UPSERT' && delta.data) {
@@ -540,6 +547,7 @@ export class SyncEngine {
       this.notify();
     } else if (msg.type === 'SYNC_ACK') {
       this.status = 'CONNECTED';
+      this.isPaired = true;
       if (this.inFlightMutationIds) {
         this.mutationQueue = this.mutationQueue.filter(m => !this.inFlightMutationIds.has(m.id));
         this.inFlightMutationIds = null;
@@ -724,7 +732,8 @@ export class SyncEngine {
       recurrence: extra.recurrence || 'none', // 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
       recurrenceInterval: extra.recurrenceInterval || 1,
       handwriting: extra.handwriting || null,
-      pinned: Boolean(extra.pinned) || false,
+      pinned: Boolean(extra.pinned) || Boolean(Array.isArray(extra.pinnedIn) && extra.pinnedIn.length > 0) || false,
+      pinnedIn: Array.isArray(extra.pinnedIn) ? extra.pinnedIn : (extra.pinned ? [extra.inMyDay ? 'today' : (extra.listId || 'today')] : []),
       pinnedAt: extra.pinnedAt || (extra.pinned ? now : null),
       createdAt: now,
       updatedAt: now,
@@ -877,15 +886,56 @@ export class SyncEngine {
     this.notify();
   }
 
-  togglePinTodo(id) {
+  togglePinTodo(id, context = 'today') {
     const todo = this.todos[id];
     if (!todo) return false;
-    const nextPinned = !todo.pinned;
+    let currentPinnedIn = Array.isArray(todo.pinnedIn)
+      ? [...todo.pinnedIn]
+      : (todo.pinned
+          ? (todo.inMyDay && context === 'today' ? ['today'] : (todo.listId ? [todo.listId] : ['today']))
+          : []);
+
+    const isPinnedInCtx = currentPinnedIn.includes(context);
+    const nextPinnedIn = isPinnedInCtx
+      ? currentPinnedIn.filter(c => c !== context)
+      : [...currentPinnedIn, context];
+    const isAnyPinned = nextPinnedIn.length > 0;
+
     this.updateTodo(id, {
-      pinned: nextPinned,
-      pinnedAt: nextPinned ? Date.now() : null
+      pinnedIn: nextPinnedIn,
+      pinned: isAnyPinned,
+      pinnedAt: isAnyPinned ? (todo.pinnedAt || Date.now()) : null
     });
-    return nextPinned;
+    return !isPinnedInCtx;
+  }
+
+  // Force a complete bidirectional sync across WebSocket and all known P2P peers
+  async forceSync(peerIpOrHost = null) {
+    this.status = 'SYNCING';
+    this.notify();
+
+    // 1. Flush local queue and pull full state from WebSocket server
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.flushQueue();
+      this.ws.send(JSON.stringify({
+        type: 'SYNC_PULL',
+        since: 0
+      }));
+    } else {
+      this.connect();
+    }
+
+    // 2. Direct P2P sync with targeted peer or all mesh peers
+    if (this.p2pEngine) {
+      if (peerIpOrHost) {
+        await this.p2pEngine.syncWithPeer(peerIpOrHost);
+      }
+      await this.p2pEngine.syncAllPeers();
+    }
+
+    this.status = 'CONNECTED';
+    this.notify();
+    return true;
   }
 
   calculateNextRecurrence(baseDateStr, recurrence, interval = 1) {
@@ -1070,7 +1120,8 @@ export class SyncEngine {
   }
 
   reconcileLocalChangesWithServer(serverTodos, serverLists) {
-    if (!this.isPaired || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const isLocal = Boolean(this.serverUrl && (this.serverUrl.includes('localhost') || this.serverUrl.includes('127.0.0.1')));
+    if ((!this.isPaired && !isLocal) || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     const serverMap = new Map();
     if (Array.isArray(serverTodos)) {
       serverTodos.forEach(t => {

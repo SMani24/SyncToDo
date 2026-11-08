@@ -27,6 +27,8 @@ export default function DevicesPairingModal({
   const [serverUrlInput, setServerUrlInput] = useState(syncEngine.serverUrl || '');
   const [showScanner, setShowScanner] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
+  const [syncingDeviceId, setSyncingDeviceId] = useState(null);
+  const [syncedDeviceId, setSyncedDeviceId] = useState(null);
 
   const myName = syncEngine.deviceName || p2pInfo.deviceName || 'My Device';
   const myCode = p2pInfo.pairingCode || '482913';
@@ -105,10 +107,35 @@ export default function DevicesPairingModal({
     }
   };
 
-  const handleManualPair = () => {
+  const handleManualPair = async () => {
     if (!manualIpInput.trim()) return;
-    syncEngine.p2pEngine?.addPeer(manualIpInput.trim());
-    setManualIpInput('');
+    const target = manualIpInput.trim();
+    setIsSubmittingCode(true);
+    setCodeFeedback(null);
+    try {
+      const res = await syncEngine.p2pEngine?.connectDirectlyByHost(target);
+      if (res?.status === 'ok') {
+        setCodeFeedback({ type: 'success', text: `Connected & synced with ${res.deviceName}!` });
+        setManualIpInput('');
+      } else {
+        setCodeFeedback({ type: 'error', text: res?.message || 'Could not connect to specified host.' });
+      }
+    } finally {
+      setIsSubmittingCode(false);
+    }
+  };
+
+  const handleSyncDevice = async (dev) => {
+    const key = dev.deviceId || dev.ip;
+    setSyncingDeviceId(key);
+    try {
+      await syncEngine.forceSync(dev.ip || 'g16laptop.local');
+      setSyncedDeviceId(key);
+      setTimeout(() => setSyncedDeviceId(null), 2500);
+    } catch (_) {
+    } finally {
+      setSyncingDeviceId(null);
+    }
   };
 
   const handleSaveServerUrl = () => {
@@ -798,31 +825,42 @@ export default function DevicesPairingModal({
 
                     {/* Row 2: Matched Action Buttons spanning width */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
-                      <button
-                        onClick={() => syncEngine.p2pEngine?.syncWithPeer(dev.ip, dev.port)}
-                        title="Sync now"
-                        style={{
-                          flex: 1,
-                          height: '34px',
-                          padding: '0 10px',
-                          borderRadius: '8px',
-                          border: isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
-                          background: isOnline ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface)',
-                          color: isOnline ? '#10b981' : 'var(--text)',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          whiteSpace: 'nowrap',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        <Icon name="repeat" size={13} />
-                        <span>Sync Now</span>
-                      </button>
+                      {(() => {
+                        const devKey = dev.deviceId || dev.ip;
+                        const isSyncing = syncingDeviceId === devKey;
+                        const isJustSynced = syncedDeviceId === devKey;
+
+                        return (
+                          <button
+                            onClick={() => handleSyncDevice(dev)}
+                            disabled={isSyncing}
+                            title="Force full bidirectional sync with this device"
+                            style={{
+                              flex: 1,
+                              height: '34px',
+                              padding: '0 10px',
+                              borderRadius: '8px',
+                              border: isJustSynced ? '1px solid #10b981' : isOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
+                              background: isJustSynced ? 'rgba(16, 185, 129, 0.2)' : isOnline ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface)',
+                              color: isJustSynced || isOnline ? '#10b981' : 'var(--text)',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: isSyncing ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              whiteSpace: 'nowrap',
+                              boxSizing: 'border-box'
+                            }}
+                          >
+                            <span style={{ display: 'inline-flex', animation: isSyncing ? 'spin 1s linear infinite' : 'none' }}>
+                              <Icon name="repeat" size={13} />
+                            </span>
+                            <span>{isSyncing ? 'Syncing…' : isJustSynced ? '✓ Synced!' : 'Sync Now'}</span>
+                          </button>
+                        );
+                      })()}
 
                       <button
                         onClick={() => syncEngine.p2pEngine?.removePeer(dev.deviceId || dev.ip)}

@@ -10,11 +10,8 @@ cleanup() {
 trap cleanup SIGINT SIGTERM EXIT
 
 while true; do
-  # Determine active LAN IPv4 address (prefer 192.168.x.x, ignore virtual/VPN interfaces)
-  IP=$(ip -4 -o addr show | awk '{print $4}' | cut -d/ -f1 | grep -E '^192\.168\.' | head -n1)
-  if [ -z "$IP" ]; then
-    IP=$(ip -4 -o addr show | awk '{print $4}' | cut -d/ -f1 | grep -vE '^(127\.|172\.)' | head -n1)
-  fi
+  # Determine active LAN IPv4 address from physical interfaces (ignore loopback, docker, bridges, and VPN tunnels)
+  IP=$(ip -4 -o addr show | grep -vE '( lo | docker| br-| tun)' | awk '{print $4}' | cut -d/ -f1 | head -n1)
 
   if [ -n "$IP" ]; then
     echo "[mDNS] Publishing g16laptop.local on $IP..."

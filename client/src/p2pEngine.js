@@ -191,9 +191,18 @@ export class P2PEngine {
 
   getTokenForHost(host) {
     if (!host) return null;
-    const cleanHost = String(host).replace(/^.*:\/\//, '').split(':')[0];
+    const cleanHost = String(host).replace(/^.*:\/\//, '').split(':')[0].toLowerCase();
     for (const pd of this.pairedDevices.values()) {
-      if (pd.ip === cleanHost) return pd.token;
+      if (pd.ip && pd.ip.toLowerCase() === cleanHost) return pd.token;
+      if (cleanHost === 'g16laptop.local' && (pd.deviceType === 'laptop' || (pd.deviceName && pd.deviceName.toLowerCase().includes('laptop')))) {
+        return pd.token;
+      }
+    }
+    // Fallback: If connecting to a laptop server and there is an existing paired laptop token, return it
+    if (cleanHost.includes('laptop') || cleanHost === 'g16laptop.local') {
+      for (const pd of this.pairedDevices.values()) {
+        if (pd.deviceType === 'laptop' && pd.token) return pd.token;
+      }
     }
     return null;
   }
@@ -600,6 +609,42 @@ export class P2PEngine {
       candidates = Array.from(this.nearbyPeers.values());
     }
 
+    // Fallback: Probe mDNS g16laptop.local and paired peers if no candidates found yet
+    if (candidates.length === 0) {
+      const probeHosts = ['g16laptop.local'];
+      if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        probeHosts.push(window.location.hostname);
+      }
+      this.knownPeers.forEach(p => { if (p) probeHosts.push(p); });
+      for (const pd of this.pairedDevices.values()) {
+        if (pd.ip) probeHosts.push(pd.ip);
+      }
+
+      for (const host of probeHosts) {
+        for (const port of [LAPTOP_PORT, P2P_PORT]) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 1200);
+            const res = await fetch(`http://${host}:${port}/api/p2p/info`, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === 'ok') {
+                const rec = this.recordNearbyPeer({
+                  ip: host,
+                  port: data.port || port,
+                  deviceId: data.deviceId,
+                  deviceName: data.deviceName,
+                  deviceType: data.deviceType || data.device
+                });
+                if (rec) candidates.push(rec);
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+
     for (const peer of candidates) {
       const result = await this.requestPairingWithPeer(peer, cleanCode);
       if (result.status === 'paired') {
@@ -610,9 +655,67 @@ export class P2PEngine {
     return {
       status: 'error',
       message: candidates.length === 0
-        ? 'No nearby SyncToDo devices found on this Wi-Fi yet.'
+        ? 'No nearby SyncToDo devices found on this Wi-Fi yet. Check if Wi-Fi client isolation is active, or connect directly by IP / hostname.'
         : 'Code did not match any nearby device.'
     };
+  }
+
+  // Connect directly by IP or hostname (e.g. g16laptop.local or 172.18.x.x on campus Wi-Fi)
+  async connectDirectlyByHost(rawHost) {
+    if (!rawHost) return { status: 'error', message: 'Please enter an IP or hostname.' };
+    const cleanHost = String(rawHost).trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const parts = cleanHost.split(':');
+    const host = parts[0];
+    const ports = parts[1] ? [Number(parts[1])] : [LAPTOP_PORT, P2P_PORT];
+
+    for (const port of ports) {
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 2500);
+        const res = await fetch(`http://${host}:${port}/api/p2p/info`, { signal: ctrl.signal });
+        clearTimeout(tid);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'ok') {
+            const devId = data.deviceId || `peer-${host}`;
+            const devName = data.deviceName || 'Laptop';
+            const devType = data.deviceType || (port === LAPTOP_PORT ? 'laptop' : 'phone');
+
+            this.recordNearbyPeer({
+              ip: host,
+              port,
+              deviceId: devId,
+              deviceName: devName,
+              deviceType: devType,
+              tasksCount: data.tasksCount || 0
+            });
+
+            this.peerPorts.set(host, port);
+            this.savePeerPorts();
+
+            if (!this.knownPeers.includes(host)) {
+              this.knownPeers.push(host);
+              this.saveKnownPeers();
+            }
+
+            await this.syncWithPeer(host, port);
+
+            if (port === LAPTOP_PORT && this.syncEngine) {
+              const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+              if (!isLocalHost) {
+                this.syncEngine.setServerUrl(`ws://${host}:${port}`);
+              }
+            }
+
+            this.notify();
+            return { status: 'ok', deviceName: devName, host, port };
+          }
+        }
+      } catch (err) {
+        console.warn(`[P2P] Failed direct connection to ${host}:${port}`, err);
+      }
+    }
+    return { status: 'error', message: `Could not reach ${cleanHost} on port 4000 or 4567.` };
   }
 
   // Pair using QR Code data (URI string, JSON string, or object)
@@ -939,6 +1042,15 @@ export class P2PEngine {
       }
     });
 
+    // Add multi-network hostnames for automatic re-discovery
+    if (this.syncEngine?.deviceType !== 'laptop') {
+      targets.add('g16laptop.local');
+    }
+    if (typeof window !== 'undefined' && window.location.hostname &&
+        window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      targets.add(window.location.hostname);
+    }
+
     // Run parallel sync requests with Promise.allSettled so no peer blocks another
     await Promise.allSettled(Array.from(targets).map(ip => this.syncWithPeer(ip)));
   }
@@ -946,7 +1058,7 @@ export class P2PEngine {
   // Direct Peer-to-Peer HTTP Delta & Full Merge Sync (Todos + Lists)
   async syncWithPeer(ip, forcedPort = null) {
     const candidatePorts = forcedPort
-      ? [Number(forcedPort)]
+      ? [Number(forcedPort), Number(forcedPort) === LAPTOP_PORT ? P2P_PORT : LAPTOP_PORT]
       : this.peerPorts.has(ip)
         ? [this.peerPorts.get(ip), this.peerPorts.get(ip) === P2P_PORT ? LAPTOP_PORT : P2P_PORT]
         : [LAPTOP_PORT, P2P_PORT];
@@ -956,18 +1068,29 @@ export class P2PEngine {
     let peerMeta = null;
     for (const pd of this.pairedDevices.values()) {
       const matchIp = pd.ip === ip;
+      const matchHost = (ip === 'g16laptop.local' && (pd.deviceType === 'laptop' || (pd.deviceName && pd.deviceName.toLowerCase().includes('laptop'))));
       const matchActive = (pd.deviceId && this.activePeers.get(ip)?.deviceId === pd.deviceId);
       const matchNearby = (this.nearbyPeers.get(ip)?.deviceId === pd.deviceId || (pd.deviceId && this.nearbyPeers.get(pd.deviceId)?.ip === ip));
       const matchOnline = (this.syncEngine?.onlineDevices || []).some(od => od.localIp === ip && od.deviceId === pd.deviceId);
 
-      if (matchIp || matchActive || matchNearby || matchOnline) {
+      if (matchIp || matchHost || matchActive || matchNearby || matchOnline) {
         token = pd.token;
         peerMeta = pd;
-        if (pd.ip !== ip) {
+        if (pd.ip !== ip && ip !== 'g16laptop.local' && !ip.includes('.')) {
           pd.ip = ip;
           this.savePairedDevices();
         }
         break;
+      }
+    }
+    // Fallback: If targeting a laptop on mobile without token, use paired laptop token
+    if (!token && (ip === 'g16laptop.local' || ip.includes('laptop'))) {
+      for (const pd of this.pairedDevices.values()) {
+        if (pd.deviceType === 'laptop' && pd.token) {
+          token = pd.token;
+          peerMeta = pd;
+          break;
+        }
       }
     }
 
@@ -975,7 +1098,7 @@ export class P2PEngine {
       const startTime = Date.now();
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2200);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         const payload = {
           deviceId: this.localServerInfo.deviceId || this.syncEngine.deviceId,
