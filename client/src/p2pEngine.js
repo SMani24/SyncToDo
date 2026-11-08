@@ -198,11 +198,16 @@ export class P2PEngine {
         return pd.token;
       }
     }
-    // Fallback: If connecting to a laptop server and there is an existing paired laptop token, return it
-    if (cleanHost.includes('laptop') || cleanHost === 'g16laptop.local') {
-      for (const pd of this.pairedDevices.values()) {
-        if (pd.deviceType === 'laptop' && pd.token) return pd.token;
+    // Fallback: If on phone/tablet or connecting across a new network, check paired laptop token
+    for (const pd of this.pairedDevices.values()) {
+      if ((pd.deviceType === 'laptop' || (pd.deviceName && pd.deviceName.toLowerCase().includes('laptop'))) && pd.token) {
+        return pd.token;
       }
+    }
+    // Universal fallback: if there is only 1 paired device with a token, use it!
+    const allWithTokens = Array.from(this.pairedDevices.values()).filter(pd => pd.token);
+    if (allWithTokens.length === 1) {
+      return allWithTokens[0].token;
     }
     return null;
   }
@@ -1083,13 +1088,20 @@ export class P2PEngine {
         break;
       }
     }
-    // Fallback: If targeting a laptop on mobile without token, use paired laptop token
-    if (!token && (ip === 'g16laptop.local' || ip.includes('laptop'))) {
+    // Fallback: If targeting a remote peer or laptop without token, use paired laptop or peer token
+    if (!token) {
       for (const pd of this.pairedDevices.values()) {
-        if (pd.deviceType === 'laptop' && pd.token) {
+        if ((pd.deviceType === 'laptop' || (pd.deviceName && pd.deviceName.toLowerCase().includes('laptop'))) && pd.token) {
           token = pd.token;
           peerMeta = pd;
           break;
+        }
+      }
+      if (!token) {
+        const allWithTokens = Array.from(this.pairedDevices.values()).filter(pd => pd.token);
+        if (allWithTokens.length === 1) {
+          token = allWithTokens[0].token;
+          peerMeta = allWithTokens[0];
         }
       }
     }
@@ -1098,7 +1110,7 @@ export class P2PEngine {
       const startTime = Date.now();
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
 
         const payload = {
           deviceId: this.localServerInfo.deviceId || this.syncEngine.deviceId,

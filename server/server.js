@@ -113,6 +113,10 @@ function loadState() {
         pairingCode: parsed.pairingCode || state.pairingCode,
         pairedDevices: parsed.pairedDevices || {}
       };
+      if (Array.isArray(state.mutations) && state.mutations.length > 200) {
+        state.mutations = state.mutations.slice(-200);
+        saveState(true);
+      }
       if (Array.isArray(state.lists)) {
         let changed = false;
         state.lists.forEach(l => {
@@ -191,12 +195,30 @@ function loadState() {
   }
 }
 
-function saveState() {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('[Store] Failed to save store:', err);
+let saveStateTimer = null;
+function saveState(immediate = false) {
+  if (immediate) {
+    if (saveStateTimer) {
+      clearTimeout(saveStateTimer);
+      saveStateTimer = null;
+    }
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Store] Failed to save store:', err);
+    }
+    return;
   }
+
+  if (saveStateTimer) return;
+  saveStateTimer = setTimeout(() => {
+    saveStateTimer = null;
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Store] Failed to save store:', err);
+    }
+  }, 100);
 }
 
 loadState();
@@ -707,23 +729,36 @@ function isAuthorizedCaller(reqIp, deviceId = null, token = null) {
     return true;
   }
 
-  // 1. Direct deviceId match in pairedDevices
+  // 1. Direct deviceId match in pairedDevices (automatically updates IP on new network)
   if (deviceId && state.pairedDevices[deviceId]) {
     const pd = state.pairedDevices[deviceId];
-    if (!token || !pd.token || token === pd.token || cleanIp === pd.ip) {
-      return true;
+    if (cleanIp && !localIps.has(cleanIp) && cleanIp !== pd.ip) {
+      pd.ip = cleanIp;
+      pd.lastSeen = Date.now();
+      saveState();
     }
+    return true;
   }
 
   // 2. Token match, IP match, or deviceId match among all paired devices
   for (const pd of Object.values(state.pairedDevices || {})) {
     if (token && pd.token && token === pd.token) {
+      if (cleanIp && !localIps.has(cleanIp) && cleanIp !== pd.ip) {
+        pd.ip = cleanIp;
+        pd.lastSeen = Date.now();
+        saveState();
+      }
       return true;
     }
     if (cleanIp && pd.ip && (cleanIp === pd.ip || cleanIp === pd.ip.replace('::ffff:', ''))) {
       return true;
     }
     if (deviceId && (deviceId === pd.deviceId || (pd.deviceId && pd.deviceId.includes(deviceId)))) {
+      if (cleanIp && !localIps.has(cleanIp) && cleanIp !== pd.ip) {
+        pd.ip = cleanIp;
+        pd.lastSeen = Date.now();
+        saveState();
+      }
       return true;
     }
   }
@@ -844,7 +879,7 @@ app.all('/api/p2p/sync', (req, res) => {
 // Delta sync endpoint
 app.get('/api/sync', (req, res) => {
   const since = parseInt(req.query.since || '0', 10);
-  const deltas = state.mutations.filter(m => m.timestamp > since);
+  const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-200) : [];
   const activeTodos = Object.values(state.todos);
 
   res.json({
@@ -1015,17 +1050,32 @@ function applyMutations(mutations, deviceId, senderWs = null) {
     }
   }
 
+  // Ring-buffer cap: keep changelog bounded to prevent file ballooning and memory leaks
+  if (state.mutations.length > 300) {
+    state.mutations = state.mutations.slice(-300);
+  }
+
   if (applied.length > 0) {
     state.lastUpdated = now;
     saveState();
 
     // Broadcast to all other connected WebSocket clients
-    const broadcastMsg = JSON.stringify({
-      type: 'SYNC_BROADCAST',
-      mutations: applied,
-      originDevice: deviceId,
-      timestamp: now
-    });
+    // If large batch (> 50), broadcast full snapshot to keep sync instantaneous and lightweight
+    const broadcastMsg = applied.length > 50
+      ? JSON.stringify({
+          type: 'SYNC_RESPONSE',
+          deltas: applied.slice(-50),
+          todos: Object.values(state.todos),
+          lists: state.lists,
+          originDevice: deviceId,
+          timestamp: now
+        })
+      : JSON.stringify({
+          type: 'SYNC_BROADCAST',
+          mutations: applied,
+          originDevice: deviceId,
+          timestamp: now
+        });
 
     for (const [wsClient, clientInfo] of connectedClients) {
       if (wsClient !== senderWs && wsClient.readyState === WebSocket.OPEN) {
@@ -1153,7 +1203,7 @@ wss.on('connection', (ws, req) => {
         }));
       } else if (msg.type === 'SYNC_PULL') {
         const since = msg.since || 0;
-        const deltas = state.mutations.filter(m => m.timestamp > since);
+        const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-200) : [];
         ws.send(JSON.stringify({
           type: 'SYNC_RESPONSE',
           deltas,

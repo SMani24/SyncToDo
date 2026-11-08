@@ -233,6 +233,7 @@ export default function App() {
   const [taskDrag, setTaskDrag] = useState(null);
   const [listDrag, setListDrag] = useState(null);
   const taskDragRef = useRef({ active: false });
+  const taskDragFloatingRef = useRef(null);
   const listDragRef = useRef({ active: false });
   const pendingPointerDragRef = useRef(null);
   const sortedActiveRef = useRef([]);
@@ -1112,6 +1113,11 @@ export default function App() {
       checkAndRunAutoScroll(scrollEl, clientY);
     }
 
+    // Direct DOM transform updates for 120fps hardware acceleration without triggering full React re-renders!
+    if (taskDragFloatingRef.current) {
+      taskDragFloatingRef.current.style.top = `${clientY - d.offsetY}px`;
+    }
+
     const floatingTop = clientY - d.offsetY;
     const dragCenterY = floatingTop + d.draggedHeight / 2;
     const containerTop = d.containerEl ? d.containerEl.getBoundingClientRect().top : d.rect.top;
@@ -1134,12 +1140,14 @@ export default function App() {
       }
     }
 
-    if (bestSlot !== d.dropIndex && typeof navigator !== 'undefined' && navigator.vibrate) {
-      try { navigator.vibrate(8); } catch {}
+    // Only update React state when the card actually changes destination slot!
+    if (bestSlot !== d.dropIndex) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(8); } catch {}
+      }
+      d.dropIndex = bestSlot;
+      setTaskDrag({ ...d });
     }
-
-    d.dropIndex = bestSlot;
-    setTaskDrag({ ...d });
   };
 
   const endTaskDrag = () => {
@@ -1147,10 +1155,10 @@ export default function App() {
     const d = taskDragRef.current;
     if (!d || !d.active) return;
     taskDragRef.current = { active: false };
-    setTaskDrag(null);
+
     didDragRef.current = true;
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
-    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 180);
+    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 40);
 
     if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       if (sortByDate) {
@@ -1174,10 +1182,12 @@ export default function App() {
             handleTogglePinTodo(moved, currentPinContext);
           }
 
+          // Apply reorder in memory first so drop settles immediately in 0ms!
           syncEngine.reorderTodos(currentItems.map(t => t.id));
         }
       }
     }
+    setTaskDrag(null);
   };
 
   const getTaskDragOffset = (index) => {
@@ -1270,10 +1280,10 @@ export default function App() {
     const d = listDragRef.current;
     if (!d || !d.active) return;
     listDragRef.current = { active: false };
-    setListDrag(null);
+
     didDragRef.current = true;
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
-    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 180);
+    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 40);
 
     if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       const currentLists = [...listsRef.current];
@@ -1287,6 +1297,7 @@ export default function App() {
         }
       }
     }
+    setListDrag(null);
   };
 
   const getListDragOffset = (index, source) => {
@@ -4314,6 +4325,7 @@ export default function App() {
 
         return (
           <div
+            ref={taskDragFloatingRef}
             style={{
               position: 'fixed',
               top: `${taskDrag.currentY - taskDrag.offsetY}px`,

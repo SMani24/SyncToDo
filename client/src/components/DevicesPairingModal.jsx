@@ -129,7 +129,12 @@ export default function DevicesPairingModal({
     const key = dev.deviceId || dev.ip;
     setSyncingDeviceId(key);
     try {
-      await syncEngine.forceSync(dev.ip || 'g16laptop.local');
+      // Find latest live IP if available in activePeers or onlineDevices
+      const livePeer = syncEngine.p2pEngine?.activePeers.get(dev.ip)
+        || Array.from(syncEngine.p2pEngine?.activePeers.values() || []).find(p => p.deviceId === dev.deviceId)
+        || (syncEngine.onlineDevices || []).find(od => od.deviceId === dev.deviceId);
+      const effectiveHost = livePeer?.localIp || livePeer?.ip || dev.ip || 'g16laptop.local';
+      await syncEngine.forceSync(effectiveHost);
       setSyncedDeviceId(key);
       setTimeout(() => setSyncedDeviceId(null), 2500);
     } catch (_) {

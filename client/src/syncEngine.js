@@ -306,6 +306,14 @@ export class SyncEngine {
     }
   }
 
+  scheduleSaveStoredTodos() {
+    if (this._saveTodosTimer) return;
+    this._saveTodosTimer = setTimeout(() => {
+      this._saveTodosTimer = null;
+      this.saveStoredTodos();
+    }, 60);
+  }
+
   sortListsArray(lists) {
     return [...lists].sort((a, b) => {
       const hasOrderA = typeof a.order === 'number';
@@ -354,6 +362,14 @@ export class SyncEngine {
     }
   }
 
+  scheduleSaveStoredLists() {
+    if (this._saveListsTimer) return;
+    this._saveListsTimer = setTimeout(() => {
+      this._saveListsTimer = null;
+      this.saveStoredLists();
+    }, 60);
+  }
+
   loadStoredQueue() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_QUEUE);
@@ -365,11 +381,22 @@ export class SyncEngine {
 
   saveStoredQueue() {
     try {
+      if (this.mutationQueue.length > 200) {
+        this.mutationQueue = this.mutationQueue.slice(-200);
+      }
       localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(this.mutationQueue));
       this.pendingCount = this.mutationQueue.length;
     } catch (e) {
       console.error('Failed to persist mutation queue:', e);
     }
+  }
+
+  scheduleSaveStoredQueue() {
+    if (this._saveQueueTimer) return;
+    this._saveQueueTimer = setTimeout(() => {
+      this._saveQueueTimer = null;
+      this.saveStoredQueue();
+    }, 60);
   }
 
   disconnect() {
@@ -531,18 +558,22 @@ export class SyncEngine {
       this.notify();
     } else if (msg.type === 'SYNC_BROADCAST') {
       if (Array.isArray(msg.mutations)) {
+        let todosChanged = false;
+        let listsChanged = false;
         msg.mutations.forEach(m => {
           if (m.type === 'LIST_UPSERT' && m.data) {
             this.mergeList(m.data);
-            this.saveStoredLists();
+            listsChanged = true;
           } else if (m.type === 'LIST_DELETE') {
             this.lists = this.lists.filter(l => l.id !== m.entityId);
-            this.saveStoredLists();
+            listsChanged = true;
           } else if (m.data) {
             this.mergeTodo(m.data);
-            this.saveStoredTodos();
+            todosChanged = true;
           }
         });
+        if (listsChanged) this.scheduleSaveStoredLists();
+        if (todosChanged) this.scheduleSaveStoredTodos();
       }
       this.notify();
     } else if (msg.type === 'SYNC_ACK') {
@@ -787,13 +818,17 @@ export class SyncEngine {
   reorderTodos(orderedIds) {
     if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
     const now = Date.now();
+    const newMutations = [];
+    let hasChanges = false;
+
     orderedIds.forEach((id, index) => {
       const todo = this.todos[id];
-      if (todo) {
+      if (todo && todo.order !== index) {
         todo.order = index;
         todo.updatedAt = now;
         todo.version = (todo.version || 1) + 1;
-        this.queueMutation({
+        hasChanges = true;
+        newMutations.push({
           id: `mut-${now}-${id.slice(-5)}-${index}`,
           entityId: id,
           type: 'UPSERT',
@@ -802,38 +837,68 @@ export class SyncEngine {
         });
       }
     });
-    this.saveStoredTodos();
+
+    if (!hasChanges) return;
+
+    // Immediately notify React UI so task positions settle in 0ms without waiting for disk I/O!
     this.notify();
+
+    // Batch append mutations without redundant array serializations
+    this.mutationQueue.push(...newMutations);
+    if (this.mutationQueue.length > 200) {
+      this.mutationQueue = this.mutationQueue.slice(-200);
+    }
+
+    // Schedule deferred disk writes so storage serialization doesn't drop drop animation frames
+    this.scheduleSaveStoredTodos();
+    this.scheduleSaveStoredQueue();
+
+    // Broadcast batch over WebSocket or direct P2P mesh
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.flushQueue();
+    } else if (this.p2pEngine) {
+      newMutations.forEach(m => this.p2pEngine.broadcastMutationToPeers(m));
+    }
   }
 
   reorderLists(orderedIds) {
     if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
     const now = Date.now();
     const orderMap = new Map(orderedIds.map((id, idx) => [id, idx]));
+    let hasChanges = false;
+    const newMutations = [];
+
     this.lists = this.lists
       .map((l, idx) => {
         const newOrder = orderMap.has(l.id) ? orderMap.get(l.id) : (orderedIds.length + idx);
-        return {
-          ...l,
-          order: newOrder,
-          updatedAt: now
-        };
+        if (l.order !== newOrder) {
+          hasChanges = true;
+          const updated = { ...l, order: newOrder, updatedAt: now };
+          newMutations.push({
+            id: `mut-${now}-list-${l.id.slice(-5)}-${newOrder}`,
+            entityId: l.id,
+            type: 'LIST_UPSERT',
+            data: updated,
+            timestamp: now
+          });
+          return updated;
+        }
+        return l;
       })
       .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
 
-    this.saveStoredLists();
-
-    this.lists.forEach((l, index) => {
-      this.queueMutation({
-        id: `mut-${now}-list-${l.id.slice(-5)}-${index}`,
-        entityId: l.id,
-        type: 'LIST_UPSERT',
-        data: l,
-        timestamp: now
-      });
-    });
+    if (!hasChanges) return;
 
     this.notify();
+    this.mutationQueue.push(...newMutations);
+    this.scheduleSaveStoredLists();
+    this.scheduleSaveStoredQueue();
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.flushQueue();
+    } else if (this.p2pEngine) {
+      newMutations.forEach(m => this.p2pEngine.broadcastMutationToPeers(m));
+    }
   }
 
   toggleTodo(id) {
@@ -929,8 +994,9 @@ export class SyncEngine {
     if (this.p2pEngine) {
       if (peerIpOrHost) {
         await this.p2pEngine.syncWithPeer(peerIpOrHost);
+      } else {
+        await this.p2pEngine.syncAllPeers();
       }
-      await this.p2pEngine.syncAllPeers();
     }
 
     this.status = 'CONNECTED';
@@ -967,6 +1033,7 @@ export class SyncEngine {
     const now = Date.now();
     let count = 0;
     const allowSet = Array.isArray(selectedIds) ? new Set(selectedIds) : null;
+    const newMutations = [];
 
     Object.values(this.todos).forEach(t => {
       if (t.deletedAt) return;
@@ -981,7 +1048,7 @@ export class SyncEngine {
           if (!completedToday) {
             t.inMyDay = false;
             t.updatedAt = now;
-            this.queueMutation({
+            newMutations.push({
               id: `mut-${now}-${t.id.slice(-5)}-purge`,
               entityId: t.id,
               type: 'UPSERT',
@@ -1001,20 +1068,32 @@ export class SyncEngine {
         // Carry forward into today's My Day without overwriting original dueDate (keeps future due dates or unset dates)
         t.plannedDate = today;
         t.inMyDay = true;
-        t.updatedAt = now;
-        this.queueMutation({
+        // Bump updatedAt so it wins CRDT Last-Write-Wins across devices even with minor clock skew
+        t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
+        t.version = (t.version || 1) + 1;
+        newMutations.push({
           id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
           entityId: t.id,
           type: 'UPSERT',
           data: t,
-          timestamp: now
+          timestamp: t.updatedAt
         });
         count++;
       }
     });
 
-    if (count > 0) {
-      this.saveStoredTodos();
+    if (count > 0 || newMutations.length > 0) {
+      this.mutationQueue.push(...newMutations);
+      if (this.mutationQueue.length > 200) {
+        this.mutationQueue = this.mutationQueue.slice(-200);
+      }
+      this.scheduleSaveStoredTodos();
+      this.scheduleSaveStoredQueue();
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.flushQueue();
+      } else if (this.p2pEngine) {
+        newMutations.forEach(m => this.p2pEngine.broadcastMutationToPeers(m));
+      }
       this.notify();
     }
     return count;
