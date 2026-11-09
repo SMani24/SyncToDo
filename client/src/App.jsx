@@ -345,6 +345,7 @@ export default function App() {
   const cardHoldTimerRef = useRef(null);
   const touchStartCoordRef = useRef(null);
   const isTouchScrollingRef = useRef(false);
+  const lastListTouchTimeRef = useRef(0);
   const appMountedTimeRef = useRef(Date.now());
 
   const handleSelectCalendarType = (type) => {
@@ -636,8 +637,14 @@ export default function App() {
     if (listId === 'inbox') return;
     setSelectedListIds(prev => {
       const next = new Set(prev);
-      if (next.has(listId)) next.delete(listId);
-      else next.add(listId);
+      if (next.has(listId)) {
+        next.delete(listId);
+      } else {
+        next.add(listId);
+      }
+      if (next.size === 0) {
+        setListSelectMode(false);
+      }
       return next;
     });
   };
@@ -646,6 +653,7 @@ export default function App() {
     const customListIds = syncState.lists.filter(l => l.id !== 'inbox').map(l => l.id);
     if (selectedListIds.size === customListIds.length) {
       setSelectedListIds(new Set());
+      setListSelectMode(false);
     } else {
       setSelectedListIds(new Set(customListIds));
     }
@@ -717,12 +725,14 @@ export default function App() {
       didLongPressRef.current = false;
       return;
     }
-    if (!didLongPressRef.current) {
-      if (listSelectMode) {
-        if (!isSystem) handleToggleListSelect(listId);
-      } else if (defaultAction) {
-        defaultAction();
-      }
+    if (didLongPressRef.current) {
+      didLongPressRef.current = false;
+      return;
+    }
+    if (listSelectMode) {
+      if (!isSystem) handleToggleListSelect(listId);
+    } else if (defaultAction) {
+      defaultAction();
     }
     didLongPressRef.current = false;
   };
@@ -2043,8 +2053,12 @@ export default function App() {
                     <div
                       key={list.id}
                       data-list-item={list.id}
-                      onTouchStart={() => handleItemTouchStart(list.id, isSystem)}
+                      onTouchStart={() => {
+                        lastListTouchTimeRef.current = Date.now();
+                        handleItemTouchStart(list.id, isSystem);
+                      }}
                       onTouchEnd={() => {
+                        lastListTouchTimeRef.current = Date.now();
                         if (didDragRef.current) return;
                         handleItemTouchEnd(list.id, isSystem, () => {
                           setActiveView('list');
@@ -2053,6 +2067,7 @@ export default function App() {
                       }}
                       onTouchMove={handleItemTouchCancel}
                       onMouseDown={(e) => {
+                        if (Date.now() - lastListTouchTimeRef.current < 650) return;
                         if (e.button !== 0) return;
                         handleItemTouchStart(list.id, isSystem);
                         if (!listSelectMode) {
@@ -2069,6 +2084,7 @@ export default function App() {
                         }
                       }}
                       onMouseUp={() => {
+                        if (Date.now() - lastListTouchTimeRef.current < 650) return;
                         pendingPointerDragRef.current = null;
                         if (didDragRef.current) return;
                         handleItemTouchEnd(list.id, isSystem, () => {
@@ -2134,15 +2150,28 @@ export default function App() {
                           </span>
                         )}
                         {listSelectMode && (
-                          <span style={{
-                            width: '16px', height: '16px', borderRadius: '50%',
-                            border: isSelected ? '2px solid #ef4444' : '2px solid var(--border)',
-                            backgroundColor: isSelected ? '#ef4444' : 'transparent',
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#ffffff', fontSize: '10px', fontWeight: 800, flexShrink: 0
-                          }}>
-                            {isSelected ? '✓' : ''}
-                          </span>
+                          !isSystem ? (
+                            <span style={{
+                              width: '16px', height: '16px', borderRadius: '50%',
+                              border: isSelected ? '2px solid #ef4444' : '2px solid var(--border)',
+                              backgroundColor: isSelected ? '#ef4444' : 'transparent',
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              color: '#ffffff', fontSize: '10px', fontWeight: 800, flexShrink: 0,
+                              pointerEvents: 'none'
+                            }}>
+                              {isSelected ? '✓' : ''}
+                            </span>
+                          ) : (
+                            <span style={{
+                              width: '16px', height: '16px', borderRadius: '50%',
+                              border: '1px dashed var(--border)',
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              color: 'var(--text-muted)', fontSize: '9px', flexShrink: 0,
+                              opacity: 0.45, pointerEvents: 'none'
+                            }} title="Default system list cannot be deleted">
+                              🔒
+                            </span>
+                          )
                         )}
                         <span>{normalizeListIcon(list.icon)}</span>
                         <span dir="auto" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', unicodeBidi: 'plaintext' }}>{list.name}</span>
@@ -3894,6 +3923,7 @@ export default function App() {
                         key={list.id}
                         data-list-item={list.id}
                         onTouchStart={(e) => {
+                          lastListTouchTimeRef.current = Date.now();
                           if (e.touches && e.touches[0]) {
                             touchStartCoordRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                             isTouchScrollingRef.current = false;
@@ -3911,6 +3941,7 @@ export default function App() {
                           }
                         }}
                         onTouchEnd={() => {
+                          lastListTouchTimeRef.current = Date.now();
                           if (didDragRef.current) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             triggerClickLockout();
@@ -3920,6 +3951,7 @@ export default function App() {
                           });
                         }}
                         onMouseDown={(e) => {
+                          if (Date.now() - lastListTouchTimeRef.current < 650) return;
                           handleItemTouchStart(list.id, isSystem);
                           if (!listSelectMode && e.button === 0 && !e.target.closest('button')) {
                             const itemEl = e.currentTarget;
@@ -3936,6 +3968,7 @@ export default function App() {
                           }
                         }}
                         onMouseUp={() => {
+                          if (Date.now() - lastListTouchTimeRef.current < 650) return;
                           if (didDragRef.current) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             triggerClickLockout();
@@ -3967,16 +4000,28 @@ export default function App() {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           {listSelectMode ? (
-                            <div style={{
-                              width: '22px', height: '22px', borderRadius: '50%',
-                              border: isSelected ? '2px solid #ef4444' : '2px solid var(--border)',
-                              backgroundColor: isSelected ? '#ef4444' : 'transparent',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: '#ffffff', fontSize: '13px', fontWeight: 800,
-                              flexShrink: 0
-                            }}>
-                              {isSelected ? '✓' : ''}
-                            </div>
+                            !isSystem ? (
+                              <div style={{
+                                width: '22px', height: '22px', borderRadius: '50%',
+                                border: isSelected ? '2px solid #ef4444' : '2px solid var(--border)',
+                                backgroundColor: isSelected ? '#ef4444' : 'transparent',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#ffffff', fontSize: '13px', fontWeight: 800,
+                                flexShrink: 0, pointerEvents: 'none'
+                              }}>
+                                {isSelected ? '✓' : ''}
+                              </div>
+                            ) : (
+                              <div style={{
+                                width: '22px', height: '22px', borderRadius: '50%',
+                                border: '1px dashed var(--border)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--text-muted)', fontSize: '11px',
+                                flexShrink: 0, opacity: 0.45, pointerEvents: 'none'
+                              }} title="Default system list cannot be deleted">
+                                🔒
+                              </div>
+                            )
                           ) : (
                             <div
                               title="Drag to reorder list"
