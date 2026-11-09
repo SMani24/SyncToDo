@@ -347,6 +347,7 @@ export default function App() {
   const isTouchScrollingRef = useRef(false);
   const lastListTouchTimeRef = useRef(0);
   const appMountedTimeRef = useRef(Date.now());
+  const appResumeTimeRef = useRef(0);
 
   const handleSelectCalendarType = (type) => {
     setCalendarType(type);
@@ -824,6 +825,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Lock out accidental taps landing on cards during cold start
+    triggerClickLockout(900);
+    setSelectedTodoId(null);
+
+    const handleResume = () => {
+      appResumeTimeRef.current = Date.now();
+      triggerClickLockout(700);
+      setSelectedTodoId(null);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleResume();
+      }
+    };
+
+    window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', handleResume);
+
     try {
       const params = new URLSearchParams(window.location.search);
       const urlView = params.get('view');
@@ -840,6 +860,11 @@ export default function App() {
         setTimeout(() => quickAddInputRef.current?.focus(), 400);
       }
     } catch {}
+
+    return () => {
+      window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', handleResume);
+    };
   }, []);
 
   const todayStr = getLogicalDateStr(new Date(), dayStartHour);
@@ -1086,6 +1111,8 @@ export default function App() {
 
   const startTaskDrag = (todo, index, clientY, cardEl) => {
     if (!cardEl || !todo) return;
+    setSelectedTodoId(null);
+    didDragRef.current = true;
     const rect = cardEl.getBoundingClientRect();
     const containerEl = cardEl.closest('[data-todo-list-container]') || document.querySelector('[data-todo-list-container]');
     const scrollEl = findScrollParent(containerEl) || scrollContainerRef.current;
@@ -1170,7 +1197,7 @@ export default function App() {
 
     didDragRef.current = true;
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
-    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 40);
+    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 450);
 
     if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       if (sortByDate) {
@@ -1295,7 +1322,7 @@ export default function App() {
 
     didDragRef.current = true;
     if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
-    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 40);
+    dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 450);
 
     if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       const currentLists = [...listsRef.current];
@@ -2724,7 +2751,12 @@ export default function App() {
 
                     <div
                       onClick={() => {
-                        if (isIgnoreClicksRef.current || didDragRef.current) return;
+                        if (
+                          isIgnoreClicksRef.current ||
+                          didDragRef.current ||
+                          Date.now() - appMountedTimeRef.current < 900 ||
+                          Date.now() - appResumeTimeRef.current < 700
+                        ) return;
                         if (isSwipedOpen) {
                           setSwipedTodoId(null);
                           return;
@@ -2748,7 +2780,10 @@ export default function App() {
                       }}
                       onTouchStart={(e) => {
                         if (!e.touches || e.touches.length === 0) return;
-                        if (Date.now() - appMountedTimeRef.current < 600) return;
+                        if (
+                          Date.now() - appMountedTimeRef.current < 900 ||
+                          Date.now() - appResumeTimeRef.current < 700
+                        ) return;
                         const touch = e.touches[0];
                         touchSwipeRef.current = {
                           id: todo.id,
@@ -2760,11 +2795,16 @@ export default function App() {
                         if (!isCompleted && !e.target.closest('button')) {
                           const cardEl = e.currentTarget.closest('[data-todo-card]');
                           cardHoldTimerRef.current = setTimeout(() => {
-                            if (cardEl && !isSwipedOpen && Date.now() - appMountedTimeRef.current >= 600) {
+                            if (
+                              cardEl &&
+                              !isSwipedOpen &&
+                              Date.now() - appMountedTimeRef.current >= 900 &&
+                              Date.now() - appResumeTimeRef.current >= 700
+                            ) {
                               startTaskDrag(todo, index, touch.clientY, cardEl);
                               touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
                             }
-                          }, 480);
+                          }, 620);
                         }
                       }}
                       onTouchMove={(e) => {
@@ -2801,6 +2841,13 @@ export default function App() {
                           setSwipedTodoId(todo.id);
                         } else if (dx > 25 && isSwipedOpen) {
                           setSwipedTodoId(null);
+                        }
+                        touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
+                      }}
+                      onTouchCancel={() => {
+                        if (cardHoldTimerRef.current) {
+                          clearTimeout(cardHoldTimerRef.current);
+                          cardHoldTimerRef.current = null;
                         }
                         touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
                       }}
