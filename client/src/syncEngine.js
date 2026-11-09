@@ -1119,7 +1119,7 @@ export class SyncEngine {
 
       // Active / unfinished tasks
       if (allowSet && !allowSet.has(t.id)) return;
-      if (t.inMyDay && t.plannedDate === today) return; // Already in today's focus!
+      if (t.inMyDay && (!t.plannedDate || t.plannedDate === today)) return; // Already in today's focus!
       const isPastDue = t.dueDate && t.dueDate < today;
       const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
       if (isPastDue || isPastMyDay || allowSet) {

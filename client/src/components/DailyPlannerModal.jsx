@@ -9,6 +9,8 @@ export default function DailyPlannerModal({
   deviceType = 'laptop',
   calendarType = 'gregorian',
   dayStartHour = 0,
+  leftoversDismissedDate = null,
+  onDismissLeftovers,
   onToggleInMyDay,
   onCarryForward,
   onClose
@@ -22,9 +24,10 @@ export default function DailyPlannerModal({
   // Identify unfinished / overdue tasks from past days (ONLY active tasks, NEVER completed!)
   const overdueTasks = activeTodos.filter(t => {
     if (t.completed) return false;
-    if (t.inMyDay && t.plannedDate === today) return false;
-    const isPastDue = t.dueDate && t.dueDate < today;
-    const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
+    // If it is ALREADY planned for today in My Day, it is not an unfinished leftover!
+    if (t.inMyDay && (!t.plannedDate || t.plannedDate === today)) return false;
+    const isPastDue = Boolean(t.dueDate && t.dueDate < today);
+    const isPastMyDay = Boolean(t.inMyDay && t.plannedDate && t.plannedDate < today);
     return isPastDue || isPastMyDay;
   });
 
@@ -138,7 +141,7 @@ export default function DailyPlannerModal({
         </div>
 
         {/* Overdue / Yesterday Carry-Forward Banner */}
-        {overdueTasks.length > 0 && (
+        {overdueTasks.length > 0 && leftoversDismissedDate !== today && (
           <div style={{
             margin: isPhone ? '12px 14px 0 14px' : '16px 20px 0 20px',
             padding: isPhone ? '12px 14px' : '14px 18px',
@@ -153,29 +156,53 @@ export default function DailyPlannerModal({
           }}>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>⚠️</span> {overdueTasks.length} Unfinished {overdueTasks.length === 1 ? 'task' : 'tasks'} from yesterday
+                <span>⚠️</span> {overdueTasks.length} Unfinished {overdueTasks.length === 1 ? 'task' : 'tasks'} from earlier
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                 Carry them forward directly into Today's plan so nothing falls through the cracks.
               </div>
             </div>
-            <button
-              onClick={() => onCarryForward()}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#f59e0b',
-                color: '#000000',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                alignSelf: isPhone ? 'flex-end' : 'auto'
-              }}
-            >
-              Carry Forward All
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', alignSelf: isPhone ? 'flex-end' : 'auto' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  onCarryForward();
+                  if (onDismissLeftovers) onDismissLeftovers();
+                }}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#f59e0b',
+                  color: '#000000',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Carry Forward All
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDismissLeftovers) onDismissLeftovers();
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -265,7 +292,7 @@ export default function DailyPlannerModal({
             </div>
           ) : (
             candidateTasks.map(todo => {
-              const isInToday = todo.inMyDay;
+              const isInToday = todo.inMyDay && (!todo.plannedDate || todo.plannedDate === today);
               const listObj = lists.find(l => l.id === todo.listId);
 
               return (

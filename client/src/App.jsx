@@ -838,7 +838,7 @@ export default function App() {
   const overdueTasks = syncState.todos.filter(t => {
     if (t.completed || t.deletedAt) return false;
     // If it is ALREADY planned for today in My Day, it is not an unfinished leftover needing carry-forward!
-    if (t.inMyDay && t.plannedDate === todayStr) return false;
+    if (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr)) return false;
     const isPastDue = t.dueDate && t.dueDate < todayStr;
     const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < todayStr;
     return isPastDue || isPastMyDay;
@@ -4158,6 +4158,13 @@ export default function App() {
           dayStartHour={dayStartHour}
           todos={syncState.todos}
           lists={syncState.lists}
+          leftoversDismissedDate={leftoversDismissedDate}
+          onDismissLeftovers={() => {
+            setLeftoversDismissedDate(todayStr);
+            try {
+              localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
+            } catch (_) {}
+          }}
           onToggleInMyDay={(todoId, inMyDay) => {
             syncEngine.updateTodo(todoId, {
               inMyDay,
