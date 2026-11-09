@@ -402,6 +402,11 @@ export default function App() {
   const quickAddInputRef = useRef(null);
 
   const [deviceType, setDeviceType] = useState(detectDeviceType());
+  const deviceTypeRef = useRef(deviceType);
+  useEffect(() => {
+    deviceTypeRef.current = deviceType;
+  }, [deviceType]);
+  const lastActiveInputRef = useRef(null);
 
   // Android hardware back button & modal management
   const anyModalOpen = Boolean(
@@ -427,9 +432,10 @@ export default function App() {
     }
   }, [anyModalOpen]);
 
-  // Monitor keyboard visibility & dismissal
+  // Monitor keyboard visibility & dismissal (phones only)
   useEffect(() => {
     const handleDismissKeyboard = () => {
+      if (deviceTypeRef.current !== 'phone') return;
       if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
         document.activeElement.blur();
       }
@@ -825,14 +831,83 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Lock out accidental taps landing on cards during cold start
-    triggerClickLockout(900);
-    setSelectedTodoId(null);
+    // Lock out accidental taps landing on cards during cold start on phones
+    if (deviceTypeRef.current === 'phone') {
+      triggerClickLockout(900);
+      setSelectedTodoId(null);
+    }
+
+    const isTextInputElement = (el) => {
+      if (!el || !(el instanceof Element)) return false;
+      const tag = el.tagName;
+      if (tag === 'TEXTAREA') return true;
+      if (tag === 'INPUT') {
+        const type = (el.type || 'text').toLowerCase();
+        return ['text', 'search', 'url', 'email', 'password', 'tel', 'number'].includes(type);
+      }
+      return false;
+    };
+
+    const updateLastActiveInput = (el) => {
+      if (!isTextInputElement(el)) return;
+      lastActiveInputRef.current = {
+        el,
+        start: typeof el.selectionStart === 'number' ? el.selectionStart : null,
+        end: typeof el.selectionEnd === 'number' ? el.selectionEnd : null,
+        dir: el.selectionDirection || 'none',
+        timestamp: Date.now()
+      };
+    };
+
+    const restoreInputFocus = () => {
+      if (deviceTypeRef.current === 'phone') return;
+      const saved = lastActiveInputRef.current;
+      if (!saved || !saved.el || !document.contains(saved.el)) {
+        return;
+      }
+
+      // If user has deliberately focused another interactive element inside the page, do not steal focus
+      const active = document.activeElement;
+      if (active && active !== document.body && active !== document.documentElement) {
+        if (active === saved.el) {
+          if (
+            typeof saved.start === 'number' &&
+            typeof saved.end === 'number' &&
+            typeof saved.el.setSelectionRange === 'function'
+          ) {
+            try {
+              if (saved.el.selectionStart !== saved.start || saved.el.selectionEnd !== saved.end) {
+                saved.el.setSelectionRange(saved.start, saved.end, saved.dir || 'none');
+              }
+            } catch (_) {}
+          }
+          return;
+        }
+        return;
+      }
+
+      try {
+        saved.el.focus({ preventScroll: true });
+        if (
+          typeof saved.start === 'number' &&
+          typeof saved.end === 'number' &&
+          typeof saved.el.setSelectionRange === 'function'
+        ) {
+          saved.el.setSelectionRange(saved.start, saved.end, saved.dir || 'none');
+        }
+      } catch (_) {}
+    };
 
     const handleResume = () => {
-      appResumeTimeRef.current = Date.now();
-      triggerClickLockout(700);
-      setSelectedTodoId(null);
+      if (deviceTypeRef.current === 'phone') {
+        appResumeTimeRef.current = Date.now();
+        triggerClickLockout(700);
+        setSelectedTodoId(null);
+      } else {
+        restoreInputFocus();
+        setTimeout(restoreInputFocus, 20);
+        setTimeout(restoreInputFocus, 80);
+      }
     };
 
     const onVisibilityChange = () => {
@@ -841,8 +916,75 @@ export default function App() {
       }
     };
 
+    const onFocusIn = (e) => {
+      if (isTextInputElement(e.target)) {
+        updateLastActiveInput(e.target);
+      }
+    };
+
+    const onSelectionChange = () => {
+      const active = document.activeElement;
+      if (isTextInputElement(active)) {
+        updateLastActiveInput(active);
+      }
+    };
+
+    const onWindowBlur = () => {
+      const active = document.activeElement;
+      if (isTextInputElement(active)) {
+        updateLastActiveInput(active);
+      }
+    };
+
+    const onPointerDown = (e) => {
+      if (!isTextInputElement(e.target) && !e.target.closest('input, textarea')) {
+        // If clicking inside the quick-add form or on quick-add controls, keep reference
+        if (e.target.closest('form') && quickAddInputRef.current && e.target.closest('form').contains(quickAddInputRef.current)) {
+          return;
+        }
+        lastActiveInputRef.current = null;
+      }
+    };
+
+    const onWindowKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        lastActiveInputRef.current = null;
+        return;
+      }
+
+      // If on laptop/desktop, activeElement is body/html, and user presses a printable character key,
+      // refocus the active input immediately so the character is typed into the input
+      if (
+        deviceTypeRef.current !== 'phone' &&
+        (document.activeElement === document.body || document.activeElement === document.documentElement)
+      ) {
+        if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+          restoreInputFocus();
+        }
+      }
+    };
+
+    const onWindowKeyUp = (e) => {
+      if (
+        deviceTypeRef.current !== 'phone' &&
+        (document.activeElement === document.body || document.activeElement === document.documentElement)
+      ) {
+        // When releasing Meta, Shift, Control, Alt, or Space (e.g. after Win+Space or Alt+Tab)
+        if (['Meta', 'Shift', 'Control', 'Alt', 'OS', ' '].includes(e.key)) {
+          restoreInputFocus();
+          setTimeout(restoreInputFocus, 20);
+        }
+      }
+    };
+
     window.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', handleResume);
+    window.addEventListener('blur', onWindowBlur);
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('selectionchange', onSelectionChange);
+    document.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onWindowKeyDown);
+    window.addEventListener('keyup', onWindowKeyUp);
 
     try {
       const params = new URLSearchParams(window.location.search);
@@ -864,6 +1006,12 @@ export default function App() {
     return () => {
       window.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', handleResume);
+      window.removeEventListener('blur', onWindowBlur);
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('selectionchange', onSelectionChange);
+      document.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onWindowKeyDown);
+      window.removeEventListener('keyup', onWindowKeyUp);
     };
   }, []);
 
@@ -1435,6 +1583,7 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
         if (e.key === 'Escape') {
           e.target.blur();
+          lastActiveInputRef.current = null;
         }
         return;
       }
@@ -1649,6 +1798,22 @@ export default function App() {
     setNewHandwritingIsInline(false);
     if (inlineHasInk) clearInlineCanvas();
     setShowInlinePenStrip(false);
+
+    // On laptop/desktop, keep quick add input focused after submitting a task
+    if (deviceTypeRef.current !== 'phone') {
+      setTimeout(() => {
+        quickAddInputRef.current?.focus();
+        if (quickAddInputRef.current) {
+          lastActiveInputRef.current = {
+            el: quickAddInputRef.current,
+            start: 0,
+            end: 0,
+            dir: 'none',
+            timestamp: Date.now()
+          };
+        }
+      }, 10);
+    }
   };
 
   // Carry forward yesterday's unfinished tasks (all or selective)
@@ -3420,7 +3585,7 @@ export default function App() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   onFocus={(e) => {
-                    if (isIgnoreClicksRef.current) {
+                    if (deviceType === 'phone' && isIgnoreClicksRef.current) {
                       e.target.blur();
                       return;
                     }
