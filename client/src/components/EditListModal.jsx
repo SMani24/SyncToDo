@@ -71,6 +71,8 @@ export default function EditListModal({
         style={{
           width: '100%',
           maxWidth: '420px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           backgroundColor: 'var(--surface, #1e293b)',
           border: '1px solid var(--border, #334155)',
           borderRadius: '16px',

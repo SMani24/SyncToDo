@@ -402,6 +402,32 @@ export default function App() {
   const quickAddInputRef = useRef(null);
 
   const [deviceType, setDeviceType] = useState(detectDeviceType());
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800
+  }));
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('synctodo_sidebar_collapsed') === 'true';
+    } catch (_) {
+      return false;
+    }
+  });
+  const [isCompactSidebarOpen, setIsCompactSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    const isNarrow = deviceTypeRef.current !== 'phone' && window.innerWidth < 780;
+    if (isNarrow) {
+      setIsCompactSidebarOpen(prev => !prev);
+    } else {
+      setIsSidebarCollapsed(prev => {
+        const next = !prev;
+        try { localStorage.setItem('synctodo_sidebar_collapsed', String(next)); } catch (_) {}
+        return next;
+      });
+    }
+  };
+
   const deviceTypeRef = useRef(deviceType);
   useEffect(() => {
     deviceTypeRef.current = deviceType;
@@ -522,6 +548,10 @@ export default function App() {
       if (showListPickerSheet) {
         setShowListPickerSheet(false);
         handleExitListSelect();
+        return true;
+      }
+      if (isCompactSidebarOpen) {
+        setIsCompactSidebarOpen(false);
         return true;
       }
       if (selectedTodoId) {
@@ -823,7 +853,15 @@ export default function App() {
   const isDarkTheme = !['minimal', 'editorial', 'matcha', 'sakura'].includes(activeAppliedTheme);
 
   useEffect(() => {
-    const onResize = () => setDeviceType(detectDeviceType());
+    const onResize = () => {
+      const nextWidth = window.innerWidth;
+      const nextHeight = window.innerHeight;
+      setDeviceType(detectDeviceType());
+      setViewportSize({ width: nextWidth, height: nextHeight });
+      if (nextWidth >= 780) {
+        setIsCompactSidebarOpen(false);
+      }
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -1584,6 +1622,12 @@ export default function App() {
   // Desktop Keyboard Shortcuts (/, N, Space, T, Delete, Alt+Up/Down, Escape)
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\' && deviceTypeRef.current !== 'phone') {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
+
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
         if (e.key === 'Escape') {
@@ -1595,7 +1639,10 @@ export default function App() {
         return;
       }
 
-      if (e.key === '/') {
+      if (e.key === '[' && !e.ctrlKey && !e.metaKey && !e.altKey && deviceTypeRef.current !== 'phone') {
+        e.preventDefault();
+        toggleSidebar();
+      } else if (e.key === '/') {
         e.preventDefault();
         searchInputRef.current?.focus();
       } else if (e.key === 'n' || e.key === 'N') {
@@ -1607,6 +1654,7 @@ export default function App() {
         setListsToDelete(null);
         setSelectedTodoId(null);
         setSwipedTodoId(null);
+        setIsCompactSidebarOpen(false);
         setShowSettingsModal(false);
         setShowThemeModal(false);
         setShowPlannerModal(false);
@@ -1877,6 +1925,23 @@ export default function App() {
   const isWsConnected = syncState.status === 'CONNECTED';
   const isSyncedLive = activePeerCount > 0 || isWsConnected;
   const isLandscapePhone = deviceType === 'phone' && window.innerWidth >= 560 && window.innerWidth > window.innerHeight;
+  const isPhone = deviceType === 'phone';
+  const viewportWidth = viewportSize.width;
+  const viewportHeight = viewportSize.height;
+  const isShortViewport = !isPhone && viewportHeight < 580;
+  const isNarrowDesktop = !isPhone && viewportWidth < 780;
+  const isCompactDesktop = !isPhone && viewportWidth < 680;
+  const isSidebarOpen = isNarrowDesktop ? isCompactSidebarOpen : !isSidebarCollapsed;
+  const dockedSidebarWidth = viewportWidth >= 1200 ? 236 : viewportWidth >= 960 ? 216 : 196;
+  const activeDockedSidebarPx = (!isPhone && !isNarrowDesktop && !isSidebarCollapsed) ? dockedSidebarWidth : 0;
+  const detailPanelWidth = viewportWidth >= 1280 ? 350 : viewportWidth >= 1024 ? 320 : 300;
+  const isDetailOverlay = !isPhone && (viewportWidth - activeDockedSidebarPx - detailPanelWidth) < 420;
+  const effectiveMainWidth = Math.max(
+    300,
+    viewportWidth - activeDockedSidebarPx - (!isPhone && selectedTodo && !isDetailOverlay ? detailPanelWidth : 0)
+  );
+  const isTightMain = isPhone || effectiveMainWidth < 560;
+  const isTightQuickAdd = !isPhone && effectiveMainWidth < 560;
 
   return (
     <div style={{
@@ -1887,16 +1952,16 @@ export default function App() {
       backgroundColor: 'var(--bg)',
       color: 'var(--text)',
       paddingTop: 'var(--sat)',
-      paddingBottom: deviceType === 'phone' ? 'var(--sab)' : '0px',
-      paddingLeft: deviceType === 'phone' ? 'var(--sal)' : '0px',
-      paddingRight: deviceType === 'phone' ? 'var(--sar)' : '0px',
+      paddingBottom: isPhone ? 'var(--sab)' : '0px',
+      paddingLeft: isPhone ? 'var(--sal)' : '0px',
+      paddingRight: isPhone ? 'var(--sar)' : '0px',
       overflow: 'hidden'
     }}>
       {/* ==================================================== */}
       {/* APP HEADER                                          */}
       {/* ==================================================== */}
       <header style={{
-        height: isLandscapePhone ? '46px' : (deviceType === 'phone' ? '54px' : '58px'),
+        height: isLandscapePhone ? '46px' : isPhone ? '54px' : isShortViewport ? '50px' : '58px',
         paddingLeft: 'max(12px, var(--sal))',
         paddingRight: 'max(12px, var(--sar))',
         paddingTop: 0,
@@ -1904,17 +1969,45 @@ export default function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: isPhone ? '8px' : '10px',
         backgroundColor: 'var(--surface)',
         borderBottom: '1px solid var(--border)',
         boxShadow: 'var(--card-shadow)',
         flexShrink: 0,
-        zIndex: 20
+        zIndex: 20,
+        minWidth: 0
       }}>
-        {/* Left: App Logo & Friendly Device Name Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isLandscapePhone ? '7px' : '9px' }}>
+        {/* Left: Sidebar Toggle, App Logo & Friendly Device Name Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isLandscapePhone ? '7px' : '9px', minWidth: 0, flexShrink: 0 }}>
+          {!isPhone && (
+            <button
+              type="button"
+              data-sidebar-toggle="true"
+              onClick={toggleSidebar}
+              aria-expanded={isSidebarOpen}
+              aria-label={isSidebarOpen ? 'Collapse left sidebar' : 'Expand left sidebar'}
+              title={isSidebarOpen ? 'Collapse sidebar ( [ or Ctrl+\\ )' : 'Expand sidebar ( [ or Ctrl+\\ )'}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '9px',
+                border: isSidebarOpen ? '1px solid var(--border-strong)' : '1px solid var(--border)',
+                backgroundColor: isSidebarOpen ? 'var(--tag-bg)' : 'var(--surface-elevated)',
+                color: isSidebarOpen ? 'var(--primary)' : 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.18s ease'
+              }}
+            >
+              <Icon name="sidebar" size={16} />
+            </button>
+          )}
           <div style={{
-            width: isLandscapePhone ? '28px' : '32px',
-            height: isLandscapePhone ? '28px' : '32px',
+            width: isLandscapePhone ? '28px' : isCompactDesktop ? '30px' : '32px',
+            height: isLandscapePhone ? '28px' : isCompactDesktop ? '30px' : '32px',
             borderRadius: isLandscapePhone ? '8px' : '10px',
             background: 'var(--primary-gradient)',
             display: 'flex',
@@ -1926,55 +2019,61 @@ export default function App() {
           }}>
             <Icon name="check" size={isLandscapePhone ? 15 : 18} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 style={{ fontSize: isLandscapePhone ? '15px' : (deviceType === 'phone' ? '16px' : '17px'), fontWeight: 800, margin: 0, letterSpacing: '-0.3px', color: 'var(--text)' }}>
-                SyncToDo
-              </h1>
-              {deviceType !== 'phone' && (
-                <span style={{
-                  fontSize: '9.5px',
-                  padding: '2px 7px',
-                  borderRadius: '999px',
-                  backgroundColor: 'var(--tag-bg)',
-                  color: 'var(--tag-text)',
-                  fontWeight: 700
-                }}>
-                  {syncEngine.deviceName || syncState.p2pInfo?.deviceName || deviceType}
-                </span>
-              )}
+          {(isPhone || viewportWidth >= 560) && (
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <h1 style={{ fontSize: isLandscapePhone ? '15px' : isPhone ? '16px' : isCompactDesktop ? '15.5px' : '17px', fontWeight: 800, margin: 0, letterSpacing: '-0.3px', color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                  SyncToDo
+                </h1>
+                {!isPhone && viewportWidth >= 880 && (
+                  <span style={{
+                    fontSize: '9.5px',
+                    padding: '2px 7px',
+                    borderRadius: '999px',
+                    backgroundColor: 'var(--tag-bg)',
+                    color: 'var(--tag-text)',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {syncEngine.deviceName || syncState.p2pInfo?.deviceName || deviceType}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Center: Search (Laptop/Tablet or wide landscape phone) */}
-        {((deviceType !== 'phone') || (isLandscapePhone && window.innerWidth >= 680)) && (
+        {/* Center: Responsive Search (Laptop/Tablet or wide landscape phone) */}
+        {(!isPhone || (isLandscapePhone && viewportWidth >= 680)) && (
           <div style={{
             position: 'relative',
-            width: deviceType === 'laptop' ? '310px' : (isLandscapePhone ? '200px' : '220px'),
+            flex: isLandscapePhone ? '0 0 200px' : '1 1 110px',
+            maxWidth: isLandscapePhone ? '200px' : viewportWidth >= 1100 ? '320px' : '250px',
+            minWidth: isLandscapePhone ? '160px' : '90px',
             display: 'flex',
             alignItems: 'center'
           }}>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder={isLandscapePhone ? "Search tasks..." : "Search tasks, notes ( / )..."}
+              placeholder={isLandscapePhone ? "Search tasks..." : viewportWidth < 760 ? "Search (/)" : "Search tasks, notes ( / )..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               dir="auto"
               style={{
                 width: '100%',
-                padding: isLandscapePhone ? '5px 24px 5px 28px' : (deviceType === 'phone' ? '8px 28px 8px 32px' : '7px 28px 7px 32px'),
+                minWidth: 0,
+                padding: isLandscapePhone ? '5px 24px 5px 28px' : isPhone ? '8px 28px 8px 32px' : '7px 28px 7px 30px',
                 borderRadius: '8px',
                 border: '1px solid var(--border)',
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text)',
-                fontSize: isLandscapePhone ? '12px' : (deviceType === 'phone' ? '16px' : '13px'),
+                fontSize: isLandscapePhone ? '12px' : isPhone ? '16px' : '13px',
                 outline: 'none',
                 textAlign: 'start'
               }}
             />
-            <span style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)', display: 'flex' }}>
+            <span style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)', display: 'flex', pointerEvents: 'none' }}>
               <Icon name="search" size={isLandscapePhone ? 12 : 14} />
             </span>
             {searchQuery && (
@@ -1989,7 +2088,7 @@ export default function App() {
         )}
 
         {/* Right: Unified Sync Status Pill & Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isLandscapePhone ? '5px' : (deviceType === 'phone' ? '6px' : '8px'), flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isLandscapePhone ? '5px' : (isPhone || isCompactDesktop) ? '6px' : '8px', flexShrink: 0 }}>
           {/* Unified Sync Pill */}
           <button
             onClick={() => setShowDevicesModal(true)}
@@ -1998,7 +2097,7 @@ export default function App() {
               alignItems: 'center',
               gap: '6px',
               height: isLandscapePhone ? '30px' : 'auto',
-              padding: isLandscapePhone ? '0 10px' : (deviceType === 'phone' ? '5px 9px' : '6px 12px'),
+              padding: isLandscapePhone ? '0 10px' : isPhone ? '5px 9px' : isCompactDesktop ? '5px 9px' : '6px 12px',
               borderRadius: '999px',
               border: pendingPairCount > 0
                 ? '1.5px solid #10b981'
@@ -2029,9 +2128,13 @@ export default function App() {
               flexShrink: 0
             }} />
             <span>
-              {deviceType === 'phone'
+              {isPhone
                 ? (pendingPairCount > 0 ? `${pendingPairCount}` : activePeerCount > 0 ? `${activePeerCount} device${activePeerCount > 1 ? 's' : ''}` : 'Sync')
-                : (pendingPairCount > 0 ? `Pair Request (${pendingPairCount})` : activePeerCount > 0 ? `Synced · ${activePeerCount} device${activePeerCount > 1 ? 's' : ''}` : 'Pair Devices')}
+                : viewportWidth >= 1020
+                ? (pendingPairCount > 0 ? `Pair Request (${pendingPairCount})` : activePeerCount > 0 ? `Synced · ${activePeerCount} device${activePeerCount > 1 ? 's' : ''}` : 'Pair Devices')
+                : viewportWidth >= 680
+                ? (pendingPairCount > 0 ? `Pair (${pendingPairCount})` : activePeerCount > 0 ? `${activePeerCount} synced` : 'Sync')
+                : (pendingPairCount > 0 ? `Pair (${pendingPairCount})` : activePeerCount > 0 ? `${activePeerCount}` : 'Sync')}
             </span>
           </button>
 
@@ -2040,7 +2143,7 @@ export default function App() {
             onClick={() => setShowThemeModal(true)}
             style={{
               height: isLandscapePhone ? '30px' : 'auto',
-              padding: isLandscapePhone ? '0 8px' : (deviceType === 'phone' ? '6px 8px' : '6px 10px'),
+              padding: isLandscapePhone ? '0 8px' : (isPhone || viewportWidth < 960) ? '6px 8px' : '6px 10px',
               borderRadius: '8px',
               border: '1px solid var(--border)',
               backgroundColor: 'var(--surface-elevated)',
@@ -2050,12 +2153,13 @@ export default function App() {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px'
+              gap: '5px',
+              whiteSpace: 'nowrap'
             }}
             title="Theme & Auto-Schedule"
           >
             <Icon name="palette" size={14} />
-            {deviceType !== 'phone' && <span>Themes</span>}
+            {!isPhone && viewportWidth >= 960 && <span>Themes</span>}
           </button>
 
           {/* Settings & Calendars Modal Trigger */}
@@ -2063,7 +2167,7 @@ export default function App() {
             onClick={() => setShowSettingsModal(true)}
             style={{
               height: isLandscapePhone ? '30px' : 'auto',
-              padding: isLandscapePhone ? '0 8px' : (deviceType === 'phone' ? '6px 8px' : '6px 10px'),
+              padding: isLandscapePhone ? '0 8px' : (isPhone || viewportWidth < 960) ? '6px 8px' : '6px 10px',
               borderRadius: '8px',
               border: '1px solid var(--border)',
               backgroundColor: 'var(--surface-elevated)',
@@ -2073,20 +2177,21 @@ export default function App() {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px'
+              gap: '5px',
+              whiteSpace: 'nowrap'
             }}
             title="Settings & Calendars"
           >
             <Icon name="gear" size={14} />
-            {deviceType !== 'phone' && <span>Settings</span>}
+            {!isPhone && viewportWidth >= 960 && <span>Settings</span>}
           </button>
 
           {/* Daily Planner Trigger (Only on Laptop/Tablet, phone has dedicated tab in bottom nav) */}
-          {deviceType !== 'phone' && (
+          {!isPhone && (
             <button
               onClick={() => setShowPlannerModal(true)}
               style={{
-                padding: '6px 12px',
+                padding: viewportWidth < 540 ? '6px 8px' : isCompactDesktop ? '6px 10px' : '6px 12px',
                 borderRadius: '9px',
                 border: 'none',
                 background: 'var(--primary-gradient)',
@@ -2096,12 +2201,13 @@ export default function App() {
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px'
+                gap: '5px',
+                whiteSpace: 'nowrap'
               }}
               title="Plan My Day from your lists"
             >
               <Icon name="sun" size={14} />
-              <span>Plan Day</span>
+              {viewportWidth >= 640 ? <span>Plan Day</span> : viewportWidth >= 540 ? <span>Plan</span> : null}
             </button>
           )}
         </div>
@@ -2112,283 +2218,385 @@ export default function App() {
       {/* ==================================================== */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-        {/* Sidebar Navigation (Laptop & Tablet) */}
-        {deviceType !== 'phone' && (
-          <aside style={{
-            width: deviceType === 'laptop' ? '230px' : '190px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRight: '1px solid var(--border)',
-            padding: '16px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            overflowY: 'auto',
-            flexShrink: 0
-          }}>
-            {/* Smart Views */}
-            <div>
-              <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.6px', padding: '0 8px 6px 8px' }}>
-                Smart Views
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {[
-                  { id: 'today', icon: 'sun', label: 'My Day', count: syncState.todos.filter(t => !t.completed && !t.deletedAt && (t.dueDate === todayStr || (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr)))).length },
-                  { id: 'all', icon: 'list', label: 'All Tasks', count: syncState.todos.filter(t => !t.completed && !t.deletedAt).length },
-                ].map(v => {
-                  const isActive = activeView === v.id;
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => { setActiveView(v.id); setSelectedListId(null); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '8px 10px', borderRadius: '9px', border: 'none',
-                        background: isActive ? 'var(--surface-elevated)' : 'transparent',
-                        color: isActive ? 'var(--primary)' : 'var(--text)',
-                        fontSize: '13px', fontWeight: isActive ? 700 : 500,
-                        cursor: 'pointer', textAlign: 'left'
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Icon name={v.icon} size={15} /> {v.label}
-                      </span>
-                      <span style={{ fontSize: '11px', opacity: 0.7 }}>{v.count}</span>
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => setActiveView('analytics')}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 10px', borderRadius: '9px', border: 'none',
-                    background: activeView === 'analytics' ? 'var(--surface-elevated)' : 'transparent',
-                    color: activeView === 'analytics' ? 'var(--primary)' : 'var(--text)',
-                    fontSize: '13px', fontWeight: activeView === 'analytics' ? 700 : 500,
-                    cursor: 'pointer', textAlign: 'left'
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Icon name="chart" size={15} /> Productivity Plots
+        {/* Sidebar Navigation (Laptop & Tablet: Collapsible Docked Panel or Overlay Drawer) */}
+        {!isPhone && (() => {
+          const sidebarContent = (
+            <>
+              {/* Smart Views */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 6px 8px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.6px' }}>
+                    Smart Views
                   </span>
-                </button>
-              </div>
-            </div>
-
-            {/* User Lists */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 6px 8px' }}>
-                <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.6px' }}>
-                  My Lists
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {listSelectMode ? (
-                    <>
+                  <button
+                    type="button"
+                    data-sidebar-inner-collapse="true"
+                    onClick={() => isNarrowDesktop ? setIsCompactSidebarOpen(false) : toggleSidebar()}
+                    title={isNarrowDesktop ? 'Close navigation drawer (Esc)' : 'Collapse left panel ( [ or Ctrl+\\ )'}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <Icon name={isNarrowDesktop ? 'x' : 'chevLeft'} size={13} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {[
+                    { id: 'today', icon: 'sun', label: 'My Day', count: syncState.todos.filter(t => !t.completed && !t.deletedAt && (t.dueDate === todayStr || (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr)))).length },
+                    { id: 'all', icon: 'list', label: 'All Tasks', count: syncState.todos.filter(t => !t.completed && !t.deletedAt).length },
+                  ].map(v => {
+                    const isActive = activeView === v.id;
+                    return (
                       <button
-                        onClick={handleSelectAllLists}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
-                      >
-                        All
-                      </button>
-                      <button
-                        onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => selectedListIds.has(l.id)))}
-                        disabled={selectedListIds.size === 0}
-                        style={{
-                          background: selectedListIds.size > 0 ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
-                          border: 'none',
-                          borderRadius: '4px',
-                          color: selectedListIds.size > 0 ? '#ef4444' : 'var(--text-muted)',
-                          cursor: selectedListIds.size > 0 ? 'pointer' : 'default',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 5px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px'
+                        key={v.id}
+                        onClick={() => {
+                          setActiveView(v.id);
+                          setSelectedListId(null);
+                          if (isNarrowDesktop) setIsCompactSidebarOpen(false);
                         }}
-                        title="Delete selected lists"
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 10px', borderRadius: '9px', border: 'none',
+                          background: isActive ? 'var(--surface-elevated)' : 'transparent',
+                          color: isActive ? 'var(--primary)' : 'var(--text)',
+                          fontSize: '13px', fontWeight: isActive ? 700 : 500,
+                          cursor: 'pointer', textAlign: 'left'
+                        }}
                       >
-                        <Icon name="trash" size={11} /> {selectedListIds.size}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Icon name={v.icon} size={15} /> {v.label}
+                        </span>
+                        <span style={{ fontSize: '11px', opacity: 0.7 }}>{v.count}</span>
                       </button>
-                      <button
-                        onClick={handleExitListSelect}
-                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
-                      >
-                        Done
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {syncState.lists.some(l => l.id !== 'inbox') && (
-                        <button
-                          onClick={() => setListSelectMode(true)}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
-                          title="Select lists to delete (or hold on any list)"
-                        >
-                          Select
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setShowListsModal(true)}
-                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
-                        title="Create or manage lists"
-                      >
-                        + New
-                      </button>
-                    </>
-                  )}
+                    );
+                  })}
+                  <button
+                    onClick={() => {
+                      setActiveView('analytics');
+                      if (isNarrowDesktop) setIsCompactSidebarOpen(false);
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 10px', borderRadius: '9px', border: 'none',
+                      background: activeView === 'analytics' ? 'var(--surface-elevated)' : 'transparent',
+                      color: activeView === 'analytics' ? 'var(--primary)' : 'var(--text)',
+                      fontSize: '13px', fontWeight: activeView === 'analytics' ? 700 : 500,
+                      cursor: 'pointer', textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Icon name="chart" size={15} /> Productivity Plots
+                    </span>
+                  </button>
                 </div>
               </div>
 
-              <div
-                data-lists-container="sidebar"
-                style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}
-              >
-                {syncState.lists.map((list, listIdx) => {
-                  const count = syncState.todos.filter(t => !t.completed && !t.deletedAt && t.listId === list.id).length;
-                  const isActive = activeView === 'list' && selectedListId === list.id;
-                  const isSelected = selectedListIds.has(list.id);
-                  const isSystem = list.id === 'inbox';
-                  const listOffset = getListDragOffset(listIdx, 'sidebar');
-                  const isBeingDragged = listDrag && listDrag.source === 'sidebar' && listDrag.id === list.id;
-
-                  return (
-                    <div
-                      key={list.id}
-                      data-list-item={list.id}
-                      onTouchStart={() => {
-                        lastListTouchTimeRef.current = Date.now();
-                        handleItemTouchStart(list.id, isSystem);
-                      }}
-                      onTouchEnd={() => {
-                        lastListTouchTimeRef.current = Date.now();
-                        if (didDragRef.current) return;
-                        handleItemTouchEnd(list.id, isSystem, () => {
-                          setActiveView('list');
-                          setSelectedListId(list.id);
-                        });
-                      }}
-                      onTouchMove={handleItemTouchCancel}
-                      onMouseDown={(e) => {
-                        if (Date.now() - lastListTouchTimeRef.current < 650) return;
-                        if (e.button !== 0) return;
-                        handleItemTouchStart(list.id, isSystem);
-                        if (!listSelectMode) {
-                          pendingPointerDragRef.current = {
-                            kind: 'list',
-                            list,
-                            index: listIdx,
-                            startX: e.clientX,
-                            startY: e.clientY,
-                            el: e.currentTarget,
-                            gap: 4,
-                            source: 'sidebar'
-                          };
-                        }
-                      }}
-                      onMouseUp={(e) => {
-                        if (Date.now() - lastListTouchTimeRef.current < 650) return;
-                        if (e.button !== 0) return;
-                        pendingPointerDragRef.current = null;
-                        if (didDragRef.current) return;
-                        handleItemTouchEnd(list.id, isSystem, () => {
-                          setActiveView('list');
-                          setSelectedListId(list.id);
-                        });
-                      }}
-                      onMouseLeave={handleItemTouchCancel}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleItemTouchCancel();
-                        setListContextMenu({ x: e.clientX, y: e.clientY, list });
-                      }}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '8px 10px', borderRadius: '9px',
-                        border: isSelected ? '1px solid #ef4444' : '1px solid transparent',
-                        background: isSelected ? 'rgba(239, 68, 68, 0.1)' : isActive ? 'var(--surface-elevated)' : 'transparent',
-                        color: isSelected ? '#ef4444' : isActive ? 'var(--primary)' : 'var(--text)',
-                        fontSize: '13px', fontWeight: isActive || isSelected ? 700 : 500,
-                        cursor: 'pointer', textAlign: 'left',
-                        userSelect: 'none', WebkitUserSelect: 'none',
-                        transform: listOffset ? `translateY(${listOffset}px)` : 'none',
-                        transition: listDrag ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)' : 'background 0.15s ease, color 0.15s ease',
-                        opacity: isBeingDragged ? 0 : 1,
-                        visibility: isBeingDragged ? 'hidden' : 'visible',
-                        pointerEvents: isBeingDragged ? 'none' : 'auto',
-                        position: 'relative',
-                        zIndex: 1
-                      }}
-                      title={isSystem ? 'Click to open, right-click to edit, or drag to reorder' : 'Click to open, right-click to edit/delete, or hold/drag to reorder'}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                        {!listSelectMode && (
-                          <span
-                            style={{
-                              cursor: 'grab',
-                              color: 'var(--text-muted)',
-                              opacity: 0.45,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              touchAction: 'none',
-                              padding: '2px',
-                              flexShrink: 0
-                            }}
-                            title="Drag to reorder list"
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              if (e.button !== 0) return;
-                              const itemEl = e.currentTarget.closest('[data-list-item]');
-                              if (itemEl) startListDrag(list, listIdx, e.clientY, itemEl, 4, 'sidebar');
-                            }}
-                            onTouchStart={(e) => {
-                              e.stopPropagation();
-                              if (!e.touches || !e.touches[0]) return;
-                              const itemEl = e.currentTarget.closest('[data-list-item]');
-                              if (itemEl) startListDrag(list, listIdx, e.touches[0].clientY, itemEl, 4, 'sidebar');
-                            }}
+              {/* User Lists */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 6px 8px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.6px' }}>
+                    My Lists
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {listSelectMode ? (
+                      <>
+                        <button
+                          onClick={handleSelectAllLists}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+                        >
+                          All
+                        </button>
+                        <button
+                          onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => selectedListIds.has(l.id)))}
+                          disabled={selectedListIds.size === 0}
+                          style={{
+                            background: selectedListIds.size > 0 ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                            border: 'none',
+                            borderRadius: '4px',
+                            color: selectedListIds.size > 0 ? '#ef4444' : 'var(--text-muted)',
+                            cursor: selectedListIds.size > 0 ? 'pointer' : 'default',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 5px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                          title="Delete selected lists"
+                        >
+                          <Icon name="trash" size={11} /> {selectedListIds.size}
+                        </button>
+                        <button
+                          onClick={handleExitListSelect}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                        >
+                          Done
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {syncState.lists.some(l => l.id !== 'inbox') && (
+                          <button
+                            onClick={() => setListSelectMode(true)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+                            title="Select lists to delete (or hold on any list)"
                           >
-                            <Icon name="grip" size={12} />
-                          </span>
+                            Select
+                          </button>
                         )}
-                        {listSelectMode && (
-                          !isSystem ? (
-                            <span style={{
-                              width: '16px', height: '16px', borderRadius: '50%',
-                              border: isSelected ? '2px solid #ef4444' : '2px solid var(--border)',
-                              backgroundColor: isSelected ? '#ef4444' : 'transparent',
-                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              color: '#ffffff', fontSize: '10px', fontWeight: 800, flexShrink: 0,
-                              pointerEvents: 'none'
-                            }}>
-                              {isSelected ? '✓' : ''}
+                        <button
+                          onClick={() => setShowListsModal(true)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+                          title="Create or manage lists"
+                        >
+                          + New
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  data-lists-container="sidebar"
+                  style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}
+                >
+                  {syncState.lists.map((list, listIdx) => {
+                    const count = syncState.todos.filter(t => !t.completed && !t.deletedAt && t.listId === list.id).length;
+                    const isActive = activeView === 'list' && selectedListId === list.id;
+                    const isSelected = selectedListIds.has(list.id);
+                    const isSystem = list.id === 'inbox';
+                    const listOffset = getListDragOffset(listIdx, 'sidebar');
+                    const isBeingDragged = listDrag && listDrag.source === 'sidebar' && listDrag.id === list.id;
+
+                    return (
+                      <div
+                        key={list.id}
+                        data-list-item={list.id}
+                        onTouchStart={() => {
+                          lastListTouchTimeRef.current = Date.now();
+                          handleItemTouchStart(list.id, isSystem);
+                        }}
+                        onTouchEnd={() => {
+                          lastListTouchTimeRef.current = Date.now();
+                          if (didDragRef.current) return;
+                          handleItemTouchEnd(list.id, isSystem, () => {
+                            setActiveView('list');
+                            setSelectedListId(list.id);
+                            if (isNarrowDesktop) setIsCompactSidebarOpen(false);
+                          });
+                        }}
+                        onTouchMove={handleItemTouchCancel}
+                        onMouseDown={(e) => {
+                          if (Date.now() - lastListTouchTimeRef.current < 650) return;
+                          if (e.button !== 0) return;
+                          handleItemTouchStart(list.id, isSystem);
+                          if (!listSelectMode) {
+                            pendingPointerDragRef.current = {
+                              kind: 'list',
+                              list,
+                              index: listIdx,
+                              startX: e.clientX,
+                              startY: e.clientY,
+                              el: e.currentTarget,
+                              gap: 4,
+                              source: 'sidebar'
+                            };
+                          }
+                        }}
+                        onMouseUp={(e) => {
+                          if (Date.now() - lastListTouchTimeRef.current < 650) return;
+                          if (e.button !== 0) return;
+                          pendingPointerDragRef.current = null;
+                          if (didDragRef.current) return;
+                          handleItemTouchEnd(list.id, isSystem, () => {
+                            setActiveView('list');
+                            setSelectedListId(list.id);
+                            if (isNarrowDesktop) setIsCompactSidebarOpen(false);
+                          });
+                        }}
+                        onMouseLeave={handleItemTouchCancel}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleItemTouchCancel();
+                          setListContextMenu({ x: e.clientX, y: e.clientY, list });
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 10px', borderRadius: '9px',
+                          border: isSelected ? '1px solid #ef4444' : '1px solid transparent',
+                          background: isSelected ? 'rgba(239, 68, 68, 0.1)' : isActive ? 'var(--surface-elevated)' : 'transparent',
+                          color: isSelected ? '#ef4444' : isActive ? 'var(--primary)' : 'var(--text)',
+                          fontSize: '13px', fontWeight: isActive || isSelected ? 700 : 500,
+                          cursor: 'pointer', textAlign: 'left',
+                          userSelect: 'none', WebkitUserSelect: 'none',
+                          transform: listOffset ? `translateY(${listOffset}px)` : 'none',
+                          transition: listDrag ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)' : 'background 0.15s ease, color 0.15s ease',
+                          opacity: isBeingDragged ? 0 : 1,
+                          visibility: isBeingDragged ? 'hidden' : 'visible',
+                          pointerEvents: isBeingDragged ? 'none' : 'auto',
+                          position: 'relative',
+                          zIndex: 1
+                        }}
+                        title={isSystem ? 'Click to open, right-click to edit, or drag to reorder' : 'Click to open, right-click to edit/delete, or hold/drag to reorder'}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                          {!listSelectMode && (
+                            <span
+                              style={{
+                                cursor: 'grab',
+                                color: 'var(--text-muted)',
+                                opacity: 0.45,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                touchAction: 'none',
+                                padding: '2px',
+                                flexShrink: 0
+                              }}
+                              title="Drag to reorder list"
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                if (e.button !== 0) return;
+                                const itemEl = e.currentTarget.closest('[data-list-item]');
+                                if (itemEl) startListDrag(list, listIdx, e.clientY, itemEl, 4, 'sidebar');
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                if (!e.touches || !e.touches[0]) return;
+                                const itemEl = e.currentTarget.closest('[data-list-item]');
+                                if (itemEl) startListDrag(list, listIdx, e.touches[0].clientY, itemEl, 4, 'sidebar');
+                              }}
+                            >
+                              <Icon name="grip" size={12} />
                             </span>
-                          ) : (
-                            <span style={{
-                              width: '16px', height: '16px', borderRadius: '50%',
-                              border: '1px dashed var(--border)',
-                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              color: 'var(--text-muted)', fontSize: '9px', flexShrink: 0,
-                              opacity: 0.45, pointerEvents: 'none'
-                            }} title="Default system list cannot be deleted">
-                              🔒
-                            </span>
-                          )
-                        )}
-                        <span>{normalizeListIcon(list.icon)}</span>
-                        <span dir="auto" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', unicodeBidi: 'plaintext' }}>{list.name}</span>
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                        <span style={{ fontSize: '11px', opacity: 0.7 }}>{count}</span>
+                          )}
+                          {listSelectMode && (
+                            !isSystem ? (
+                              <span style={{
+                                width: '16px', height: '16px', borderRadius: '50%',
+                                border: isSelected ? '2px solid #ef4444' : '2px solid var(--border)',
+                                backgroundColor: isSelected ? '#ef4444' : 'transparent',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#ffffff', fontSize: '10px', fontWeight: 800, flexShrink: 0,
+                                pointerEvents: 'none'
+                              }}>
+                                {isSelected ? '✓' : ''}
+                              </span>
+                            ) : (
+                              <span style={{
+                                width: '16px', height: '16px', borderRadius: '50%',
+                                border: '1px dashed var(--border)',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--text-muted)', fontSize: '9px', flexShrink: 0,
+                                opacity: 0.45, pointerEvents: 'none'
+                              }} title="Default system list cannot be deleted">
+                                🔒
+                              </span>
+                            )
+                          )}
+                          <span>{normalizeListIcon(list.icon)}</span>
+                          <span dir="auto" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', unicodeBidi: 'plaintext' }}>{list.name}</span>
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', opacity: 0.7 }}>{count}</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </aside>
-        )}
+            </>
+          );
+
+          if (isNarrowDesktop) {
+            return (
+              <>
+                <div
+                  data-sidebar-drawer-backdrop="true"
+                  onClick={() => setIsCompactSidebarOpen(false)}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                    backdropFilter: 'blur(2px)',
+                    zIndex: 44,
+                    opacity: isCompactSidebarOpen ? 1 : 0,
+                    pointerEvents: isCompactSidebarOpen ? 'auto' : 'none',
+                    transition: 'opacity 0.2s ease'
+                  }}
+                />
+                <aside
+                  data-desktop-sidebar="drawer"
+                  aria-hidden={!isCompactSidebarOpen}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    width: 'min(260px, calc(100vw - 44px))',
+                    backgroundColor: 'var(--bg-subtle)',
+                    borderRight: '1px solid var(--border)',
+                    boxShadow: isCompactSidebarOpen ? '14px 0 36px rgba(0, 0, 0, 0.45)' : 'none',
+                    zIndex: 45,
+                    padding: isShortViewport ? '12px 10px' : '16px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: isShortViewport ? '12px' : '16px',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    transform: isCompactSidebarOpen ? 'translateX(0)' : 'translateX(-104%)',
+                    pointerEvents: isCompactSidebarOpen ? 'auto' : 'none',
+                    transition: 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease'
+                  }}
+                >
+                  {sidebarContent}
+                </aside>
+              </>
+            );
+          }
+
+          return (
+            <aside
+              data-desktop-sidebar="docked"
+              aria-hidden={isSidebarCollapsed}
+              style={{
+                width: isSidebarCollapsed ? '0px' : `${dockedSidebarWidth}px`,
+                minWidth: 0,
+                backgroundColor: 'var(--bg-subtle)',
+                borderRight: isSidebarCollapsed ? 'none' : '1px solid var(--border)',
+                overflow: 'hidden',
+                flexShrink: 0,
+                transition: 'width 0.24s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease'
+              }}
+            >
+              <div style={{
+                width: `${dockedSidebarWidth}px`,
+                height: '100%',
+                padding: isShortViewport ? '12px 10px' : '16px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: isShortViewport ? '12px' : '16px',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                opacity: isSidebarCollapsed ? 0 : 1,
+                transform: isSidebarCollapsed ? 'translateX(-14px)' : 'translateX(0)',
+                pointerEvents: isSidebarCollapsed ? 'none' : 'auto',
+                transition: 'opacity 0.18s ease, transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)'
+              }}>
+                {sidebarContent}
+              </div>
+            </aside>
+          );
+        })()}
 
         {/* Center Task Workspace */}
         <main
@@ -2407,7 +2615,7 @@ export default function App() {
           {/* Sub-header / Filter Toolbar */}
           {activeView !== 'analytics' && (
             <div style={{
-              padding: deviceType === 'phone' ? '10px 14px' : '14px 20px',
+              padding: isTightMain ? '10px 14px' : '14px 20px',
               borderBottom: '1px solid var(--border)',
               display: 'flex',
               flexWrap: 'wrap',
@@ -2416,7 +2624,7 @@ export default function App() {
               gap: '10px',
               backgroundColor: 'var(--surface)'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: '1 1 auto' }}>
                 {/* Progress Ring on My Day */}
                 {activeView === 'today' && (
                   <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }} title={`${myDayPct}% completed today`}>
@@ -2451,8 +2659,8 @@ export default function App() {
                   </div>
                 )}
 
-                <div>
-                  <h2 style={{ fontSize: deviceType === 'phone' ? '16px' : '18px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ fontSize: isPhone || isCompactDesktop ? '16px' : '18px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     {searchQuery.trim() ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Icon name="search" size={18} style={{ color: 'var(--primary)' }} />
@@ -2468,7 +2676,7 @@ export default function App() {
                             </span>
                             <span
                               style={{
-                                fontSize: deviceType === 'phone' ? '12px' : '13px',
+                                fontSize: isPhone || isCompactDesktop ? '12px' : '13px',
                                 fontWeight: 700,
                                 color: 'var(--primary)',
                                 backgroundColor: 'var(--tag-bg)',
@@ -2493,13 +2701,13 @@ export default function App() {
                           </span>
                         )}
                         {activeView === 'list' && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            <span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: 0 }}>
+                            <span dir="auto" style={{ unicodeBidi: 'plaintext', wordBreak: 'break-word' }}>
                               {normalizeListIcon(syncState.lists.find(l => l.id === selectedListId)?.icon) || '📁'}{' '}
                               {syncState.lists.find(l => l.id === selectedListId)?.name || 'List'}
                             </span>
                             {selectedListId && (
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -2518,7 +2726,8 @@ export default function App() {
                                     cursor: 'pointer',
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '4px'
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap'
                                   }}
                                 >
                                   <Icon name="pen" size={11} /> Edit List
@@ -2539,7 +2748,8 @@ export default function App() {
                                       cursor: 'pointer',
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '4px'
+                                      gap: '4px',
+                                      whiteSpace: 'nowrap'
                                     }}
                                   >
                                     <Icon name="trash" size={11} /> Delete
@@ -2809,7 +3019,7 @@ export default function App() {
                 localStorage.setItem('synctodo_scroll_positions_v1', JSON.stringify(viewScrollMap.current));
               } catch (_) {}
             }}
-            style={{ flex: 1, overflowY: 'auto', padding: deviceType === 'phone' ? '12px' : '16px 20px' }}
+            style={{ flex: 1, overflowY: 'auto', padding: isTightMain ? '12px' : '16px 20px' }}
           >
             {activeView === 'analytics' ? (
               <AnalyticsDashboard
@@ -3479,7 +3689,7 @@ export default function App() {
             <form
               onSubmit={handleAddTodo}
               style={{
-                padding: deviceType === 'phone' ? '10px 12px' : '12px 20px',
+                padding: isTightMain ? '10px 12px' : '12px 20px',
                 borderTop: '1px solid var(--border)',
                 backgroundColor: 'var(--surface)',
                 display: 'flex',
@@ -3584,16 +3794,16 @@ export default function App() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                 <input
                   ref={quickAddInputRef}
                   type="text"
                   placeholder={
                     activeView === 'today'
-                      ? (deviceType === 'phone' ? 'Add task...' : 'Add task (e.g. "Buy milk tomorrow 6pm #Shopping !high")...')
+                      ? (isTightMain ? 'Add task...' : 'Add task (e.g. "Buy milk tomorrow 6pm #Shopping !high")...')
                       : activeView === 'list' && selectedListId
                       ? `Add task to ${syncState.lists.find(l => l.id === selectedListId)?.name || 'list'}...`
-                      : (deviceType === 'phone' ? 'Add a task...' : 'Add a task (supports #List, tomorrow, 6pm, !high, daily)...')
+                      : (isTightMain ? 'Add a task...' : 'Add a task (supports #List, tomorrow, 6pm, !high, daily)...')
                   }
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
@@ -3616,27 +3826,29 @@ export default function App() {
                   autoCapitalize="sentences"
                   autoComplete="off"
                   style={{
-                    flex: 1,
-                    padding: deviceType === 'phone' ? '12px 14px' : '10px 14px',
+                    flex: '1 1 180px',
+                    minWidth: '130px',
+                    padding: isPhone ? '12px 14px' : '10px 14px',
                     borderRadius: '10px',
                     border: '1px solid var(--border)',
                     backgroundColor: 'var(--bg-subtle)',
                     color: 'var(--text)',
-                    fontSize: deviceType === 'phone' ? '16px' : '14px',
+                    fontSize: isPhone ? '16px' : '14px',
                     outline: 'none',
                     textAlign: 'start'
                   }}
                 />
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: isTightQuickAdd ? '6px' : '8px', flexShrink: 0, marginLeft: 'auto' }}>
                 {/* Due Date Button (Laptop / Tablet) */}
-                {deviceType !== 'phone' && (
+                {!isPhone && (
                   <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                     <button
                       type="button"
                       onClick={() => setShowQuickAddCalendar(true)}
                       title={newDueDate ? `Due: ${newDueDate} (click to change)` : 'Set task due date'}
                       style={{
-                        padding: '8px 11px',
+                        padding: isTightQuickAdd ? '8px 9px' : '8px 11px',
                         borderRadius: '10px',
                         border: newDueDate ? '1.5px solid var(--primary)' : '1px solid var(--border)',
                         backgroundColor: newDueDate ? 'var(--tag-bg)' : 'var(--surface-elevated)',
@@ -3652,9 +3864,11 @@ export default function App() {
                       }}
                     >
                       <Icon name="cal" size={14} />
-                      <span>
-                        {newDueDate ? formatDueDateBadge(newDueDate, todayStr, calendarType, showWeekdayInTasks) : 'Due Date'}
-                      </span>
+                      {(newDueDate || !isTightQuickAdd) && (
+                        <span>
+                          {newDueDate ? formatDueDateBadge(newDueDate, todayStr, calendarType, showWeekdayInTasks) : 'Due Date'}
+                        </span>
+                      )}
                     </button>
                     {newDueDate && (
                       <button
@@ -3691,7 +3905,7 @@ export default function App() {
                 )}
 
                 {/* Priority Selector (Laptop / Tablet) */}
-                {deviceType !== 'phone' && (
+                {!isPhone && (
                   <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                     <select
                       value={newPriority}
@@ -3745,7 +3959,7 @@ export default function App() {
                   onClick={() => setShowInlinePenStrip(!showInlinePenStrip)}
                   title="Write task with S-Pen / Stylus"
                   style={{
-                    padding: '9px 12px',
+                    padding: isTightQuickAdd ? '9px 10px' : '9px 12px',
                     borderRadius: '10px',
                     border: (showInlinePenStrip || newHandwriting) ? '1.5px solid var(--primary)' : '1px solid var(--border)',
                     backgroundColor: (showInlinePenStrip || newHandwriting) ? 'var(--tag-bg)' : 'var(--surface-elevated)',
@@ -3755,18 +3969,19 @@ export default function App() {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px'
+                    gap: '5px',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   <Icon name="pen" size={14} />
-                  {deviceType !== 'phone' && <span>{newHandwriting ? 'Sketch Ready' : 'Pen'}</span>}
+                  {!isPhone && !isTightQuickAdd && <span>{newHandwriting ? 'Sketch Ready' : 'Pen'}</span>}
                 </button>
 
                 <button
                   type="submit"
                   disabled={!newTitle.trim() && !newHandwriting}
                   style={{
-                    padding: deviceType === 'phone' ? '10px 15px' : '10px 20px',
+                    padding: (isPhone || isTightQuickAdd) ? '10px 15px' : '10px 20px',
                     borderRadius: '10px',
                     border: 'none',
                     background: 'var(--primary-gradient)',
@@ -3780,18 +3995,21 @@ export default function App() {
                 >
                   Add
                 </button>
+                </div>
               </div>
             </form>
           )}
         </main>
 
         {/* Right Side Task Detail Inspector (Laptop & Tablet) */}
-        {deviceType !== 'phone' && selectedTodo && (
+        {!isPhone && selectedTodo && (
           <TaskDetailPanel
             calendarType={calendarType}
             todo={selectedTodo}
             lists={syncState.lists}
             deviceType={deviceType}
+            panelWidth={detailPanelWidth}
+            isOverlay={isDetailOverlay}
             todayStr={todayStr}
             syncEngine={syncEngine}
             currentPinContext={currentPinContext}

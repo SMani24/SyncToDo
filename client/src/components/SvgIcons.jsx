@@ -69,6 +69,13 @@ const PATHS = {
   ),
   qr: <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM18 18h3v3h-3z" />,
   chev: <path d="M9 6l6 6-6 6" />,
+  chevLeft: <path d="M15 6l-6 6 6 6" />,
+  sidebar: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M9 4v16" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />

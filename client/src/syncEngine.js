@@ -119,17 +119,20 @@ export function detectDeviceType() {
     return 'tablet';
   }
 
-  // 3. Dimension-based detection for web browsers / responsive views:
-  // Shortest side (Smallest Width, SW): Phones have shortest side < 540px
-  const shortestSide = Math.min(width, height);
-  const longestSide = Math.max(width, height);
-
-  if (shortestSide < 540) {
-    return 'phone';
+  // 3. Touch-primary devices without explicit mobile/tablet UA (e.g. responsive mobile testers or Android webviews)
+  const isCoarsePointer = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  if (isCoarsePointer) {
+    const shortestSide = Math.min(width, height);
+    const longestSide = Math.max(width, height);
+    if (shortestSide < 540) return 'phone';
+    if (longestSide < 1180) return 'tablet';
+    return 'laptop';
   }
 
-  if (shortestSide >= 540 && longestSide < 1180) {
-    return 'tablet';
+  // 4. Desktop/laptop browser windows: stay 'laptop' across normal & resized desktop shapes
+  // (including short or half-screen windows), only falling back to compact 'phone' chrome at sliver widths.
+  if (width < 460) {
+    return 'phone';
   }
 
   return 'laptop';

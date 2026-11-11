@@ -9,6 +9,8 @@ export default function TaskDetailPanel({
   todo,
   lists = [],
   deviceType = 'laptop',
+  panelWidth = 350,
+  isOverlay = false,
   todayStr,
   syncEngine,
   currentPinContext = 'today',
@@ -72,7 +74,8 @@ export default function TaskDetailPanel({
     <div
       onClick={(e) => e.stopPropagation()}
       style={{
-        width: deviceType === 'phone' ? '100%' : '350px',
+        width: deviceType === 'phone' ? '100%' : isOverlay ? `min(${panelWidth}px, 92vw)` : `${panelWidth}px`,
+        maxWidth: '100%',
         maxHeight: deviceType === 'phone' ? '86vh' : '100%',
         height: deviceType === 'phone' ? 'auto' : '100%',
         backgroundColor: 'var(--surface)',
@@ -83,7 +86,11 @@ export default function TaskDetailPanel({
         flexDirection: 'column',
         overflow: 'hidden',
         flexShrink: 0,
-        boxShadow: deviceType === 'phone' ? '0 -12px 40px rgba(0,0,0,0.45)' : 'none'
+        boxShadow: deviceType === 'phone'
+          ? '0 -12px 40px rgba(0,0,0,0.45)'
+          : isOverlay
+          ? '-12px 0 36px rgba(0,0,0,0.45)'
+          : 'none'
       }}
     >
       {/* Top Bar */}
@@ -158,7 +165,7 @@ export default function TaskDetailPanel({
           </button>
 
           {isInlineNote && todo.handwriting ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div
                 onClick={() => onOpenCanvas(todo.id, todo.handwriting)}
                 title="Tap to edit handwriting"
@@ -215,6 +222,8 @@ export default function TaskDetailPanel({
               }}
               style={{
                 flex: 1,
+                minWidth: 0,
+                width: '100%',
                 background: 'transparent',
                 border: 'none',
                 color: todo.completed ? 'var(--text-muted)' : 'var(--text)',
@@ -779,6 +788,22 @@ export default function TaskDetailPanel({
             zIndex: 180,
             display: 'flex',
             alignItems: 'flex-end'
+          }}
+        >
+          {panelContent}
+        </div>
+      ) : isOverlay ? (
+        <div
+          onClick={onClose}
+          data-detail-drawer-backdrop="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.42)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 50,
+            display: 'flex',
+            justifyContent: 'flex-end'
           }}
         >
           {panelContent}
