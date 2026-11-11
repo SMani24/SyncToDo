@@ -3516,8 +3516,8 @@ export default function App() {
                       </div>
 
                       {/* Streamlined Right Quick Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                        {!isCompleted && (
+                      {(() => {
+                        const pinButton = !isCompleted ? (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -3528,7 +3528,7 @@ export default function App() {
                             aria-label={isPinned ? 'Unpin task' : 'Pin task'}
                             style={{
                               background: isPinned ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                              border: isPinned ? '1px solid rgba(245, 158, 11, 0.45)' : 'none',
+                              border: isPinned ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid transparent',
                               borderRadius: '7px',
                               color: isPinned ? '#f59e0b' : 'var(--text-muted)',
                               cursor: 'pointer',
@@ -3552,21 +3552,25 @@ export default function App() {
                           >
                             <Icon name={isPinned ? 'pinFilled' : 'pin'} size={15} />
                           </button>
-                        )}
+                        ) : null;
 
-                        {activeView !== 'today' && (
+                        const sunButton = (
                           <button
+                            type="button"
+                            data-action="toggle-my-day"
                             onClick={(e) => {
                               e.stopPropagation();
+                              const nextInMyDay = !todo.inMyDay;
                               syncEngine.updateTodo(todo.id, {
-                                inMyDay: !todo.inMyDay,
-                                plannedDate: !todo.inMyDay ? todayStr : null
+                                inMyDay: nextInMyDay,
+                                plannedDate: nextInMyDay ? todayStr : null
                               });
                             }}
                             title={todo.inMyDay ? 'Remove from My Day' : 'Add to My Day'}
+                            aria-label={todo.inMyDay ? 'Remove from My Day' : 'Add to My Day'}
                             style={{
                               background: todo.inMyDay ? 'rgba(251,191,36,0.15)' : 'transparent',
-                              border: todo.inMyDay ? '1px solid rgba(251,191,36,0.4)' : 'none',
+                              border: todo.inMyDay ? '1px solid rgba(251,191,36,0.4)' : '1px solid transparent',
                               borderRadius: '7px',
                               color: todo.inMyDay ? '#fbbf24' : 'var(--text-muted)',
                               cursor: 'pointer',
@@ -3576,27 +3580,64 @@ export default function App() {
                           >
                             <Icon name="sun" size={15} />
                           </button>
-                        )}
+                        );
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteTodoWithUndo(todo);
-                          }}
-                          title="Delete task"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '5px',
-                            display: 'flex',
-                            opacity: 0.65
-                          }}
-                        >
-                          <Icon name="trash" size={15} />
-                        </button>
-                      </div>
+                        const trashButton = (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTodoWithUndo(todo);
+                            }}
+                            title="Delete task"
+                            aria-label="Delete task"
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid transparent',
+                              borderRadius: '7px',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '5px',
+                              display: 'flex',
+                              opacity: 0.65
+                            }}
+                          >
+                            <Icon name="trash" size={15} />
+                          </button>
+                        );
+
+                        // On phone active cards, stack Sun neatly below [Pin][Trash] to preserve title width
+                        const stackSunBelow = deviceType === 'phone' && !isCompleted;
+
+                        return (
+                          <div
+                            data-todo-quick-actions="true"
+                            style={{
+                              display: 'flex',
+                              flexDirection: stackSunBelow ? 'column' : 'row',
+                              alignItems: stackSunBelow ? 'flex-end' : 'center',
+                              gap: '4px',
+                              flexShrink: 0
+                            }}
+                          >
+                            {stackSunBelow ? (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  {pinButton}
+                                  {trashButton}
+                                </div>
+                                {sunButton}
+                              </>
+                            ) : (
+                              <>
+                                {pinButton}
+                                {sunButton}
+                                {trashButton}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -5175,7 +5216,7 @@ export default function App() {
 
               {/* Quick Action Badges */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.65 }}>
-                {activeView !== 'today' && todo.inMyDay && (
+                {todo.inMyDay && (
                   <div style={{ color: '#fbbf24', padding: '5px', display: 'flex' }}>
                     <Icon name="sun" size={15} />
                   </div>
