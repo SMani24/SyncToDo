@@ -4,7 +4,8 @@ import { normalizeListIcon } from '../syncEngine';
 const POPULAR_ICONS = [
   '📁', '📋', '📝', '📚', '💼', '🎯', '⭐', '🚀',
   '💡', '🏷️', '📌', '🏆', '🎨', '🛒', '🏠', '🔧',
-  '💻', '📈', '🎓', '☕', '❤️', '🔥', '✈️', '🏋️'
+  '💻', '📈', '🎓', '☕', '❤️', '🔥', '✈️', '🏋️',
+  '🤖', '🧮', '⚡', '🎬'
 ];
 
 const PRESET_COLORS = [
@@ -122,6 +123,7 @@ export default function EditListModal({
             <input
               type="text"
               autoFocus
+              dir="auto"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Work, Shopping, Project X..."
@@ -134,7 +136,8 @@ export default function EditListModal({
                 color: 'var(--text, #f1f5f9)',
                 fontSize: '15px',
                 outline: 'none',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                unicodeBidi: 'plaintext'
               }}
             />
           </div>
@@ -155,7 +158,7 @@ export default function EditListModal({
               maxHeight: '130px',
               overflowY: 'auto'
             }}>
-              {POPULAR_ICONS.map((emoji) => (
+              {(icon && !POPULAR_ICONS.includes(icon) ? [icon, ...POPULAR_ICONS] : POPULAR_ICONS).map((emoji) => (
                 <button
                   type="button"
                   key={emoji}
@@ -212,10 +215,8 @@ export default function EditListModal({
               <button
                 type="button"
                 onClick={() => {
-                  if (confirm(`Are you sure you want to delete "${list.name}"? Tasks will move to Inbox.`)) {
-                    onDelete(list.id);
-                    onClose();
-                  }
+                  onClose();
+                  onDelete(list.id);
                 }}
                 style={{
                   padding: '9px 14px',

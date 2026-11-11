@@ -421,6 +421,7 @@ export default function App() {
     showListsModal ||
     showQuickAddCalendar ||
     editingList ||
+    listContextMenu ||
     (listsToDelete && listsToDelete.length > 0)
   );
 
@@ -490,6 +491,10 @@ export default function App() {
         setShowCanvasModal(false);
         return true;
       }
+      if (listContextMenu) {
+        setListContextMenu(null);
+        return true;
+      }
       if (editingList) {
         setEditingList(null);
         return true;
@@ -526,7 +531,7 @@ export default function App() {
       return false;
     };
   }, [
-    isInputFocused, listsToDelete, showCanvasModal, editingList, showListsModal,
+    isInputFocused, listsToDelete, showCanvasModal, editingList, listContextMenu, showListsModal,
     showPlannerModal, showThemeModal, showDevicesModal, showSettingsModal,
     showQuickAddCalendar, showListPickerSheet, selectedTodoId
   ]);
@@ -1584,6 +1589,8 @@ export default function App() {
         if (e.key === 'Escape') {
           e.target.blur();
           lastActiveInputRef.current = null;
+          if (listContextMenu) setListContextMenu(null);
+          if (editingList) setEditingList(null);
         }
         return;
       }
@@ -1595,6 +1602,9 @@ export default function App() {
         e.preventDefault();
         quickAddInputRef.current?.focus();
       } else if (e.key === 'Escape') {
+        setListContextMenu(null);
+        setEditingList(null);
+        setListsToDelete(null);
         setSelectedTodoId(null);
         setSwipedTodoId(null);
         setShowSettingsModal(false);
@@ -2275,8 +2285,9 @@ export default function App() {
                           };
                         }
                       }}
-                      onMouseUp={() => {
+                      onMouseUp={(e) => {
                         if (Date.now() - lastListTouchTimeRef.current < 650) return;
+                        if (e.button !== 0) return;
                         pendingPointerDragRef.current = null;
                         if (didDragRef.current) return;
                         handleItemTouchEnd(list.id, isSystem, () => {
@@ -2287,9 +2298,9 @@ export default function App() {
                       onMouseLeave={handleItemTouchCancel}
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        if (!isSystem) {
-                          setListContextMenu({ x: e.clientX, y: e.clientY, list });
-                        }
+                        e.stopPropagation();
+                        handleItemTouchCancel();
+                        setListContextMenu({ x: e.clientX, y: e.clientY, list });
                       }}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -2308,7 +2319,7 @@ export default function App() {
                         position: 'relative',
                         zIndex: 1
                       }}
-                      title={isSystem ? 'Drag to reorder, or click to open' : 'Drag to reorder, hold to select & delete, or click to open'}
+                      title={isSystem ? 'Click to open, right-click to edit, or drag to reorder' : 'Click to open, right-click to edit/delete, or hold/drag to reorder'}
                     >
                       <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
                         {!listSelectMode && (
@@ -2490,6 +2501,7 @@ export default function App() {
                             {selectedListId && (
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <button
+                                  type="button"
                                   onClick={() => {
                                     const currList = syncState.lists.find(l => l.id === selectedListId);
                                     if (currList) setEditingList(currList);
@@ -2513,6 +2525,7 @@ export default function App() {
                                 </button>
                                 {selectedListId !== 'inbox' && (
                                   <button
+                                    type="button"
                                     onClick={() => handleRequestDeleteLists(syncState.lists.filter(l => l.id === selectedListId))}
                                     title="Delete this list"
                                     style={{
@@ -4179,8 +4192,9 @@ export default function App() {
                             };
                           }
                         }}
-                        onMouseUp={() => {
+                        onMouseUp={(e) => {
                           if (Date.now() - lastListTouchTimeRef.current < 650) return;
+                          if (e.button !== 0) return;
                           if (didDragRef.current) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             triggerClickLockout();
@@ -4275,6 +4289,10 @@ export default function App() {
                           {!isSystem && (
                             <button
                               type="button"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseUp={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingList(list);
@@ -4442,6 +4460,183 @@ export default function App() {
           onClose={() => setShowListsModal(false)}
         />
       )}
+
+      {/* Edit Single List Modal (Header Edit List button, Right-Click Context Menu, Mobile Sheet) */}
+      {editingList && (
+        <EditListModal
+          isOpen={Boolean(editingList)}
+          list={syncState.lists.find(l => l.id === editingList.id) || editingList}
+          onClose={() => setEditingList(null)}
+          onSave={(patch) => {
+            syncEngine.updateList(editingList.id, patch);
+            setEditingList(null);
+          }}
+          onDelete={(listId) => {
+            const target = syncState.lists.find(l => l.id === listId);
+            setEditingList(null);
+            if (target) handleRequestDeleteLists([target]);
+          }}
+        />
+      )}
+
+      {/* Sidebar List Right-Click Context Menu (Laptop / Desktop) */}
+      {listContextMenu && (() => {
+        const targetList = syncState.lists.find(l => l.id === listContextMenu.list.id) || listContextMenu.list;
+        const isSystemList = targetList.id === 'inbox';
+        const menuWidth = 196;
+        const menuHeight = isSystemList ? 96 : 184;
+        const left = Math.max(8, Math.min(listContextMenu.x, window.innerWidth - menuWidth - 10));
+        const top = Math.max(8, Math.min(listContextMenu.y, window.innerHeight - menuHeight - 10));
+
+        return (
+          <div
+            data-list-context-backdrop="true"
+            onClick={() => setListContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setListContextMenu(null);
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1040,
+              backgroundColor: 'transparent'
+            }}
+          >
+            <div
+              data-list-context-menu="true"
+              onClick={(e) => e.stopPropagation()}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              style={{
+                position: 'fixed',
+                top: `${top}px`,
+                left: `${left}px`,
+                width: `${menuWidth}px`,
+                backgroundColor: 'var(--surface-elevated, #1e293b)',
+                border: '1px solid var(--border, #334155)',
+                borderRadius: '12px',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.45)',
+                padding: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                color: 'var(--text)',
+                zIndex: 1041
+              }}
+            >
+              <div style={{
+                padding: '6px 10px 7px 10px',
+                borderBottom: '1px solid var(--border)',
+                marginBottom: '2px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: 'var(--text-muted)'
+              }}>
+                <span style={{ fontSize: '14px' }}>{normalizeListIcon(targetList.icon)}</span>
+                <span dir="auto" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', unicodeBidi: 'plaintext' }}>
+                  {targetList.name}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingList(targetList);
+                  setListContextMenu(null);
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-subtle)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <Icon name="pen" size={14} style={{ color: 'var(--primary)' }} />
+                <span>Edit List</span>
+              </button>
+
+              {!isSystemList && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartListSelect(targetList.id);
+                      setListContextMenu(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-subtle)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <Icon name="list" size={14} style={{ color: 'var(--text-muted)' }} />
+                    <span>Select Lists</span>
+                  </button>
+
+                  <div style={{ height: '1px', backgroundColor: 'var(--border)', margin: '2px 4px' }} />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setListContextMenu(null);
+                      handleRequestDeleteLists([targetList]);
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#ef4444',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <Icon name="trash" size={14} />
+                    <span>Delete List</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Friendly Devices & Pairing Modal */}
       {showDevicesModal && (
