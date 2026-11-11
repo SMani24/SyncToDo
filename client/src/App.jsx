@@ -385,6 +385,7 @@ export default function App() {
   // Touch Swipe state for task cards
   const [swipedTodoId, setSwipedTodoId] = useState(null); // todo.id with left-swipe actions open
   const touchSwipeRef = useRef({ id: null, startX: 0, startY: 0, deltaX: 0 });
+  const lastSwipeActionTimeRef = useRef(0);
 
   // Inline Quick-Add Pen Canvas refs
   const inlineCanvasRef = useRef(null);
@@ -3045,6 +3046,85 @@ export default function App() {
                     key={todo.id}
                     data-todo-card={todo.id}
                     data-active-card={!isCompleted ? 'true' : 'false'}
+                    onTouchStart={(e) => {
+                      if (!e.touches || e.touches.length === 0) return;
+                      if (
+                        Date.now() - appMountedTimeRef.current < 900 ||
+                        Date.now() - appResumeTimeRef.current < 700
+                      ) return;
+                      const touch = e.touches[0];
+                      touchSwipeRef.current = {
+                        id: todo.id,
+                        startX: touch.clientX,
+                        startY: touch.clientY,
+                        deltaX: 0
+                      };
+                      if (cardHoldTimerRef.current) clearTimeout(cardHoldTimerRef.current);
+                      if (!isCompleted && !e.target.closest('button')) {
+                        const cardEl = e.currentTarget;
+                        cardHoldTimerRef.current = setTimeout(() => {
+                          if (
+                            cardEl &&
+                            !isSwipedOpen &&
+                            Date.now() - appMountedTimeRef.current >= 900 &&
+                            Date.now() - appResumeTimeRef.current >= 700
+                          ) {
+                            startTaskDrag(todo, index, touch.clientY, cardEl);
+                            touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
+                          }
+                        }, 620);
+                      }
+                    }}
+                    onTouchMove={(e) => {
+                      if (!e.touches || e.touches.length === 0) return;
+                      const touch = e.touches[0];
+                      if (touchSwipeRef.current.id === todo.id) {
+                        const dx = touch.clientX - touchSwipeRef.current.startX;
+                        const dy = touch.clientY - touchSwipeRef.current.startY;
+                        if (Math.abs(dx) > 7 || Math.abs(dy) > 7) {
+                          if (cardHoldTimerRef.current) {
+                            clearTimeout(cardHoldTimerRef.current);
+                            cardHoldTimerRef.current = null;
+                          }
+                        }
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                          touchSwipeRef.current.deltaX = dx;
+                        }
+                      }
+                    }}
+                    onTouchEnd={() => {
+                      if (cardHoldTimerRef.current) {
+                        clearTimeout(cardHoldTimerRef.current);
+                        cardHoldTimerRef.current = null;
+                      }
+                      if (taskDragRef.current && taskDragRef.current.active) return;
+                      if (touchSwipeRef.current.id !== todo.id) return;
+                      const dx = touchSwipeRef.current.deltaX;
+                      if (isSwipedOpen) {
+                        // Dismiss open left-swipe actions on right swipe without marking task completed
+                        if (dx > 25) {
+                          setSwipedTodoId(null);
+                          lastSwipeActionTimeRef.current = Date.now();
+                        }
+                      } else if (dx > 65) {
+                        // Swipe right from resting state -> toggle complete
+                        handleToggleTodoWithUndo(todo);
+                        setSwipedTodoId(null);
+                        lastSwipeActionTimeRef.current = Date.now();
+                      } else if (dx < -55) {
+                        // Swipe left from resting state -> reveal Pin / Tomorrow / Delete actions
+                        setSwipedTodoId(todo.id);
+                        lastSwipeActionTimeRef.current = Date.now();
+                      }
+                      touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
+                    }}
+                    onTouchCancel={() => {
+                      if (cardHoldTimerRef.current) {
+                        clearTimeout(cardHoldTimerRef.current);
+                        cardHoldTimerRef.current = null;
+                      }
+                      touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
+                    }}
                     style={{
                       position: 'relative',
                       overflow: isSwipedOpen ? 'hidden' : 'visible',
@@ -3142,6 +3222,7 @@ export default function App() {
                         if (
                           isIgnoreClicksRef.current ||
                           didDragRef.current ||
+                          Date.now() - lastSwipeActionTimeRef.current < 400 ||
                           Date.now() - appMountedTimeRef.current < 900 ||
                           Date.now() - appResumeTimeRef.current < 700
                         ) return;
@@ -3165,79 +3246,6 @@ export default function App() {
                             el: cardEl
                           };
                         }
-                      }}
-                      onTouchStart={(e) => {
-                        if (!e.touches || e.touches.length === 0) return;
-                        if (
-                          Date.now() - appMountedTimeRef.current < 900 ||
-                          Date.now() - appResumeTimeRef.current < 700
-                        ) return;
-                        const touch = e.touches[0];
-                        touchSwipeRef.current = {
-                          id: todo.id,
-                          startX: touch.clientX,
-                          startY: touch.clientY,
-                          deltaX: 0
-                        };
-                        if (cardHoldTimerRef.current) clearTimeout(cardHoldTimerRef.current);
-                        if (!isCompleted && !e.target.closest('button')) {
-                          const cardEl = e.currentTarget.closest('[data-todo-card]');
-                          cardHoldTimerRef.current = setTimeout(() => {
-                            if (
-                              cardEl &&
-                              !isSwipedOpen &&
-                              Date.now() - appMountedTimeRef.current >= 900 &&
-                              Date.now() - appResumeTimeRef.current >= 700
-                            ) {
-                              startTaskDrag(todo, index, touch.clientY, cardEl);
-                              touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
-                            }
-                          }, 620);
-                        }
-                      }}
-                      onTouchMove={(e) => {
-                        if (!e.touches || e.touches.length === 0) return;
-                        const touch = e.touches[0];
-                        if (touchSwipeRef.current.id === todo.id) {
-                          const dx = touch.clientX - touchSwipeRef.current.startX;
-                          const dy = touch.clientY - touchSwipeRef.current.startY;
-                          if (Math.abs(dx) > 7 || Math.abs(dy) > 7) {
-                            if (cardHoldTimerRef.current) {
-                              clearTimeout(cardHoldTimerRef.current);
-                              cardHoldTimerRef.current = null;
-                            }
-                          }
-                          if (Math.abs(dx) > Math.abs(dy)) {
-                            touchSwipeRef.current.deltaX = dx;
-                          }
-                        }
-                      }}
-                      onTouchEnd={() => {
-                        if (cardHoldTimerRef.current) {
-                          clearTimeout(cardHoldTimerRef.current);
-                          cardHoldTimerRef.current = null;
-                        }
-                        if (taskDragRef.current && taskDragRef.current.active) return;
-                        if (touchSwipeRef.current.id !== todo.id) return;
-                        const dx = touchSwipeRef.current.deltaX;
-                        if (dx > 65) {
-                          // Swipe right -> toggle complete
-                          handleToggleTodoWithUndo(todo);
-                          setSwipedTodoId(null);
-                        } else if (dx < -55) {
-                          // Swipe left -> reveal Tomorrow / Delete actions
-                          setSwipedTodoId(todo.id);
-                        } else if (dx > 25 && isSwipedOpen) {
-                          setSwipedTodoId(null);
-                        }
-                        touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
-                      }}
-                      onTouchCancel={() => {
-                        if (cardHoldTimerRef.current) {
-                          clearTimeout(cardHoldTimerRef.current);
-                          cardHoldTimerRef.current = null;
-                        }
-                        touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
                       }}
                       style={{
                         display: 'flex',
