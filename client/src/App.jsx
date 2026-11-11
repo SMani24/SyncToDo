@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import {
   syncEngine,
   detectDeviceType,
@@ -224,11 +224,66 @@ export default function App() {
   // Navigation & View state
   const [activeView, setActiveView] = useState(initialViewState?.activeView || 'today');
   const [selectedListId, setSelectedListId] = useState(initialViewState?.selectedListId || null);
-  const [filterPriority, setFilterPriority] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterRecurring, setFilterRecurring] = useState(false);
-  const [filterHandwriting, setFilterHandwriting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Per-view preferences (sortByDate, filterRecurring, filterHandwriting, filterPriority)
+  // Each list and smart view (e.g. My Day, All Tasks) remembers its own preferences independently
+  const [viewPreferences, setViewPreferences] = useState(() => {
+    try {
+      const raw = localStorage.getItem('synctodo_view_preferences_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (_) {}
+    return {};
+  });
+
+  const currentViewKey = (activeView === 'list' && selectedListId) ? `list:${selectedListId}` : activeView;
+  const currentViewKeyRef = useRef(currentViewKey);
+  currentViewKeyRef.current = currentViewKey;
+
+  const currentViewPrefs = viewPreferences[currentViewKey] || {};
+  const sortByDate = Boolean(currentViewPrefs.sortByDate);
+  const filterRecurring = Boolean(currentViewPrefs.filterRecurring);
+  const filterHandwriting = Boolean(currentViewPrefs.filterHandwriting);
+  const filterPriority = currentViewPrefs.filterPriority || 'all';
+
+  const updateCurrentViewPref = useCallback((prefKey, valueOrFn) => {
+    const targetKey = currentViewKeyRef.current;
+    setViewPreferences(prev => {
+      const current = prev[targetKey] || {};
+      const nextVal = typeof valueOrFn === 'function' ? valueOrFn(current[prefKey]) : valueOrFn;
+      const nextPrefs = {
+        ...prev,
+        [targetKey]: {
+          ...current,
+          [prefKey]: nextVal
+        }
+      };
+      try {
+        localStorage.setItem('synctodo_view_preferences_v1', JSON.stringify(nextPrefs));
+      } catch (_) {}
+      return nextPrefs;
+    });
+  }, []);
+
+  const toggleSortByDate = useCallback(() => {
+    updateCurrentViewPref('sortByDate', prev => !prev);
+  }, [updateCurrentViewPref]);
+
+  const setFilterRecurring = useCallback((valOrFn) => {
+    updateCurrentViewPref('filterRecurring', valOrFn);
+  }, [updateCurrentViewPref]);
+
+  const setFilterHandwriting = useCallback((valOrFn) => {
+    updateCurrentViewPref('filterHandwriting', valOrFn);
+  }, [updateCurrentViewPref]);
+
+  const setFilterPriority = useCallback((valOrFn) => {
+    updateCurrentViewPref('filterPriority', valOrFn);
+  }, [updateCurrentViewPref]);
   const [selectedTodoId, setSelectedTodoId] = useState(null);
   const [taskDrag, setTaskDrag] = useState(null);
   const [listDrag, setListDrag] = useState(null);
@@ -268,7 +323,6 @@ export default function App() {
   }, [activeView, selectedListId]);
 
   // Keep scroll position map per view/list
-  const currentViewKey = (activeView === 'list' && selectedListId) ? `list:${selectedListId}` : activeView;
   const scrollContainerRef = useRef(null);
   const viewScrollMap = useRef((() => {
     try {
@@ -324,22 +378,7 @@ export default function App() {
     } catch {}
   };
 
-  // Sort by date in lists (off by default)
-  const [sortByDate, setSortByDate] = useState(() => {
-    try {
-      return localStorage.getItem('synctodo_sort_by_date') === 'true';
-    } catch {
-      return false;
-    }
-  });
 
-  const toggleSortByDate = () => {
-    setSortByDate(prev => {
-      const next = !prev;
-      try { localStorage.setItem('synctodo_sort_by_date', String(next)); } catch {}
-      return next;
-    });
-  };
 
   // Hold-to-drag timer & sheet touch scroll tracking refs
   const cardHoldTimerRef = useRef(null);
@@ -1393,8 +1432,7 @@ export default function App() {
 
     if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
       if (sortByDate) {
-        setSortByDate(false);
-        try { localStorage.setItem('synctodo_sort_by_date', 'false'); } catch {}
+        updateCurrentViewPref('sortByDate', false);
       }
       const currentItems = [...sortedActiveRef.current];
       const actualFromIndex = currentItems.findIndex(t => t.id === d.id);
