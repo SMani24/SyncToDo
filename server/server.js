@@ -113,8 +113,38 @@ function loadState() {
         pairingCode: parsed.pairingCode || state.pairingCode,
         pairedDevices: parsed.pairedDevices || {}
       };
-      if (Array.isArray(state.mutations) && state.mutations.length > 200) {
-        state.mutations = state.mutations.slice(-200);
+      let loadedMutated = false;
+      if (state.todos && (state.todos['undefined'] || state.todos['null'])) {
+        ['undefined', 'null'].forEach(badKey => {
+          const orphan = state.todos[badKey];
+          if (orphan && orphan.id && !state.todos[orphan.id]) {
+            state.todos[orphan.id] = orphan;
+          }
+          delete state.todos[badKey];
+          loadedMutated = true;
+        });
+      }
+      if (Array.isArray(state.mutations)) {
+        let mutsChanged = false;
+        const cleanedMuts = state.mutations
+          .map(m => {
+            if (m && !m.entityId && m.data?.id) {
+              mutsChanged = true;
+              return { ...m, entityId: m.data.id };
+            }
+            return m;
+          })
+          .filter(m => m && m.entityId);
+        if (mutsChanged || cleanedMuts.length !== state.mutations.length) {
+          state.mutations = cleanedMuts;
+          loadedMutated = true;
+        }
+        if (state.mutations.length > 1200) {
+          state.mutations = state.mutations.slice(-1200);
+          loadedMutated = true;
+        }
+      }
+      if (loadedMutated) {
         saveState(true);
       }
       if (Array.isArray(state.lists)) {
@@ -882,7 +912,7 @@ app.all('/api/p2p/sync', (req, res) => {
     deviceType: 'laptop',
     todos: Object.values(state.todos),
     lists: state.lists,
-    mutations: state.mutations.slice(-200),
+    mutations: state.mutations.slice(-1000),
     timestamp: Date.now()
   });
 });
@@ -890,7 +920,7 @@ app.all('/api/p2p/sync', (req, res) => {
 // Delta sync endpoint
 app.get('/api/sync', (req, res) => {
   const since = parseInt(req.query.since || '0', 10);
-  const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-200) : [];
+  const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-1000) : [];
   const activeTodos = Object.values(state.todos);
 
   res.json({
@@ -990,16 +1020,23 @@ function applyMutations(mutations, deviceId, senderWs = null) {
   const now = Date.now();
 
   for (const mutation of mutations) {
+    if (!mutation) continue;
     const { entityId, type, data, timestamp } = mutation;
+    const targetId = entityId || data?.id;
+    if (!targetId) continue;
 
     if (type === 'LIST_UPSERT') {
-      const normalizedData = data ? { ...data, icon: normalizeListIcon(data.icon), updatedAt: timestamp || now } : data;
-      let listIdx = state.lists.findIndex(l => l.id === entityId);
+      const normalizedData = data ? { ...data, id: data.id || targetId, icon: normalizeListIcon(data.icon), updatedAt: timestamp || now } : data;
+      let listIdx = state.lists.findIndex(l => l.id === targetId);
       if (listIdx < 0 && normalizedData && !normalizedData.isSystem && normalizedData.name) {
         listIdx = state.lists.findIndex(l => !l.isSystem && l.name && l.name.trim().toLowerCase() === normalizedData.name.trim().toLowerCase());
       }
       if (listIdx >= 0) {
-        state.lists[listIdx] = { ...state.lists[listIdx], ...normalizedData };
+        const existingList = state.lists[listIdx];
+        if ((timestamp || now) < (existingList.updatedAt || existingList.createdAt || 0)) {
+          continue;
+        }
+        state.lists[listIdx] = { ...existingList, ...normalizedData };
       } else if (normalizedData) {
         state.lists.push(normalizedData);
       }
@@ -1011,19 +1048,19 @@ function applyMutations(mutations, deviceId, senderWs = null) {
         if (hasB) return 1;
         return 0;
       });
-      const entry = { id: mutation.id || `mut-${now}`, entityId, type, data: normalizedData, timestamp: timestamp || now, originDevice: deviceId };
+      const entry = { id: mutation.id || `mut-${now}`, entityId: targetId, type, data: normalizedData, timestamp: timestamp || now, originDevice: deviceId };
       state.mutations.push(entry);
       applied.push(entry);
       continue;
     } else if (type === 'LIST_DELETE') {
-      state.lists = state.lists.filter(l => l.id !== entityId);
-      const entry = { id: mutation.id || `mut-${now}`, entityId, type, data: null, timestamp: timestamp || now, originDevice: deviceId };
+      state.lists = state.lists.filter(l => l.id !== targetId);
+      const entry = { id: mutation.id || `mut-${now}`, entityId: targetId, type, data: null, timestamp: timestamp || now, originDevice: deviceId };
       state.mutations.push(entry);
       applied.push(entry);
       continue;
     }
 
-    const existing = state.todos[entityId];
+    const existing = state.todos[targetId];
 
     // Conflict resolution: Last-Write-Wins based on mutation timestamp
     if (!existing || (timestamp || now) >= (existing.updatedAt || 0)) {
@@ -1032,26 +1069,27 @@ function applyMutations(mutations, deviceId, senderWs = null) {
           existing.deletedAt = timestamp || now;
           existing.updatedAt = timestamp || now;
         } else {
-          state.todos[entityId] = {
-            id: entityId,
+          state.todos[targetId] = {
+            id: targetId,
             deletedAt: timestamp || now,
             updatedAt: timestamp || now
           };
         }
       } else {
         // UPSERT
-        state.todos[entityId] = {
+        state.todos[targetId] = {
           ...existing,
           ...data,
+          id: data?.id || targetId,
           updatedAt: timestamp || now
         };
       }
 
       const changelogEntry = {
         id: mutation.id || `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
-        entityId,
+        entityId: targetId,
         type,
-        data: state.todos[entityId],
+        data: state.todos[targetId],
         timestamp: timestamp || now,
         originDevice: deviceId
       };
@@ -1068,7 +1106,7 @@ function applyMutations(mutations, deviceId, senderWs = null) {
           existing.updatedAt = Math.max(existing.updatedAt || 0, timestamp || now) + 100;
           const changelogEntry = {
             id: mutation.id || `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
-            entityId,
+            entityId: targetId,
             type: 'UPSERT',
             data: { ...existing },
             timestamp: existing.updatedAt,
@@ -1082,8 +1120,8 @@ function applyMutations(mutations, deviceId, senderWs = null) {
   }
 
   // Ring-buffer cap: keep changelog bounded to prevent file ballooning and memory leaks
-  if (state.mutations.length > 300) {
-    state.mutations = state.mutations.slice(-300);
+  if (state.mutations.length > 1200) {
+    state.mutations = state.mutations.slice(-1200);
   }
 
   if (applied.length > 0) {
@@ -1234,7 +1272,7 @@ wss.on('connection', (ws, req) => {
         }));
       } else if (msg.type === 'SYNC_PULL') {
         const since = msg.since || 0;
-        const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-200) : [];
+        const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-1000) : [];
         ws.send(JSON.stringify({
           type: 'SYNC_RESPONSE',
           deltas,

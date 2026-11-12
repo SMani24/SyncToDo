@@ -138,6 +138,33 @@ export function detectDeviceType() {
   return 'laptop';
 }
 
+export function isTodoPinnedInContext(todo, context = 'today') {
+  if (!todo) return false;
+  if (Array.isArray(todo.pinnedIn) && todo.pinnedIn.length > 0) {
+    return todo.pinnedIn.includes(context);
+  }
+  if (todo.pinned) {
+    if (context === 'today' && todo.inMyDay) return true;
+    if (todo.listId && context === todo.listId) return true;
+    if (context === 'all') return true;
+  }
+  return false;
+}
+
+export function getEffectivePinnedIn(todo) {
+  if (!todo) return [];
+  if (Array.isArray(todo.pinnedIn) && todo.pinnedIn.length > 0) {
+    return [...new Set(todo.pinnedIn)];
+  }
+  if (todo.pinned) {
+    const inferred = [];
+    if (todo.inMyDay) inferred.push('today');
+    if (todo.listId) inferred.push(todo.listId);
+    return inferred.length > 0 ? [...new Set(inferred)] : ['today'];
+  }
+  return [];
+}
+
 export class SyncEngine {
   constructor() {
     this.deviceType = detectDeviceType();
@@ -158,6 +185,8 @@ export class SyncEngine {
     this.lists = this.loadStoredLists();
     this.mutationQueue = this.loadStoredQueue();
     this.pendingCount = this.mutationQueue.length;
+    this.inFlightMutationIds = null;
+    this.pendingFlushAfterAck = false;
 
     // Initialize P2P LAN Mesh Engine
     this.p2pEngine = new P2PEngine(this);
@@ -418,8 +447,8 @@ export class SyncEngine {
 
   saveStoredQueue() {
     try {
-      if (this.mutationQueue.length > 200) {
-        this.mutationQueue = this.mutationQueue.slice(-200);
+      if (this.mutationQueue.length > 5000) {
+        this.mutationQueue = this.mutationQueue.slice(-5000);
       }
       localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(this.mutationQueue));
       this.pendingCount = this.mutationQueue.length;
@@ -509,6 +538,8 @@ export class SyncEngine {
       };
 
       this.ws.onclose = () => {
+        this.inFlightMutationIds = null;
+        this.pendingFlushAfterAck = false;
         this.status = navigator.onLine ? 'DISCONNECTED' : 'OFFLINE';
         this.notify();
         this.scheduleReconnect();
@@ -629,9 +660,14 @@ export class SyncEngine {
         this.saveStoredQueue();
       }
       this.notify();
+      if (this.pendingFlushAfterAck || this.mutationQueue.length > 0) {
+        this.pendingFlushAfterAck = false;
+        this.flushQueue();
+      }
     } else if (msg.type === 'SYNC_ERROR') {
       console.warn('[SyncEngine] Server reported sync error:', msg.message);
       this.inFlightMutationIds = null;
+      this.pendingFlushAfterAck = false;
     }
   }
 
@@ -799,6 +835,11 @@ export class SyncEngine {
     const minOrder = allOrders.length > 0 ? Math.min(...allOrders) : 0;
     const order = typeof extra.order === 'number' ? extra.order : (minOrder - 1);
 
+    const normalizedPinnedIn = Array.isArray(extra.pinnedIn) && extra.pinnedIn.length > 0
+      ? [...new Set(extra.pinnedIn)]
+      : (extra.pinned ? [...new Set([...(extra.inMyDay ? ['today'] : []), ...(listId ? [listId] : ['today'])])] : []);
+    const normalizedPinned = Boolean(extra.pinned) || normalizedPinnedIn.length > 0;
+
     const todo = {
       id,
       title: title.trim(),
@@ -817,14 +858,14 @@ export class SyncEngine {
       recurrence: extra.recurrence || 'none', // 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
       recurrenceInterval: extra.recurrenceInterval || 1,
       handwriting: extra.handwriting || null,
-      pinned: Boolean(extra.pinned) || Boolean(Array.isArray(extra.pinnedIn) && extra.pinnedIn.length > 0) || false,
-      pinnedIn: Array.isArray(extra.pinnedIn) ? extra.pinnedIn : (extra.pinned ? [extra.inMyDay ? 'today' : (extra.listId || 'today')] : []),
-      pinnedAt: extra.pinnedAt || (extra.pinned ? now : null),
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
       version: 1,
-      ...extra
+      ...extra,
+      pinned: normalizedPinned,
+      pinnedIn: normalizedPinnedIn,
+      pinnedAt: extra.pinnedAt || (normalizedPinned ? now : null)
     };
 
     this.todos[id] = todo;
@@ -869,16 +910,36 @@ export class SyncEngine {
     this.updateTodo(todoId, { steps });
   }
 
-  reorderTodos(orderedIds) {
+  reorderTodos(orderedIds, options = {}) {
     if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+    const { preserveSlots = false } = options;
     const now = Date.now();
     const newMutations = [];
     let hasChanges = false;
 
+    let targetOrders = null;
+    if (preserveSlots) {
+      const existingNumeric = orderedIds
+        .map(id => this.todos[id]?.order)
+        .filter(o => typeof o === 'number' && Number.isFinite(o))
+        .sort((a, b) => a - b);
+      // Deduplicate/ensure strictly increasing slots when any existing items collide or lack numeric order
+      targetOrders = [];
+      let nextFallback = existingNumeric.length > 0 ? existingNumeric[existingNumeric.length - 1] + 1 : 0;
+      for (let i = 0; i < orderedIds.length; i++) {
+        let candidate = i < existingNumeric.length ? existingNumeric[i] : nextFallback++;
+        if (targetOrders.length > 0 && candidate <= targetOrders[targetOrders.length - 1]) {
+          candidate = targetOrders[targetOrders.length - 1] + 1;
+        }
+        targetOrders.push(candidate);
+      }
+    }
+
     orderedIds.forEach((id, index) => {
       const todo = this.todos[id];
-      if (todo && todo.order !== index) {
-        todo.order = index;
+      const nextOrder = targetOrders ? targetOrders[index] : index;
+      if (todo && todo.order !== nextOrder) {
+        todo.order = nextOrder;
         todo.updatedAt = now;
         todo.version = (todo.version || 1) + 1;
         hasChanges = true;
@@ -897,22 +958,8 @@ export class SyncEngine {
     // Immediately notify React UI so task positions settle in 0ms without waiting for disk I/O!
     this.notify();
 
-    // Batch append mutations without redundant array serializations
-    this.mutationQueue.push(...newMutations);
-    if (this.mutationQueue.length > 200) {
-      this.mutationQueue = this.mutationQueue.slice(-200);
-    }
-
-    // Schedule deferred disk writes so storage serialization doesn't drop drop animation frames
     this.scheduleSaveStoredTodos();
-    this.scheduleSaveStoredQueue();
-
-    // Broadcast batch over WebSocket or direct P2P mesh
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.flushQueue();
-    } else if (this.p2pEngine) {
-      newMutations.forEach(m => this.p2pEngine.broadcastMutationToPeers(m));
-    }
+    this.enqueueMutations(newMutations, { saveImmediate: false, flush: true });
   }
 
   reorderLists(orderedIds) {
@@ -944,15 +991,8 @@ export class SyncEngine {
     if (!hasChanges) return;
 
     this.notify();
-    this.mutationQueue.push(...newMutations);
     this.scheduleSaveStoredLists();
-    this.scheduleSaveStoredQueue();
-
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.flushQueue();
-    } else if (this.p2pEngine) {
-      newMutations.forEach(m => this.p2pEngine.broadcastMutationToPeers(m));
-    }
+    this.enqueueMutations(newMutations, { saveImmediate: false, flush: true });
   }
 
   toggleTodo(id) {
@@ -1008,11 +1048,7 @@ export class SyncEngine {
   togglePinTodo(id, context = 'today') {
     const todo = this.todos[id];
     if (!todo) return false;
-    let currentPinnedIn = Array.isArray(todo.pinnedIn)
-      ? [...todo.pinnedIn]
-      : (todo.pinned
-          ? (todo.inMyDay && context === 'today' ? ['today'] : (todo.listId ? [todo.listId] : ['today']))
-          : []);
+    const currentPinnedIn = getEffectivePinnedIn(todo);
 
     const isPinnedInCtx = currentPinnedIn.includes(context);
     const nextPinnedIn = isPinnedInCtx
@@ -1144,17 +1180,8 @@ export class SyncEngine {
     });
 
     if (count > 0 || newMutations.length > 0) {
-      this.mutationQueue.push(...newMutations);
-      if (this.mutationQueue.length > 200) {
-        this.mutationQueue = this.mutationQueue.slice(-200);
-      }
       this.scheduleSaveStoredTodos();
-      this.scheduleSaveStoredQueue();
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.flushQueue();
-      } else if (this.p2pEngine) {
-        newMutations.forEach(m => this.p2pEngine.broadcastMutationToPeers(m));
-      }
+      this.enqueueMutations(newMutations, { saveImmediate: false, flush: true });
       this.notify();
     }
     return count;
@@ -1230,21 +1257,65 @@ export class SyncEngine {
     this.notify();
   }
 
-  queueMutation(mutation) {
-    this.mutationQueue.push(mutation);
-    this.saveStoredQueue();
+  enqueueMutations(newMutations, { saveImmediate = true, flush = true } = {}) {
+    if (!Array.isArray(newMutations) || newMutations.length === 0) return;
 
-    // Broadcast immediately to direct P2P mesh
-    this.p2pEngine?.broadcastMutationToPeers(mutation);
+    const latestByKey = new Map();
+    const orderKeys = [];
+    for (const m of newMutations) {
+      if (!m) continue;
+      const targetId = m.entityId || m.data?.id;
+      const normalized = targetId && !m.entityId ? { ...m, entityId: targetId } : m;
+      const key = normalized.entityId ? `${normalized.type}:${normalized.entityId}` : normalized.id;
+      if (!latestByKey.has(key)) orderKeys.push(key);
+      latestByKey.set(key, normalized);
+    }
 
-    // Send to central server if connected
+    // Compact un-flushed entries in queue (leave in-flight entries untouched so SYNC_ACK only deletes acked IDs)
+    const inFlight = this.inFlightMutationIds;
+    if (this.mutationQueue.length > 0) {
+      this.mutationQueue = this.mutationQueue.filter(existing => {
+        if (inFlight && inFlight.has(existing.id)) return true;
+        const targetId = existing.entityId || existing.data?.id;
+        if (!targetId) return true;
+        return !latestByKey.has(`${existing.type}:${targetId}`);
+      });
+    }
+
+    for (const key of orderKeys) {
+      this.mutationQueue.push(latestByKey.get(key));
+    }
+
+    if (saveImmediate) {
+      this.saveStoredQueue();
+    } else {
+      this.scheduleSaveStoredQueue();
+    }
+
+    if (!flush) return;
+
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.flushQueue();
+    } else if (this.p2pEngine) {
+      if (orderKeys.length === 1) {
+        this.p2pEngine.broadcastMutationToPeers(latestByKey.get(orderKeys[0]));
+      } else if (orderKeys.length > 1) {
+        this.p2pEngine.syncAllPeers();
+      }
     }
+  }
+
+  queueMutation(mutation) {
+    this.enqueueMutations([mutation], { saveImmediate: true, flush: true });
   }
 
   flushQueue() {
     if (this.mutationQueue.length === 0 || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    if (this.inFlightMutationIds && this.inFlightMutationIds.size > 0) {
+      this.pendingFlushAfterAck = true;
       return;
     }
 
@@ -1279,6 +1350,7 @@ export class SyncEngine {
       if (!srv || (localTodo.updatedAt || 0) > (srv.updatedAt || 0)) {
         mutations.push({
           id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+          entityId: localTodo.id,
           type: 'UPSERT',
           data: localTodo,
           timestamp: localTodo.updatedAt || now
@@ -1298,6 +1370,7 @@ export class SyncEngine {
         if (!srv || (localList.updatedAt || 0) > (srv.updatedAt || 0)) {
           mutations.push({
             id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+            entityId: localList.id,
             type: 'LIST_UPSERT',
             data: localList,
             timestamp: localList.updatedAt || now
@@ -1307,9 +1380,7 @@ export class SyncEngine {
     }
 
     if (mutations.length > 0) {
-      mutations.forEach(m => this.mutationQueue.push(m));
-      this.saveStoredQueue();
-      this.flushQueue();
+      this.enqueueMutations(mutations, { saveImmediate: true, flush: true });
     }
   }
 }

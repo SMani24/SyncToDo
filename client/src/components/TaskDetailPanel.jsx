@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './SvgIcons';
-import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
+import { normalizeListIcon, hasPersianChar, detectBidiDirection, isTodoPinnedInContext } from '../syncEngine';
 import { formatCalendarDate } from '../utils/calendar';
 import CalendarPickerModal from './CalendarPickerModal';
 
@@ -274,7 +274,7 @@ export default function TaskDetailPanel({
           {(() => {
             const isPinned = onTogglePin
               ? isPinnedInCurrentContext
-              : (Array.isArray(todo.pinnedIn) ? todo.pinnedIn.includes(currentPinContext) : Boolean(todo.pinned));
+              : isTodoPinnedInContext(todo, currentPinContext);
             const pinLabel = currentPinContext === 'today'
               ? (isPinned ? 'Pinned in My Day' : 'Pin in My Day')
               : (isPinned ? 'Pinned to Top' : 'Pin to Top');

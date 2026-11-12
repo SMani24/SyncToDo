@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import {
   syncEngine,
+  isTodoPinnedInContext as sharedIsTodoPinnedInContext,
   detectDeviceType,
   normalizeListIcon,
   hasPersianChar,
@@ -672,41 +673,13 @@ export default function App() {
   const isTodoPinnedInContext = (todoObj, ctx = null) => {
     if (!todoObj) return false;
     const context = ctx || getCurrentPinContext(todoObj);
-    if (Array.isArray(todoObj.pinnedIn)) {
-      return todoObj.pinnedIn.includes(context);
-    }
-    // Backwards compatibility for tasks with legacy todo.pinned = true
-    if (todoObj.pinned) {
-      if (context === 'today' && todoObj.inMyDay) return true;
-      if (todoObj.listId && context === todoObj.listId) return true;
-      if (context === 'all') return true;
-    }
-    return false;
+    return sharedIsTodoPinnedInContext(todoObj, context);
   };
 
   const handleTogglePinTodo = (todoObj, explicitContext = null) => {
     if (!todoObj) return;
     const context = explicitContext || getCurrentPinContext(todoObj);
-    let currentPinnedIn = Array.isArray(todoObj.pinnedIn)
-      ? [...todoObj.pinnedIn]
-      : (todoObj.pinned
-          ? (todoObj.inMyDay && context === 'today' ? ['today'] : (todoObj.listId ? [todoObj.listId] : ['today']))
-          : []);
-
-    const isCurrentlyPinned = currentPinnedIn.includes(context);
-    let nextPinnedIn;
-    if (isCurrentlyPinned) {
-      nextPinnedIn = currentPinnedIn.filter(c => c !== context);
-    } else {
-      nextPinnedIn = [...currentPinnedIn, context];
-    }
-
-    const isAnyPinned = nextPinnedIn.length > 0;
-    syncEngine.updateTodo(todoObj.id, {
-      pinnedIn: nextPinnedIn,
-      pinned: isAnyPinned,
-      pinnedAt: isAnyPinned ? (todoObj.pinnedAt || Date.now()) : null
-    });
+    syncEngine.togglePinTodo(todoObj.id, context);
   };
 
   const handleStartListSelect = (initialListId) => {
@@ -1235,6 +1208,9 @@ export default function App() {
       return;
     }
 
+    if (sortByDate) {
+      updateCurrentViewPref('sortByDate', false);
+    }
     const [moved] = newItems.splice(currentIndex, 1);
     newItems.splice(targetIndex, 0, moved);
 
@@ -1247,7 +1223,8 @@ export default function App() {
       }
     }
 
-    syncEngine.reorderTodos(newItems.map(t => t.id));
+    const isSubsetFiltered = Boolean(filterRecurring || filterHandwriting || filterPriority !== 'all' || searchQuery.trim());
+    syncEngine.reorderTodos(newItems.map(t => t.id), { preserveSlots: isSubsetFiltered });
   };
 
   // ====================================================
@@ -1452,7 +1429,8 @@ export default function App() {
           }
 
           // Apply reorder in memory first so drop settles immediately in 0ms!
-          syncEngine.reorderTodos(currentItems.map(t => t.id));
+          const isSubsetFiltered = Boolean(filterRecurring || filterHandwriting || filterPriority !== 'all' || searchQuery.trim());
+          syncEngine.reorderTodos(currentItems.map(t => t.id), { preserveSlots: isSubsetFiltered });
         }
       }
     }

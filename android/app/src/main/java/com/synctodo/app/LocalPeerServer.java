@@ -617,7 +617,7 @@ public class LocalPeerServer {
                 }
             }
 
-            // 2. Merge incoming lists by id
+            // 2. Merge incoming lists by id (Last-Write-Wins by updatedAt/createdAt) and preserve order
             JSONArray inLists = incoming.optJSONArray("lists");
             if (inLists != null) {
                 Map<String, JSONObject> listById = new LinkedHashMap<>();
@@ -629,11 +629,18 @@ public class LocalPeerServer {
                     JSONObject inList = inLists.optJSONObject(i);
                     if (inList != null && inList.has("id")) {
                         String lid = inList.optString("id");
-                        listById.put(lid, inList);
+                        JSONObject existing = listById.get(lid);
+                        long inUpdated = Math.max(inList.optLong("updatedAt", 0), inList.optLong("createdAt", 0));
+                        long exUpdated = existing != null ? Math.max(existing.optLong("updatedAt", 0), existing.optLong("createdAt", 0)) : -1;
+                        if (existing == null || inUpdated >= exUpdated) {
+                            listById.put(lid, inList);
+                        }
                     }
                 }
+                List<JSONObject> sortedLists = new ArrayList<>(listById.values());
+                Collections.sort(sortedLists, (a, b) -> Integer.compare(a.optInt("order", 9999), b.optInt("order", 9999)));
                 JSONArray mergedLists = new JSONArray();
-                for (JSONObject l : listById.values()) mergedLists.put(l);
+                for (JSONObject l : sortedLists) mergedLists.put(l);
                 store.put("lists", mergedLists);
             }
 
