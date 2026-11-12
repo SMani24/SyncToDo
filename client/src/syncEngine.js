@@ -253,12 +253,17 @@ export class SyncEngine {
     // E.g., if loaded from http://localhost:4000 -> ws://localhost:4000
     // E.g., if loaded from http://g16laptop.local:4000 -> ws://g16laptop.local:4000
     // E.g., if loaded from http://172.18.132.75:4000 -> ws://172.18.132.75:4000
-    if (typeof window !== 'undefined' && window.location.protocol && window.location.protocol.startsWith('http')) {
+    const isCapacitorNative = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.();
+    if (!isCapacitorNative && typeof window !== 'undefined' && window.location.protocol && window.location.protocol.startsWith('http')) {
       const host = window.location.hostname;
-      const port = window.location.port || '4000';
+      const rawPort = window.location.port;
+      const port = rawPort || '4000';
+      const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         return `${wsProto}//${host}:${port}`;
+      }
+      if (rawPort && rawPort !== '5173') {
+        return `${wsProto}//${host || 'localhost'}:${rawPort}`;
       }
       if (this.deviceType === 'laptop') {
         return `ws://localhost:4000`;

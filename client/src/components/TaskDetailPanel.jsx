@@ -17,6 +17,7 @@ export default function TaskDetailPanel({
   isPinnedInCurrentContext = false,
   onTogglePin = null,
   onOpenCanvas,
+  onToggleTodo = null,
   onDeleteTodo,
   onClose
 }) {
@@ -145,7 +146,7 @@ export default function TaskDetailPanel({
           gap: '10px'
         }}>
           <button
-            onClick={() => syncEngine.toggleTodo(todo.id)}
+            onClick={() => (onToggleTodo ? onToggleTodo(todo) : syncEngine.toggleTodo(todo.id))}
             style={{
               width: '22px',
               height: '22px',

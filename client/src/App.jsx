@@ -610,9 +610,10 @@ export default function App() {
 
   const triggerUndoToast = (config, onUndoFn) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    const toastKey = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const toastData = typeof config === 'string'
-      ? { message: config, actionLabel: config, onUndo: onUndoFn }
-      : { ...config, onUndo: onUndoFn };
+      ? { key: toastKey, message: config, actionLabel: config, onUndo: onUndoFn }
+      : { key: toastKey, ...config, onUndo: onUndoFn };
     setUndoToast(toastData);
     undoTimerRef.current = setTimeout(() => {
       setUndoToast(null);
@@ -628,6 +629,65 @@ export default function App() {
       console.error(e);
     }
     setUndoToast(null);
+  };
+
+  const getTomorrowLogicalDateStr = () => {
+    const [y, m, d] = todayStr.split('-').map(Number);
+    const nextDay = new Date(y, m - 1, d + 1);
+    return `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+  };
+
+  const handleAddTodoAgainTomorrow = (todoObj) => {
+    if (!todoObj) return null;
+    const tomorrowStr = getTomorrowLogicalDateStr();
+    const origSteps = Array.isArray(todoObj.steps) ? todoObj.steps : [];
+    const hasUncheckedStep = origSteps.some(s => !s.completed);
+    const nextSteps = origSteps.map(s => ({
+      ...s,
+      id: `st-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      completed: hasUncheckedStep ? Boolean(s.completed) : false
+    }));
+
+    const created = syncEngine.addTodo(
+      todoObj.title || 'Untitled task',
+      todoObj.listId || 'inbox',
+      todoObj.priority || 'medium',
+      tomorrowStr,
+      todoObj.notes || '',
+      {
+        dueTime: todoObj.dueTime || null,
+        reminderTime: todoObj.reminderTime || null,
+        handwriting: todoObj.handwriting || null,
+        isInlineHandwriting: Boolean(todoObj.isInlineHandwriting),
+        steps: nextSteps,
+        inMyDay: false,
+        plannedDate: null,
+        pinned: Boolean(todoObj.pinned),
+        pinnedIn: Array.isArray(todoObj.pinnedIn) ? [...todoObj.pinnedIn] : [],
+        pinnedAt: todoObj.pinned ? (todoObj.pinnedAt || Date.now()) : null,
+        recurrence: todoObj.recurrence || 'none',
+        recurrenceInterval: todoObj.recurrenceInterval || 1
+      }
+    );
+
+    triggerUndoToast({
+      action: 'scheduled',
+      actionLabel: 'Added for tomorrow',
+      title: todoObj.title || 'Untitled task'
+    }, () => {
+      if (created?.id) syncEngine.deleteTodo(created.id);
+    });
+    return created;
+  };
+
+  const handleAddTomorrowClick = () => {
+    if (!undoToast?.onAddTomorrow) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    try {
+      undoToast.onAddTomorrow();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleDeleteTodoWithUndo = (todoObj) => {
@@ -652,10 +712,12 @@ export default function App() {
     const wasCompleted = Boolean(todoObj.completed);
     syncEngine.toggleTodo(todoObj.id);
     if (!wasCompleted) {
+      const canAddTomorrow = snapshot.recurrence !== 'daily';
       triggerUndoToast({
         action: 'completed',
         actionLabel: 'Task completed',
-        title: todoObj.title || 'Untitled task'
+        title: todoObj.title || 'Untitled task',
+        onAddTomorrow: canAddTomorrow ? () => handleAddTodoAgainTomorrow(snapshot) : null
       }, () => {
         syncEngine.restoreTodoSnapshot(snapshot);
       });
@@ -4081,6 +4143,7 @@ export default function App() {
             isPinnedInCurrentContext={isTodoPinnedInContext(selectedTodo, currentPinContext)}
             onTogglePin={() => handleTogglePinTodo(selectedTodo, currentPinContext)}
             onOpenCanvas={handleOpenCanvas}
+            onToggleTodo={handleToggleTodoWithUndo}
             onDeleteTodo={handleDeleteTodoWithUndo}
             onClose={() => setSelectedTodoId(null)}
           />
@@ -4100,6 +4163,7 @@ export default function App() {
           isPinnedInCurrentContext={isTodoPinnedInContext(selectedTodo, currentPinContext)}
           onTogglePin={() => handleTogglePinTodo(selectedTodo, currentPinContext)}
           onOpenCanvas={handleOpenCanvas}
+          onToggleTodo={handleToggleTodoWithUndo}
           onDeleteTodo={handleDeleteTodoWithUndo}
           onClose={() => setSelectedTodoId(null)}
         />
@@ -4111,16 +4175,205 @@ export default function App() {
       {undoToast && (() => {
         const isCompleted = undoToast.action === 'completed';
         const isDeleted = undoToast.action === 'deleted';
+        const isScheduled = undoToast.action === 'scheduled';
         const primaryLabel = undoToast.actionLabel || (isCompleted ? 'Task completed' : isDeleted ? 'Task deleted' : undoToast.message || 'Action performed');
         const secondaryTitle = undoToast.title || '';
+        const hasTomorrowBtn = Boolean(undoToast.onAddTomorrow);
+        const isPhoneStacked = hasTomorrowBtn && viewportWidth < 540;
+
+        const appliedThemeId = (typeof document !== 'undefined' && document.body.getAttribute('data-theme')) || activeAppliedTheme;
+        const isLightTheme = ALL_THEMES.find(t => t.id === appliedThemeId)?.type === 'light';
+        const tomorrowColor = isLightTheme ? '#b45309' : '#fbbf24';
+        const tomorrowBg = isLightTheme ? 'rgba(245, 158, 11, 0.14)' : 'rgba(251, 191, 36, 0.14)';
+        const tomorrowHoverBg = isLightTheme ? 'rgba(245, 158, 11, 0.24)' : 'rgba(251, 191, 36, 0.24)';
+        const tomorrowBorder = isLightTheme ? 'rgba(217, 119, 6, 0.42)' : 'rgba(251, 191, 36, 0.38)';
+        const undoColor = isLightTheme ? '#0284c7' : '#38bdf8';
+        const undoBg = isLightTheme ? 'rgba(2, 132, 199, 0.11)' : 'rgba(56, 189, 248, 0.12)';
+        const undoHoverBg = isLightTheme ? 'rgba(2, 132, 199, 0.20)' : 'rgba(56, 189, 248, 0.22)';
+        const undoBorder = isLightTheme ? 'rgba(2, 132, 199, 0.36)' : 'rgba(56, 189, 248, 0.35)';
 
         // Position toast comfortably above bottom inputs / bottom nav
         const bottomPos = deviceType === 'phone'
-          ? (activeView === 'analytics' ? '76px' : '136px')
+          ? (activeView === 'analytics' ? (isLandscapePhone ? '60px' : '76px') : (isLandscapePhone ? '114px' : '136px'))
           : (activeView === 'analytics' ? '24px' : '76px');
+
+        const dismissBtn = (
+          <button
+            type="button"
+            onClick={() => {
+              if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+              setUndoToast(null);
+            }}
+            style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-muted, #94a3b8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              padding: 0,
+              flexShrink: 0,
+              opacity: 0.72,
+              transition: 'opacity 0.15s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.72'; }}
+            title="Dismiss"
+          >
+            <Icon name="x" size={13} />
+          </button>
+        );
+
+        const iconBadge = (
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              backgroundColor: isCompleted
+                ? 'rgba(16, 185, 129, 0.16)'
+                : isDeleted
+                ? 'rgba(239, 68, 68, 0.16)'
+                : isScheduled
+                ? tomorrowBg
+                : 'var(--tag-bg, rgba(99, 102, 241, 0.16))',
+              color: isCompleted
+                ? '#10b981'
+                : isDeleted
+                ? '#ef4444'
+                : isScheduled
+                ? tomorrowColor
+                : 'var(--primary, #6366f1)'
+            }}
+          >
+            <Icon name={isCompleted ? 'check' : isDeleted ? 'trash' : isScheduled ? 'cal' : 'sparkles'} size={16} />
+          </div>
+        );
+
+        const textBlock = (
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <div style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: 'var(--text, #f8fafc)',
+              lineHeight: 1.3,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {primaryLabel}
+            </div>
+            {secondaryTitle && (
+              <div
+                dir="auto"
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 500,
+                  color: 'var(--text-muted, #94a3b8)',
+                  lineHeight: 1.3,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '100%',
+                  unicodeBidi: 'plaintext',
+                  textAlign: 'start'
+                }}
+                title={secondaryTitle}
+              >
+                {secondaryTitle}
+              </div>
+            )}
+          </div>
+        );
+
+        const actionButtons = (
+          <>
+            {undoToast.onAddTomorrow && (
+              <button
+                type="button"
+                onClick={handleAddTomorrowClick}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  flex: isPhoneStacked ? 1 : '0 0 auto',
+                  minHeight: isPhoneStacked ? '34px' : undefined,
+                  padding: isPhoneStacked ? '6px 10px' : '6px 11px',
+                  borderRadius: '999px',
+                  border: `1px solid ${tomorrowBorder}`,
+                  background: tomorrowBg,
+                  color: tomorrowColor,
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = tomorrowHoverBg;
+                  e.currentTarget.style.borderColor = tomorrowColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = tomorrowBg;
+                  e.currentTarget.style.borderColor = tomorrowBorder;
+                }}
+                title="Add a copy of this task for tomorrow"
+              >
+                <Icon name="cal" size={13} />
+                <span>Again Tomorrow</span>
+              </button>
+            )}
+
+            {undoToast.onUndo && (
+              <button
+                type="button"
+                onClick={handleUndoClick}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '5px',
+                  minHeight: isPhoneStacked ? '34px' : undefined,
+                  padding: isPhoneStacked ? '6px 14px' : '6px 11px',
+                  borderRadius: '999px',
+                  border: `1px solid ${undoBorder}`,
+                  background: undoBg,
+                  color: undoColor,
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = undoHoverBg;
+                  e.currentTarget.style.borderColor = undoColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = undoBg;
+                  e.currentTarget.style.borderColor = undoBorder;
+                }}
+                title="Undo action"
+              >
+                <Icon name="undo" size={13} />
+                <span>Undo</span>
+              </button>
+            )}
+          </>
+        );
 
         return (
           <div
+            key={undoToast.key}
             role="status"
             aria-live="polite"
             style={{
@@ -4133,143 +4386,45 @@ export default function App() {
               color: 'var(--text, #f8fafc)',
               border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
               borderRadius: '16px',
-              padding: '10px 14px 12px 14px',
+              padding: isPhoneStacked ? '10px 12px 12px 12px' : '10px 14px 12px 14px',
               boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.25)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
               display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              maxWidth: 'min(460px, calc(100vw - 32px))',
+              flexDirection: isPhoneStacked ? 'column' : 'row',
+              alignItems: isPhoneStacked ? 'stretch' : 'center',
+              gap: isPhoneStacked ? '9px' : '12px',
+              width: isPhoneStacked ? 'min(420px, calc(100vw - 24px))' : undefined,
+              maxWidth: viewportWidth < 540
+                ? 'min(420px, calc(100vw - 24px))'
+                : (hasTomorrowBtn ? 'min(580px, calc(100vw - 32px))' : 'min(460px, calc(100vw - 32px))'),
               minWidth: '280px',
               animation: 'toastSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
               userSelect: 'none',
               overflow: 'hidden'
             }}
           >
-            {/* Visual Icon Badge */}
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                backgroundColor: isCompleted
-                  ? 'rgba(16, 185, 129, 0.16)'
-                  : isDeleted
-                  ? 'rgba(239, 68, 68, 0.16)'
-                  : 'var(--tag-bg, rgba(99, 102, 241, 0.16))',
-                color: isCompleted
-                  ? '#10b981'
-                  : isDeleted
-                  ? '#ef4444'
-                  : 'var(--primary, #6366f1)'
-              }}
-            >
-              <Icon name={isCompleted ? 'check' : isDeleted ? 'trash' : 'sparkles'} size={16} />
-            </div>
-
-            {/* Structured Text Content */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              <div style={{
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--text, #f8fafc)',
-                lineHeight: 1.3,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {primaryLabel}
-              </div>
-              {secondaryTitle && (
-                <div
-                  dir="auto"
-                  style={{
-                    fontSize: '11.5px',
-                    fontWeight: 500,
-                    color: 'var(--text-muted, #94a3b8)',
-                    lineHeight: 1.3,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: deviceType === 'phone' ? '170px' : '240px',
-                    unicodeBidi: 'plaintext',
-                    textAlign: 'start'
-                  }}
-                  title={secondaryTitle}
-                >
-                  {secondaryTitle}
+            {isPhoneStacked ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  {iconBadge}
+                  {textBlock}
+                  {dismissBtn}
                 </div>
-              )}
-            </div>
-
-            {/* Actions: Undo Button + Dismiss */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              {undoToast.onUndo && (
-                <button
-                  type="button"
-                  onClick={handleUndoClick}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '6px 12px',
-                    borderRadius: '999px',
-                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    color: '#38bdf8',
-                    fontWeight: 700,
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.22)';
-                    e.currentTarget.style.borderColor = '#38bdf8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
-                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
-                  }}
-                  title="Undo action"
-                >
-                  <Icon name="undo" size={13} />
-                  <span>Undo</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-                  setUndoToast(null);
-                }}
-                style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-muted, #94a3b8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  padding: 0,
-                  opacity: 0.7,
-                  transition: 'opacity 0.15s'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; }}
-                title="Dismiss"
-              >
-                <Icon name="x" size={13} />
-              </button>
-            </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {actionButtons}
+                </div>
+              </>
+            ) : (
+              <>
+                {iconBadge}
+                {textBlock}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {actionButtons}
+                  {dismissBtn}
+                </div>
+              </>
+            )}
 
             {/* Subtle Countdown Progress Bar */}
             <div style={{
@@ -4282,7 +4437,7 @@ export default function App() {
             }}>
               <div style={{
                 height: '100%',
-                backgroundColor: isCompleted ? '#10b981' : isDeleted ? '#ef4444' : '#38bdf8',
+                backgroundColor: isCompleted ? '#10b981' : isDeleted ? '#ef4444' : isScheduled ? tomorrowColor : undoColor,
                 animation: 'toastCountdown 5s linear forwards'
               }} />
             </div>
