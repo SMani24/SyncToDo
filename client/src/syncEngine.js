@@ -727,6 +727,9 @@ export class SyncEngine {
           current.inMyDay = true;
           current.plannedDate = incoming.plannedDate || today;
           current.myDayExcludedDate = null;
+          if (typeof incoming.myDayOrder === 'number' && typeof current.myDayOrder !== 'number') {
+            current.myDayOrder = incoming.myDayOrder;
+          }
           current.updatedAt = Math.max(current.updatedAt || 0, incoming.updatedAt || 0) + 100;
         }
       }
@@ -836,10 +839,29 @@ export class SyncEngine {
     this.notify();
   }
 
+  getTopMyDayOrder(todayStr = null) {
+    const today = todayStr || getLogicalDateStr(new Date(), getStoredDayStartHour());
+    const myDayActive = Object.values(this.todos).filter(t =>
+      !t.deletedAt && !t.completed && isTodoInMyDay(t, today)
+    );
+    const unpinnedOrders = myDayActive
+      .filter(t => !isTodoPinnedInContext(t, 'today'))
+      .map(t => (typeof t.myDayOrder === 'number' ? t.myDayOrder : t.order))
+      .filter(o => typeof o === 'number' && Number.isFinite(o));
+    if (unpinnedOrders.length > 0) {
+      return Math.min(...unpinnedOrders) - 1;
+    }
+    const allOrders = myDayActive
+      .map(t => (typeof t.myDayOrder === 'number' ? t.myDayOrder : t.order))
+      .filter(o => typeof o === 'number' && Number.isFinite(o));
+    return allOrders.length > 0 ? Math.min(...allOrders) - 1 : 0;
+  }
+
   // Local-First Mutations
   addTodo(title, listId = 'inbox', priority = 'medium', dueDate = null, notes = '', extra = {}) {
     const id = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
+    const todayStr = getLogicalDateStr(new Date(), getStoredDayStartHour());
 
     // Default order: place new tasks at the top
     const allOrders = Object.values(this.todos)
@@ -847,6 +869,9 @@ export class SyncEngine {
       .map(t => t.order);
     const minOrder = allOrders.length > 0 ? Math.min(...allOrders) : 0;
     const order = typeof extra.order === 'number' ? extra.order : (minOrder - 1);
+    const myDayOrder = typeof extra.myDayOrder === 'number'
+      ? extra.myDayOrder
+      : (extra.inMyDay || (dueDate && dueDate >= todayStr) ? this.getTopMyDayOrder(todayStr) : null);
 
     const normalizedPinnedIn = Array.isArray(extra.pinnedIn) && extra.pinnedIn.length > 0
       ? [...new Set(extra.pinnedIn)]
@@ -866,6 +891,7 @@ export class SyncEngine {
       reminderTime: extra.reminderTime || null,
       steps: Array.isArray(extra.steps) ? extra.steps : [],
       order,
+      myDayOrder,
       inMyDay: extra.inMyDay || false,
       plannedDate: extra.plannedDate || null,
       myDayExcludedDate: extra.myDayExcludedDate || null,
@@ -926,15 +952,22 @@ export class SyncEngine {
 
   reorderTodos(orderedIds, options = {}) {
     if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
-    const { preserveSlots = false } = options;
+    const { preserveSlots = false, field = 'order' } = options;
     const now = Date.now();
     const newMutations = [];
     let hasChanges = false;
+    const getSlotValue = (t) => {
+      if (!t) return undefined;
+      if (field === 'myDayOrder') {
+        return typeof t.myDayOrder === 'number' ? t.myDayOrder : t.order;
+      }
+      return t[field];
+    };
 
     let targetOrders = null;
     if (preserveSlots) {
       const existingNumeric = orderedIds
-        .map(id => this.todos[id]?.order)
+        .map(id => getSlotValue(this.todos[id]))
         .filter(o => typeof o === 'number' && Number.isFinite(o))
         .sort((a, b) => a - b);
       // Deduplicate/ensure strictly increasing slots when any existing items collide or lack numeric order
@@ -952,8 +985,8 @@ export class SyncEngine {
     orderedIds.forEach((id, index) => {
       const todo = this.todos[id];
       const nextOrder = targetOrders ? targetOrders[index] : index;
-      if (todo && todo.order !== nextOrder) {
-        todo.order = nextOrder;
+      if (todo && todo[field] !== nextOrder) {
+        todo[field] = nextOrder;
         todo.updatedAt = now;
         todo.version = (todo.version || 1) + 1;
         hasChanges = true;
@@ -1176,10 +1209,12 @@ export class SyncEngine {
       const isPastDue = t.dueDate && t.dueDate < today;
       const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
       if (isPastDue || isPastMyDay || allowSet) {
-        // Carry forward into today's My Day without overwriting original dueDate (keeps future due dates or unset dates)
+        // Compute destination My Day slot before marking inMyDay so task's own home-list order cannot distort it
+        const nextMyDayOrder = this.getTopMyDayOrder(today);
         t.plannedDate = today;
         t.inMyDay = true;
         t.myDayExcludedDate = null;
+        t.myDayOrder = nextMyDayOrder;
         // Bump updatedAt so it wins CRDT Last-Write-Wins across devices even with minor clock skew
         t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
         t.version = (t.version || 1) + 1;
@@ -1209,13 +1244,15 @@ export class SyncEngine {
       this.updateTodo(id, {
         inMyDay: false,
         plannedDate: null,
-        myDayExcludedDate: todo.dueDate === todayStr ? todayStr : null
+        myDayExcludedDate: todo.dueDate === todayStr ? todayStr : null,
+        myDayOrder: null
       });
     } else {
       this.updateTodo(id, {
         inMyDay: true,
         plannedDate: todayStr,
-        myDayExcludedDate: null
+        myDayExcludedDate: null,
+        myDayOrder: this.getTopMyDayOrder(todayStr)
       });
     }
   }
@@ -1225,9 +1262,16 @@ export class SyncEngine {
     if (!todo) return;
 
     const now = Date.now();
-    const extraReset = ('dueDate' in patch && !('myDayExcludedDate' in patch))
-      ? { myDayExcludedDate: null }
-      : {};
+    const extraReset = {};
+    if ('dueDate' in patch && !('myDayExcludedDate' in patch)) {
+      extraReset.myDayExcludedDate = null;
+    }
+    if ('dueDate' in patch && patch.dueDate && !('myDayOrder' in patch)) {
+      const todayStr = getLogicalDateStr(new Date(), getStoredDayStartHour());
+      if (patch.dueDate >= todayStr && !isTodoInMyDay(todo, todayStr)) {
+        extraReset.myDayOrder = this.getTopMyDayOrder(todayStr);
+      }
+    }
     Object.assign(todo, patch, extraReset, {
       updatedAt: now,
       version: (todo.version || 1) + 1

@@ -1197,6 +1197,22 @@ export default function App() {
 
   const priorityWeight = { high: 3, medium: 2, low: 1 };
   const currentPinContext = getCurrentPinContext();
+  const isMyDayView = activeView === 'today' && !searchQuery.trim();
+  const getDisplayOrder = (t) => (isMyDayView && typeof t.myDayOrder === 'number') ? t.myDayOrder : t.order;
+  const compareDisplayOrder = (a, b) => {
+    const orderA = getDisplayOrder(a);
+    const orderB = getDisplayOrder(b);
+    const hasOrderA = typeof orderA === 'number';
+    const hasOrderB = typeof orderB === 'number';
+    if (hasOrderA && hasOrderB) {
+      if (orderA !== orderB) return orderA - orderB;
+    } else if (hasOrderA) {
+      return -1;
+    } else if (hasOrderB) {
+      return 1;
+    }
+    return 0;
+  };
 
   const sortedActive = filteredTodos
     .filter(t => !t.completed)
@@ -1207,17 +1223,9 @@ export default function App() {
         return isPinnedA ? -1 : 1;
       }
       // When BOTH items are pinned in current context: order strictly determines ranking!
-      // (Ensures dragging a pinned task to top / index 0 stays rock-solid at top, not overridden by sortByDate!)
       if (isPinnedA && isPinnedB) {
-        const hasOrderA = typeof a.order === 'number';
-        const hasOrderB = typeof b.order === 'number';
-        if (hasOrderA && hasOrderB) {
-          if (a.order !== b.order) return a.order - b.order;
-        } else if (hasOrderA) {
-          return -1;
-        } else if (hasOrderB) {
-          return 1;
-        }
+        const orderCmp = compareDisplayOrder(a, b);
+        if (orderCmp !== 0) return orderCmp;
         if (a.pinnedAt && b.pinnedAt && a.pinnedAt !== b.pinnedAt) {
           return b.pinnedAt - a.pinnedAt;
         }
@@ -1234,15 +1242,8 @@ export default function App() {
           return 1;
         }
       }
-      const hasOrderA = typeof a.order === 'number';
-      const hasOrderB = typeof b.order === 'number';
-      if (hasOrderA && hasOrderB) {
-        if (a.order !== b.order) return a.order - b.order;
-      } else if (hasOrderA) {
-        return -1;
-      } else if (hasOrderB) {
-        return 1;
-      }
+      const orderCmp = compareDisplayOrder(a, b);
+      if (orderCmp !== 0) return orderCmp;
       const pw = (priorityWeight[b.priority] || 2) - (priorityWeight[a.priority] || 2);
       if (pw !== 0) return pw;
       return (b.createdAt || 0) - (a.createdAt || 0);
@@ -1285,7 +1286,10 @@ export default function App() {
     }
 
     const isSubsetFiltered = Boolean(filterRecurring || filterHandwriting || filterPriority !== 'all' || searchQuery.trim());
-    syncEngine.reorderTodos(newItems.map(t => t.id), { preserveSlots: isSubsetFiltered });
+    syncEngine.reorderTodos(newItems.map(t => t.id), {
+      preserveSlots: isSubsetFiltered,
+      field: isMyDayView ? 'myDayOrder' : 'order'
+    });
   };
 
   // ====================================================
@@ -1491,7 +1495,10 @@ export default function App() {
 
           // Apply reorder in memory first so drop settles immediately in 0ms!
           const isSubsetFiltered = Boolean(filterRecurring || filterHandwriting || filterPriority !== 'all' || searchQuery.trim());
-          syncEngine.reorderTodos(currentItems.map(t => t.id), { preserveSlots: isSubsetFiltered });
+          syncEngine.reorderTodos(currentItems.map(t => t.id), {
+            preserveSlots: isSubsetFiltered,
+            field: isMyDayView ? 'myDayOrder' : 'order'
+          });
         }
       }
     }
