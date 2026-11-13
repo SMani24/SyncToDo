@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import {
   syncEngine,
+  isTodoInMyDay,
   isTodoPinnedInContext as sharedIsTodoPinnedInContext,
   detectDeviceType,
   normalizeListIcon,
@@ -1139,7 +1140,7 @@ export default function App() {
   const overdueTasks = syncState.todos.filter(t => {
     if (t.completed || t.deletedAt) return false;
     // If it is ALREADY planned for today in My Day, it is not an unfinished leftover needing carry-forward!
-    if (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr)) return false;
+    if (isTodoInMyDay(t, todayStr)) return false;
     const isPastDue = t.dueDate && t.dueDate < todayStr;
     const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < todayStr;
     return isPastDue || isPastMyDay;
@@ -1154,10 +1155,8 @@ export default function App() {
     } else {
       if (activeView === 'today') {
         if (!todo.completed) {
-          // Active task belongs in My Day if due today OR planned for today
-          const isDueToday = todo.dueDate === todayStr;
-          const isPlannedToday = todo.inMyDay && (!todo.plannedDate || todo.plannedDate === todayStr);
-          if (!isDueToday && !isPlannedToday) return false;
+          // Active task belongs in My Day if due today (and not excluded) OR planned for today
+          if (!isTodoInMyDay(todo, todayStr)) return false;
         } else {
           // Completed task belongs in today's My Day ONLY if it was completed on today's logical date
           const completedToday = todo.completedAt
@@ -1745,11 +1744,7 @@ export default function App() {
           handleToggleTodoWithUndo(selectedTodo);
         } else if (e.key === 't' || e.key === 'T') {
           e.preventDefault();
-          const nextInMyDay = !selectedTodo.inMyDay;
-          syncEngine.updateTodo(selectedTodo.id, {
-            inMyDay: nextInMyDay,
-            plannedDate: nextInMyDay ? todayStr : null
-          });
+          syncEngine.toggleTodoInMyDay(selectedTodo.id, todayStr);
         } else if (e.key === 'p' || e.key === 'P') {
           e.preventDefault();
           handleTogglePinTodo(selectedTodo);
@@ -1987,7 +1982,7 @@ export default function App() {
   const myDayTodos = syncState.todos.filter(t => {
     if (t.deletedAt) return false;
     if (!t.completed) {
-      return t.dueDate === todayStr || (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr));
+      return isTodoInMyDay(t, todayStr);
     } else {
       return t.completedAt
         ? isSameLogicalDay(t.completedAt, todayStr, dayStartHour)
@@ -2329,7 +2324,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {[
-                    { id: 'today', icon: 'sun', label: 'My Day', count: syncState.todos.filter(t => !t.completed && !t.deletedAt && (t.dueDate === todayStr || (t.inMyDay && (!t.plannedDate || t.plannedDate === todayStr)))).length },
+                    { id: 'today', icon: 'sun', label: 'My Day', count: syncState.todos.filter(t => !t.completed && !t.deletedAt && isTodoInMyDay(t, todayStr)).length },
                     { id: 'all', icon: 'list', label: 'All Tasks', count: syncState.todos.filter(t => !t.completed && !t.deletedAt).length },
                   ].map(v => {
                     const isActive = activeView === v.id;
@@ -3257,7 +3252,7 @@ export default function App() {
                             const d = new Date();
                             d.setDate(d.getDate() + 1);
                             const tmrw = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                            syncEngine.updateTodo(todo.id, { dueDate: tmrw, inMyDay: false });
+                            syncEngine.updateTodo(todo.id, { dueDate: tmrw, inMyDay: false, plannedDate: null, myDayExcludedDate: null });
                             setSwipedTodoId(null);
                           }}
                           style={{
@@ -3632,25 +3627,22 @@ export default function App() {
                           </button>
                         ) : null;
 
+                        const inMyDayToday = isTodoInMyDay(todo, todayStr);
                         const sunButton = (
                           <button
                             type="button"
                             data-action="toggle-my-day"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const nextInMyDay = !todo.inMyDay;
-                              syncEngine.updateTodo(todo.id, {
-                                inMyDay: nextInMyDay,
-                                plannedDate: nextInMyDay ? todayStr : null
-                              });
+                              syncEngine.toggleTodoInMyDay(todo.id, todayStr);
                             }}
-                            title={todo.inMyDay ? 'Remove from My Day' : 'Add to My Day'}
-                            aria-label={todo.inMyDay ? 'Remove from My Day' : 'Add to My Day'}
+                            title={inMyDayToday ? 'Remove from My Day' : 'Add to My Day'}
+                            aria-label={inMyDayToday ? 'Remove from My Day' : 'Add to My Day'}
                             style={{
-                              background: todo.inMyDay ? 'rgba(251,191,36,0.15)' : 'transparent',
-                              border: todo.inMyDay ? '1px solid rgba(251,191,36,0.4)' : '1px solid transparent',
+                              background: inMyDayToday ? 'rgba(251,191,36,0.15)' : 'transparent',
+                              border: inMyDayToday ? '1px solid rgba(251,191,36,0.4)' : '1px solid transparent',
                               borderRadius: '7px',
-                              color: todo.inMyDay ? '#fbbf24' : 'var(--text-muted)',
+                              color: inMyDayToday ? '#fbbf24' : 'var(--text-muted)',
                               cursor: 'pointer',
                               padding: '5px',
                               display: 'flex'
@@ -4878,11 +4870,8 @@ export default function App() {
               localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
             } catch (_) {}
           }}
-          onToggleInMyDay={(todoId, inMyDay) => {
-            syncEngine.updateTodo(todoId, {
-              inMyDay,
-              plannedDate: inMyDay ? todayStr : null
-            });
+          onToggleInMyDay={(todoId) => {
+            syncEngine.toggleTodoInMyDay(todoId, todayStr);
           }}
           onCarryForward={() => handleCarryForward(null)}
           onClose={() => setShowPlannerModal(false)}
@@ -5387,7 +5376,7 @@ export default function App() {
 
               {/* Quick Action Badges */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.65 }}>
-                {todo.inMyDay && (
+                {isTodoInMyDay(todo, todayStr) && (
                   <div style={{ color: '#fbbf24', padding: '5px', display: 'flex' }}>
                     <Icon name="sun" size={15} />
                   </div>

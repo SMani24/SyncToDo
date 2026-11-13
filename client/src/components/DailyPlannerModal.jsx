@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { normalizeListIcon, hasPersianChar, detectBidiDirection } from '../syncEngine';
+import { normalizeListIcon, hasPersianChar, detectBidiDirection, isTodoInMyDay } from '../syncEngine';
 import { Icon } from './SvgIcons';
 import { getLogicalDateStr, formatDayDateHeader } from '../utils/calendar';
 
@@ -19,13 +19,13 @@ export default function DailyPlannerModal({
   const [selectedListFilter, setSelectedListFilter] = useState('all');
 
   const activeTodos = todos.filter(t => !t.deletedAt);
-  const myDayTodos = activeTodos.filter(t => t.inMyDay && !t.completed && (!t.plannedDate || t.plannedDate === today));
+  const myDayTodos = activeTodos.filter(t => !t.completed && isTodoInMyDay(t, today));
 
   // Identify unfinished / overdue tasks from past days (ONLY active tasks, NEVER completed!)
   const overdueTasks = activeTodos.filter(t => {
     if (t.completed) return false;
     // If it is ALREADY planned for today in My Day, it is not an unfinished leftover!
-    if (t.inMyDay && (!t.plannedDate || t.plannedDate === today)) return false;
+    if (isTodoInMyDay(t, today)) return false;
     const isPastDue = Boolean(t.dueDate && t.dueDate < today);
     const isPastMyDay = Boolean(t.inMyDay && t.plannedDate && t.plannedDate < today);
     return isPastDue || isPastMyDay;
@@ -292,7 +292,7 @@ export default function DailyPlannerModal({
             </div>
           ) : (
             candidateTasks.map(todo => {
-              const isInToday = todo.inMyDay && (!todo.plannedDate || todo.plannedDate === today);
+              const isInToday = isTodoInMyDay(todo, today);
               const listObj = lists.find(l => l.id === todo.listId);
 
               return (

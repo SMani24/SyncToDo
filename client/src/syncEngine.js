@@ -138,6 +138,13 @@ export function detectDeviceType() {
   return 'laptop';
 }
 
+export function isTodoInMyDay(todo, todayStr) {
+  if (!todo) return false;
+  const plannedToday = Boolean(todo.inMyDay) && (!todo.plannedDate || todo.plannedDate === todayStr);
+  const dueToday = Boolean(todo.dueDate && todo.dueDate === todayStr && todo.myDayExcludedDate !== todayStr);
+  return plannedToday || dueToday;
+}
+
 export function isTodoPinnedInContext(todo, context = 'today') {
   if (!todo) return false;
   if (Array.isArray(todo.pinnedIn) && todo.pinnedIn.length > 0) {
@@ -719,6 +726,7 @@ export class SyncEngine {
         if (!current.inMyDay || current.plannedDate !== today) {
           current.inMyDay = true;
           current.plannedDate = incoming.plannedDate || today;
+          current.myDayExcludedDate = null;
           current.updatedAt = Math.max(current.updatedAt || 0, incoming.updatedAt || 0) + 100;
         }
       }
@@ -860,6 +868,7 @@ export class SyncEngine {
       order,
       inMyDay: extra.inMyDay || false,
       plannedDate: extra.plannedDate || null,
+      myDayExcludedDate: extra.myDayExcludedDate || null,
       recurrence: extra.recurrence || 'none', // 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
       recurrenceInterval: extra.recurrenceInterval || 1,
       handwriting: extra.handwriting || null,
@@ -1163,13 +1172,14 @@ export class SyncEngine {
 
       // Active / unfinished tasks
       if (allowSet && !allowSet.has(t.id)) return;
-      if (t.inMyDay && (!t.plannedDate || t.plannedDate === today)) return; // Already in today's focus!
+      if (isTodoInMyDay(t, today)) return; // Already in today's focus!
       const isPastDue = t.dueDate && t.dueDate < today;
       const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
       if (isPastDue || isPastMyDay || allowSet) {
         // Carry forward into today's My Day without overwriting original dueDate (keeps future due dates or unset dates)
         t.plannedDate = today;
         t.inMyDay = true;
+        t.myDayExcludedDate = null;
         // Bump updatedAt so it wins CRDT Last-Write-Wins across devices even with minor clock skew
         t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
         t.version = (t.version || 1) + 1;
@@ -1192,12 +1202,33 @@ export class SyncEngine {
     return count;
   }
 
+  toggleTodoInMyDay(id, todayStr) {
+    const todo = this.todos[id];
+    if (!todo) return;
+    if (isTodoInMyDay(todo, todayStr)) {
+      this.updateTodo(id, {
+        inMyDay: false,
+        plannedDate: null,
+        myDayExcludedDate: todo.dueDate === todayStr ? todayStr : null
+      });
+    } else {
+      this.updateTodo(id, {
+        inMyDay: true,
+        plannedDate: todayStr,
+        myDayExcludedDate: null
+      });
+    }
+  }
+
   updateTodo(id, patch) {
     const todo = this.todos[id];
     if (!todo) return;
 
     const now = Date.now();
-    Object.assign(todo, patch, {
+    const extraReset = ('dueDate' in patch && !('myDayExcludedDate' in patch))
+      ? { myDayExcludedDate: null }
+      : {};
+    Object.assign(todo, patch, extraReset, {
       updatedAt: now,
       version: (todo.version || 1) + 1
     });
