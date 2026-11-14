@@ -666,6 +666,9 @@ export default function App() {
         pinned: Boolean(todoObj.pinned),
         pinnedIn: Array.isArray(todoObj.pinnedIn) ? [...todoObj.pinnedIn] : [],
         pinnedAt: todoObj.pinned ? (todoObj.pinnedAt || Date.now()) : null,
+        ...(Array.isArray(todoObj.pinnedIn) && todoObj.pinnedIn.includes('today') && typeof (todoObj.myDayOrder ?? todoObj.order) === 'number'
+          ? { myDayOrder: todoObj.myDayOrder ?? todoObj.order }
+          : {}),
         recurrence: todoObj.recurrence || 'none',
         recurrenceInterval: todoObj.recurrenceInterval || 1
       }

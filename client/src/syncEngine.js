@@ -1055,13 +1055,29 @@ export class SyncEngine {
 
     // Handle Recurring Task creation upon completion
     if (willBeCompleted && todo.recurrence && todo.recurrence !== 'none') {
+      const todayStr = getLogicalDateStr(new Date(), getStoredDayStartHour());
+      const baseDate = (todo.recurrence === 'daily' && (!todo.dueDate || todo.dueDate < todayStr))
+        ? todayStr
+        : (todo.dueDate || todayStr);
       const nextDate = this.calculateNextRecurrence(
-        todo.dueDate || new Date().toISOString().split('T')[0],
+        baseDate,
         todo.recurrence,
         todo.recurrenceInterval || 1
       );
+      const nextPinnedIn = getEffectivePinnedIn(todo);
+      const nextPinned = nextPinnedIn.length > 0;
+      const preservedMyDayOrder = nextPinnedIn.includes('today')
+        ? (typeof todo.myDayOrder === 'number'
+            ? todo.myDayOrder
+            : (typeof todo.order === 'number' ? todo.order : null))
+        : null;
+      const preservedListOrder = (nextPinned && typeof todo.order === 'number')
+        ? todo.order
+        : undefined;
 
       setTimeout(() => {
+        const latest = this.todos[id];
+        if (!latest || !latest.completed || latest.deletedAt) return;
         this.addTodo(
           todo.title,
           todo.listId,
@@ -1069,11 +1085,20 @@ export class SyncEngine {
           nextDate,
           todo.notes || '',
           {
+            dueTime: todo.dueTime || null,
+            reminderTime: todo.reminderTime || null,
             recurrence: todo.recurrence,
             recurrenceInterval: todo.recurrenceInterval || 1,
             handwriting: todo.handwriting || null,
+            isInlineHandwriting: Boolean(todo.isInlineHandwriting),
             steps: Array.isArray(todo.steps) ? todo.steps.map(s => ({ ...s, completed: false })) : [],
-            inMyDay: false
+            inMyDay: false,
+            plannedDate: null,
+            pinned: nextPinned,
+            pinnedIn: nextPinnedIn,
+            pinnedAt: nextPinned ? (todo.pinnedAt || now) : null,
+            ...(preservedMyDayOrder !== null ? { myDayOrder: preservedMyDayOrder } : {}),
+            ...(preservedListOrder !== undefined ? { order: preservedListOrder } : {})
           }
         );
       }, 350);
@@ -1148,8 +1173,9 @@ export class SyncEngine {
   }
 
   calculateNextRecurrence(baseDateStr, recurrence, interval = 1) {
+    const pad = n => String(n).padStart(2, '0');
     const d = new Date(baseDateStr + 'T12:00:00');
-    if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+    if (isNaN(d.getTime())) return getLogicalDateStr(new Date(), getStoredDayStartHour());
 
     const safeInterval = Math.max(1, parseInt(interval, 10) || 1);
 
@@ -1167,7 +1193,7 @@ export class SyncEngine {
       d.setDate(d.getDate() + safeInterval);
     }
 
-    return d.toISOString().split('T')[0];
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
   carryForwardUnfinished(selectedIds = null, dayStartHour = null) {
