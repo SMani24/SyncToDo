@@ -425,8 +425,35 @@ export default function App() {
 
   // Touch Swipe state for task cards
   const [swipedTodoId, setSwipedTodoId] = useState(null); // todo.id with left-swipe actions open
-  const touchSwipeRef = useRef({ id: null, startX: 0, startY: 0, deltaX: 0 });
+  const [activeSwipe, setActiveSwipe] = useState(null); // { id, dir: 'left' | 'right' }
+  const [completingTodoIds, setCompletingTodoIds] = useState({});
+  const touchSwipeRef = useRef({
+    id: null,
+    startX: 0,
+    startY: 0,
+    deltaX: 0,
+    axis: null,
+    wasOpen: false,
+    isCompleted: false,
+    wasThresholdCrossed: false,
+    cardEl: null,
+    surfaceEl: null
+  });
+  const swipeResetTimersRef = useRef(new Map());
+  const swipeCompleteTimersRef = useRef(new Map());
   const lastSwipeActionTimeRef = useRef(0);
+
+  useEffect(() => {
+    const resetTimers = swipeResetTimersRef.current;
+    const completeTimers = swipeCompleteTimersRef.current;
+    return () => {
+      resetTimers.forEach(t => clearTimeout(t));
+      completeTimers.forEach(t => {
+        if (t?.t1) clearTimeout(t.t1);
+        if (t?.t2) clearTimeout(t.t2);
+      });
+    };
+  }, []);
 
   // Inline Quick-Add Pen Canvas refs
   const inlineCanvasRef = useRef(null);
@@ -726,6 +753,276 @@ export default function App() {
         syncEngine.restoreTodoSnapshot(snapshot);
       });
     }
+  };
+
+  const resetSwipeDomStyles = (cardEl, surfaceEl) => {
+    if (cardEl) {
+      cardEl.style.height = '';
+      cardEl.style.marginBottom = '';
+      cardEl.style.opacity = '';
+      cardEl.style.overflow = '';
+      cardEl.style.pointerEvents = '';
+      cardEl.style.transition = '';
+      cardEl.style.willChange = '';
+    }
+    if (surfaceEl) {
+      surfaceEl.style.transform = '';
+      surfaceEl.style.opacity = '';
+      surfaceEl.style.transition = '';
+    }
+  };
+
+  const updateRightSwipeVisuals = (cardEl, dx, isCompleted) => {
+    if (!cardEl) return;
+    const bgEl = cardEl.querySelector('[data-swipe-complete-bg]');
+    const badgeEl = cardEl.querySelector('[data-swipe-complete-badge]');
+    const committed = dx > 65;
+    const progress = Math.max(0, Math.min(1, dx / 65));
+    if (bgEl) {
+      if (isCompleted) {
+        bgEl.style.backgroundColor = committed
+          ? '#3b82f6'
+          : `rgba(59, 130, 246, ${(0.14 + progress * 0.2).toFixed(3)})`;
+        bgEl.style.color = committed ? '#ffffff' : '#60a5fa';
+      } else {
+        bgEl.style.backgroundColor = committed
+          ? '#10b981'
+          : `rgba(16, 185, 129, ${(0.14 + progress * 0.2).toFixed(3)})`;
+        bgEl.style.color = committed ? '#ffffff' : '#10b981';
+      }
+    }
+    if (badgeEl) {
+      const scale = committed ? 1.08 : (0.78 + progress * 0.22);
+      badgeEl.style.transform = `scale(${scale.toFixed(3)})`;
+    }
+  };
+
+  const handleCardTouchStart = (e, todo, isCompleted, index, isSwipedOpen) => {
+    if (!e.touches || e.touches.length === 0) return;
+    if (completingTodoIds[todo.id]) return;
+    if (
+      Date.now() - appMountedTimeRef.current < 900 ||
+      Date.now() - appResumeTimeRef.current < 700
+    ) return;
+
+    const existingReset = swipeResetTimersRef.current.get(todo.id);
+    if (existingReset) {
+      clearTimeout(existingReset);
+      swipeResetTimersRef.current.delete(todo.id);
+    }
+
+    const touch = e.touches[0];
+    const cardEl = e.currentTarget;
+    const surfaceEl = cardEl.querySelector('[data-swipe-surface]');
+    touchSwipeRef.current = {
+      id: todo.id,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      deltaX: 0,
+      axis: null,
+      wasOpen: isSwipedOpen,
+      isCompleted,
+      wasThresholdCrossed: false,
+      cardEl,
+      surfaceEl
+    };
+
+    if (cardHoldTimerRef.current) clearTimeout(cardHoldTimerRef.current);
+    if (!isCompleted && !e.target.closest('button')) {
+      cardHoldTimerRef.current = setTimeout(() => {
+        if (
+          cardEl &&
+          !isSwipedOpen &&
+          Date.now() - appMountedTimeRef.current >= 900 &&
+          Date.now() - appResumeTimeRef.current >= 700
+        ) {
+          startTaskDrag(todo, index, touch.clientY, cardEl);
+          touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0, axis: null, wasOpen: false, isCompleted: false, wasThresholdCrossed: false, cardEl: null, surfaceEl: null };
+        }
+      }, 620);
+    }
+  };
+
+  const handleCardTouchMove = (e, todo) => {
+    if (!e.touches || e.touches.length === 0) return;
+    const s = touchSwipeRef.current;
+    if (s.id !== todo.id) return;
+
+    const touch = e.touches[0];
+    const dx = touch.clientX - s.startX;
+    const dy = touch.clientY - s.startY;
+
+    if (!s.axis && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      if (cardHoldTimerRef.current) {
+        clearTimeout(cardHoldTimerRef.current);
+        cardHoldTimerRef.current = null;
+      }
+      s.axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'x' : 'y';
+    }
+
+    if (s.axis !== 'x') return;
+    s.deltaX = dx;
+
+    if (!s.surfaceEl) {
+      s.surfaceEl = s.cardEl?.querySelector('[data-swipe-surface]') || null;
+    }
+    if (!s.surfaceEl) return;
+
+    if (s.wasOpen) {
+      const visualX = Math.max(-245, Math.min(24, -220 + dx));
+      s.surfaceEl.style.transition = 'none';
+      s.surfaceEl.style.transform = `translate3d(${visualX}px, 0, 0)`;
+      return;
+    }
+
+    if (dx > 8) {
+      setActiveSwipe(prev => (prev?.id === todo.id && prev?.dir === 'right' ? prev : { id: todo.id, dir: 'right' }));
+      const visualX = dx <= 110 ? dx : 110 + (dx - 110) * 0.35;
+      s.surfaceEl.style.transition = 'none';
+      s.surfaceEl.style.transform = `translate3d(${Math.min(220, visualX)}px, 0, 0)`;
+
+      const crossed = dx > 65;
+      if (crossed && !s.wasThresholdCrossed) {
+        s.wasThresholdCrossed = true;
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          try { navigator.vibrate(10); } catch {}
+        }
+      } else if (!crossed && s.wasThresholdCrossed) {
+        s.wasThresholdCrossed = false;
+      }
+      updateRightSwipeVisuals(s.cardEl, dx, s.isCompleted);
+    } else if (dx < -8) {
+      setActiveSwipe(prev => (prev?.id === todo.id && prev?.dir === 'left' ? prev : { id: todo.id, dir: 'left' }));
+      const visualX = dx >= -220 ? dx : -220 + (dx + 220) * 0.25;
+      s.surfaceEl.style.transition = 'none';
+      s.surfaceEl.style.transform = `translate3d(${visualX}px, 0, 0)`;
+    } else {
+      s.surfaceEl.style.transition = 'none';
+      s.surfaceEl.style.transform = `translate3d(${dx}px, 0, 0)`;
+    }
+  };
+
+  const finishCardTouch = (todo, isLastInGroup, isCancel = false) => {
+    if (cardHoldTimerRef.current) {
+      clearTimeout(cardHoldTimerRef.current);
+      cardHoldTimerRef.current = null;
+    }
+    if (taskDragRef.current && taskDragRef.current.active) return;
+
+    const s = touchSwipeRef.current;
+    if (s.id !== todo.id) return;
+
+    const { deltaX: dx, axis, wasOpen, isCompleted, cardEl, surfaceEl } = s;
+    touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0, axis: null, wasOpen: false, isCompleted: false, wasThresholdCrossed: false, cardEl: null, surfaceEl: null };
+
+    if (axis !== 'x') return;
+
+    const scheduleSwipeSpringReset = (targetTransform = 'translate3d(0, 0, 0)', clearOpenStyle = true) => {
+      if (surfaceEl) {
+        surfaceEl.style.transition = 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)';
+        surfaceEl.style.transform = targetTransform;
+      }
+      const existing = swipeResetTimersRef.current.get(todo.id);
+      if (existing) clearTimeout(existing);
+      const timer = setTimeout(() => {
+        swipeResetTimersRef.current.delete(todo.id);
+        if (clearOpenStyle && surfaceEl) {
+          surfaceEl.style.transition = '';
+          surfaceEl.style.transform = '';
+        }
+        setActiveSwipe(prev => (prev?.id === todo.id ? null : prev));
+      }, 230);
+      swipeResetTimersRef.current.set(todo.id, timer);
+    };
+
+    if (wasOpen) {
+      if (!isCancel && dx > 25) {
+        if (surfaceEl) {
+          surfaceEl.style.transition = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
+          surfaceEl.style.transform = '';
+        }
+        setSwipedTodoId(null);
+        setActiveSwipe(prev => (prev?.id === todo.id ? null : prev));
+        lastSwipeActionTimeRef.current = Date.now();
+      } else {
+        scheduleSwipeSpringReset('translate3d(-220px, 0, 0)', true);
+      }
+      return;
+    }
+
+    if (!isCancel && dx > 65) {
+      // Smooth slide-off right + height collapse completion animation
+      setSwipedTodoId(null);
+      lastSwipeActionTimeRef.current = Date.now();
+      setCompletingTodoIds(prev => ({ ...prev, [todo.id]: true }));
+      updateRightSwipeVisuals(cardEl, Math.max(dx, 90), isCompleted);
+
+      const cardHeight = cardEl ? Math.round(cardEl.getBoundingClientRect().height) : 0;
+      if (cardEl && cardHeight > 0) {
+        cardEl.style.height = `${cardHeight}px`;
+        cardEl.style.overflow = 'hidden';
+        cardEl.style.pointerEvents = 'none';
+        cardEl.style.willChange = 'height, opacity, margin-bottom';
+      }
+
+      requestAnimationFrame(() => {
+        if (surfaceEl) {
+          surfaceEl.style.transition = 'transform 0.21s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.19s ease';
+          surfaceEl.style.transform = 'translate3d(105%, 0, 0)';
+          surfaceEl.style.opacity = '0.2';
+        }
+        const badgeEl = cardEl?.querySelector('[data-swipe-complete-badge]');
+        if (badgeEl) {
+          badgeEl.style.transform = 'scale(1.15)';
+        }
+      });
+
+      const prevTimers = swipeCompleteTimersRef.current.get(todo.id);
+      if (prevTimers) {
+        clearTimeout(prevTimers.t1);
+        clearTimeout(prevTimers.t2);
+      }
+
+      const t1 = setTimeout(() => {
+        if (cardEl) {
+          cardEl.style.transition = 'height 0.17s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease, margin-bottom 0.17s cubic-bezier(0.4, 0, 0.2, 1)';
+          cardEl.style.height = '0px';
+          cardEl.style.opacity = '0';
+          if (!isLastInGroup) {
+            cardEl.style.marginBottom = '-8px';
+          }
+        }
+      }, 135);
+
+      const t2 = setTimeout(() => {
+        swipeCompleteTimersRef.current.delete(todo.id);
+        resetSwipeDomStyles(cardEl, surfaceEl);
+        setActiveSwipe(prev => (prev?.id === todo.id ? null : prev));
+        setCompletingTodoIds(prev => {
+          if (!prev[todo.id]) return prev;
+          const next = { ...prev };
+          delete next[todo.id];
+          return next;
+        });
+        handleToggleTodoWithUndo(todo);
+      }, 305);
+
+      swipeCompleteTimersRef.current.set(todo.id, { t1, t2 });
+      return;
+    }
+
+    if (!isCancel && dx < -55) {
+      if (surfaceEl) {
+        surfaceEl.style.transition = 'transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)';
+        surfaceEl.style.transform = '';
+      }
+      setSwipedTodoId(todo.id);
+      setActiveSwipe(prev => (prev?.id === todo.id ? null : prev));
+      lastSwipeActionTimeRef.current = Date.now();
+      return;
+    }
+
+    scheduleSwipeSpringReset('translate3d(0, 0, 0)', true);
   };
 
   const getCurrentPinContext = (todoObj = null) => {
@@ -3112,10 +3409,14 @@ export default function App() {
                 onClose={() => setActiveView('today')}
               />
             ) : (() => {
-              const renderTodoCard = (todo, isCompleted = false, index = -1) => {
+              const renderTodoCard = (todo, isCompleted = false, index = -1, groupLength = 0) => {
                 const listObj = syncState.lists.find(l => l.id === todo.listId);
                 const isSelected = selectedTodoId === todo.id;
                 const isSwipedOpen = swipedTodoId === todo.id;
+                const isSwipingLeft = (activeSwipe?.id === todo.id && activeSwipe?.dir === 'left') || isSwipedOpen;
+                const isCompleting = Boolean(completingTodoIds[todo.id]);
+                const isSwipingRight = (activeSwipe?.id === todo.id && activeSwipe?.dir === 'right') || isCompleting;
+                const isLastInGroup = groupLength > 0 ? index === groupLength - 1 : false;
                 const isPinned = isTodoPinnedInContext(todo, currentPinContext);
                 const steps = Array.isArray(todo.steps) ? todo.steps : [];
                 const doneSteps = steps.filter(s => s.completed).length;
@@ -3129,89 +3430,15 @@ export default function App() {
                     key={todo.id}
                     data-todo-card={todo.id}
                     data-active-card={!isCompleted ? 'true' : 'false'}
-                    onTouchStart={(e) => {
-                      if (!e.touches || e.touches.length === 0) return;
-                      if (
-                        Date.now() - appMountedTimeRef.current < 900 ||
-                        Date.now() - appResumeTimeRef.current < 700
-                      ) return;
-                      const touch = e.touches[0];
-                      touchSwipeRef.current = {
-                        id: todo.id,
-                        startX: touch.clientX,
-                        startY: touch.clientY,
-                        deltaX: 0
-                      };
-                      if (cardHoldTimerRef.current) clearTimeout(cardHoldTimerRef.current);
-                      if (!isCompleted && !e.target.closest('button')) {
-                        const cardEl = e.currentTarget;
-                        cardHoldTimerRef.current = setTimeout(() => {
-                          if (
-                            cardEl &&
-                            !isSwipedOpen &&
-                            Date.now() - appMountedTimeRef.current >= 900 &&
-                            Date.now() - appResumeTimeRef.current >= 700
-                          ) {
-                            startTaskDrag(todo, index, touch.clientY, cardEl);
-                            touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
-                          }
-                        }, 620);
-                      }
-                    }}
-                    onTouchMove={(e) => {
-                      if (!e.touches || e.touches.length === 0) return;
-                      const touch = e.touches[0];
-                      if (touchSwipeRef.current.id === todo.id) {
-                        const dx = touch.clientX - touchSwipeRef.current.startX;
-                        const dy = touch.clientY - touchSwipeRef.current.startY;
-                        if (Math.abs(dx) > 7 || Math.abs(dy) > 7) {
-                          if (cardHoldTimerRef.current) {
-                            clearTimeout(cardHoldTimerRef.current);
-                            cardHoldTimerRef.current = null;
-                          }
-                        }
-                        if (Math.abs(dx) > Math.abs(dy)) {
-                          touchSwipeRef.current.deltaX = dx;
-                        }
-                      }
-                    }}
-                    onTouchEnd={() => {
-                      if (cardHoldTimerRef.current) {
-                        clearTimeout(cardHoldTimerRef.current);
-                        cardHoldTimerRef.current = null;
-                      }
-                      if (taskDragRef.current && taskDragRef.current.active) return;
-                      if (touchSwipeRef.current.id !== todo.id) return;
-                      const dx = touchSwipeRef.current.deltaX;
-                      if (isSwipedOpen) {
-                        // Dismiss open left-swipe actions on right swipe without marking task completed
-                        if (dx > 25) {
-                          setSwipedTodoId(null);
-                          lastSwipeActionTimeRef.current = Date.now();
-                        }
-                      } else if (dx > 65) {
-                        // Swipe right from resting state -> toggle complete
-                        handleToggleTodoWithUndo(todo);
-                        setSwipedTodoId(null);
-                        lastSwipeActionTimeRef.current = Date.now();
-                      } else if (dx < -55) {
-                        // Swipe left from resting state -> reveal Pin / Tomorrow / Delete actions
-                        setSwipedTodoId(todo.id);
-                        lastSwipeActionTimeRef.current = Date.now();
-                      }
-                      touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
-                    }}
-                    onTouchCancel={() => {
-                      if (cardHoldTimerRef.current) {
-                        clearTimeout(cardHoldTimerRef.current);
-                        cardHoldTimerRef.current = null;
-                      }
-                      touchSwipeRef.current = { id: null, startX: 0, startY: 0, deltaX: 0 };
-                    }}
+                    onTouchStart={(e) => handleCardTouchStart(e, todo, isCompleted, index, isSwipedOpen)}
+                    onTouchMove={(e) => handleCardTouchMove(e, todo)}
+                    onTouchEnd={() => finishCardTouch(todo, isLastInGroup, false)}
+                    onTouchCancel={() => finishCardTouch(todo, isLastInGroup, true)}
                     style={{
                       position: 'relative',
-                      overflow: isSwipedOpen ? 'hidden' : 'visible',
+                      overflow: (isSwipedOpen || isSwipingLeft || isSwipingRight) ? 'hidden' : 'visible',
                       borderRadius: '12px',
+                      touchAction: 'pan-y',
                       transform: dragOffset ? `translateY(${dragOffset}px)` : 'none',
                       transition: taskDrag ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1)' : 'none',
                       zIndex: isCurrentlyDragged ? 0 : 1,
@@ -3220,8 +3447,59 @@ export default function App() {
                       pointerEvents: isCurrentlyDragged ? 'none' : 'auto'
                     }}
                   >
+                    {/* Right-Swipe Complete / Restore Backdrop behind card */}
+                    {isSwipingRight && (
+                      <div
+                        data-swipe-complete-bg="true"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: '12px',
+                          backgroundColor: isCompleting
+                            ? (isCompleted ? '#3b82f6' : '#10b981')
+                            : (isCompleted ? 'rgba(59, 130, 246, 0.16)' : 'rgba(16, 185, 129, 0.16)'),
+                          color: isCompleting ? '#ffffff' : (isCompleted ? '#60a5fa' : '#10b981'),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-start',
+                          paddingLeft: '18px',
+                          zIndex: 1,
+                          transition: 'background-color 0.15s ease, color 0.15s ease',
+                          pointerEvents: 'none'
+                        }}
+                      >
+                        <div
+                          data-swipe-complete-badge="true"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '12.5px',
+                            fontWeight: 800,
+                            letterSpacing: '0.2px',
+                            transition: 'transform 0.14s cubic-bezier(0.22, 1, 0.36, 1)',
+                            transform: isCompleting ? 'scale(1.12)' : 'scale(0.84)'
+                          }}
+                        >
+                          <span style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.2)',
+                            border: '1.5px solid currentColor',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Icon name={isCompleted ? 'undo' : 'check'} size={14} />
+                          </span>
+                          <span>{isCompleted ? 'Restore' : 'Done'}</span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Reveal Actions behind card on Left Swipe (Phone/Touch) */}
-                    {isSwipedOpen && (
+                    {isSwipingLeft && (
                       <div style={{
                         position: 'absolute',
                         top: 0,
@@ -3231,7 +3509,7 @@ export default function App() {
                         alignItems: 'center',
                         gap: '6px',
                         paddingRight: '10px',
-                        zIndex: 2
+                        zIndex: 1
                       }}>
                         <button
                           onClick={(e) => {
@@ -3301,6 +3579,7 @@ export default function App() {
                     )}
 
                     <div
+                      data-swipe-surface="true"
                       onClick={() => {
                         if (
                           isIgnoreClicksRef.current ||
@@ -3339,9 +3618,12 @@ export default function App() {
                           ? 'var(--surface-elevated)'
                           : isCompleted
                           ? 'var(--bg-subtle)'
-                          : isPinned
-                          ? (isDarkTheme ? 'rgba(245, 158, 11, 0.05)' : 'rgba(245, 158, 11, 0.04)')
                           : 'var(--surface)',
+                        backgroundImage: (!isSelected && !isCompleted && isPinned)
+                          ? (isDarkTheme
+                              ? 'linear-gradient(rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.06))'
+                              : 'linear-gradient(rgba(245, 158, 11, 0.05), rgba(245, 158, 11, 0.05))')
+                          : undefined,
                         border: isSelected
                           ? (isPinned ? '1.5px solid #f59e0b' : '1.5px solid var(--primary)')
                           : isCompleted
@@ -3357,13 +3639,20 @@ export default function App() {
                           : isPinned
                           ? '0 2px 8px rgba(245, 158, 11, 0.08), var(--card-shadow)'
                           : 'var(--card-shadow)',
-                        opacity: isCompleted ? 0.72 : 1,
+                        opacity: isCompleting ? 0.18 : (isCompleted && !isSwipingRight ? 0.72 : 1),
                         cursor: 'pointer',
                         gap: deviceType === 'phone' ? '10px' : '12px',
-                        transform: isSwipedOpen ? 'translateX(-220px)' : 'translateX(0)',
-                        transition: 'background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease',
+                        transform: isCompleting
+                          ? 'translate3d(105%, 0, 0)'
+                          : isSwipedOpen
+                          ? 'translate3d(-220px, 0, 0)'
+                          : 'translate3d(0, 0, 0)',
+                        transition: isCompleting
+                          ? 'transform 0.21s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.19s ease'
+                          : 'background-color 0.18s ease, border-color 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
+                        willChange: (isSwipingLeft || isSwipingRight) ? 'transform' : undefined,
                         position: 'relative',
-                        zIndex: 1,
+                        zIndex: 2,
                         userSelect: 'none',
                         WebkitUserSelect: 'none'
                       }}
@@ -3760,7 +4049,7 @@ export default function App() {
                     </div>
                   ) : (
                     <>
-                      {sortedActive.map((todo, index) => renderTodoCard(todo, false, index))}
+                      {sortedActive.map((todo, index) => renderTodoCard(todo, false, index, sortedActive.length))}
 
                       {sortedCompleted.length > 0 && (
                         <>
@@ -3801,7 +4090,7 @@ export default function App() {
                             </span>
                           </div>
 
-                          {sortedCompleted.map(todo => renderTodoCard(todo, true))}
+                          {sortedCompleted.map((todo, idx) => renderTodoCard(todo, true, idx, sortedCompleted.length))}
                         </>
                       )}
                     </>
