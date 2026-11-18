@@ -1,0 +1,4 @@
+interface:
+  display_name: "SyncToDo Tasks"
+  short_description: "Create and import structured task batches into SyncToDo"
+  default_prompt: "Use $synctodo-tasks to break this down into structured SyncToDo tasks and import them."

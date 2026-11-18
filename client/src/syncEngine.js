@@ -9,6 +9,7 @@ const STORAGE_KEY_DEVICE_NAME = 'synctodo_device_name_v1';
 
 import { P2PEngine } from './p2pEngine';
 import { getLogicalDateStr, isSameLogicalDay, getStoredDayStartHour } from './utils/calendar';
+import { buildImportBatch } from '../../shared/taskImport.js';
 
 export const ICON_NAME_MAP = {
   inbox: '📥',
@@ -1488,6 +1489,133 @@ export class SyncEngine {
     if (mutations.length > 0) {
       this.enqueueMutations(mutations, { saveImmediate: true, flush: true });
     }
+  }
+
+  importTasks(rawInput, options = {}) {
+    const startHour = getStoredDayStartHour();
+    const todayStr = options.todayStr || getLogicalDateStr(new Date(), startHour);
+    const tomorrowStr = options.tomorrowStr || (() => {
+      const [y, m, d] = todayStr.split('-').map(Number);
+      const t = new Date(y, m - 1, d + 1);
+      const pad = n => String(n).padStart(2, '0');
+      return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+    })();
+    const now = Date.now();
+
+    const { createdLists, importedTodos, summary } = buildImportBatch({
+      rawInput,
+      existingTodos: this.todos,
+      existingLists: this.lists,
+      todayStr,
+      tomorrowStr,
+      normalizeIconFn: normalizeListIcon,
+      topMyDayOrder: this.getTopMyDayOrder(todayStr),
+      now
+    });
+
+    const prevTodos = {};
+    importedTodos.forEach(t => {
+      prevTodos[t.id] = this.todos[t.id] ? JSON.parse(JSON.stringify(this.todos[t.id])) : null;
+    });
+
+    const mutations = [];
+    if (createdLists.length > 0) {
+      this.lists = this.sortListsArray([...this.lists, ...createdLists]);
+      createdLists.forEach((l, idx) => {
+        mutations.push({
+          id: `mut-${now}-implist-${idx}-${l.id.slice(-5)}`,
+          entityId: l.id,
+          type: 'LIST_UPSERT',
+          data: l,
+          timestamp: now
+        });
+      });
+      this.saveStoredLists();
+    }
+
+    importedTodos.forEach((t, idx) => {
+      this.todos[t.id] = t;
+      mutations.push({
+        id: `mut-${now}-imptodo-${idx}-${t.id.slice(-5)}`,
+        entityId: t.id,
+        type: 'UPSERT',
+        data: t,
+        timestamp: now
+      });
+    });
+
+    this.saveStoredTodos();
+    this.enqueueMutations(mutations, { saveImmediate: true, flush: true });
+    this.notify();
+
+    return {
+      createdLists,
+      importedTodos,
+      summary,
+      undoSnapshot: {
+        prevTodos,
+        createdListIds: createdLists.map(l => l.id)
+      }
+    };
+  }
+
+  revertImportedBatch(undoSnapshot) {
+    if (!undoSnapshot) return;
+    const { prevTodos = {}, createdListIds = [] } = undoSnapshot;
+    const now = Date.now();
+    const mutations = [];
+
+    Object.entries(prevTodos).forEach(([id, prev], idx) => {
+      if (prev) {
+        const restored = { ...prev, updatedAt: now, version: (prev.version || 1) + 1 };
+        this.todos[id] = restored;
+        mutations.push({
+          id: `mut-${now}-undotodo-${idx}-${id.slice(-5)}`,
+          entityId: id,
+          type: 'UPSERT',
+          data: restored,
+          timestamp: now
+        });
+      } else if (this.todos[id]) {
+        this.todos[id].deletedAt = now;
+        this.todos[id].updatedAt = now;
+        mutations.push({
+          id: `mut-${now}-deltodo-${idx}-${id.slice(-5)}`,
+          entityId: id,
+          type: 'DELETE',
+          data: null,
+          timestamp: now
+        });
+      }
+    });
+
+    if (createdListIds.length > 0) {
+      const createdSet = new Set(createdListIds);
+      const activeListIds = new Set(
+        Object.values(this.todos).filter(t => t && !t.deletedAt).map(t => t.listId)
+      );
+      const removable = createdListIds.filter(lid => createdSet.has(lid) && !activeListIds.has(lid));
+      if (removable.length > 0) {
+        const removeSet = new Set(removable);
+        this.lists = this.lists.filter(l => !removeSet.has(l.id));
+        removable.forEach((lid, idx) => {
+          mutations.push({
+            id: `mut-${now}-dellist-${idx}-${lid.slice(-5)}`,
+            entityId: lid,
+            type: 'LIST_DELETE',
+            data: null,
+            timestamp: now
+          });
+        });
+        this.saveStoredLists();
+      }
+    }
+
+    this.saveStoredTodos();
+    if (mutations.length > 0) {
+      this.enqueueMutations(mutations, { saveImmediate: true, flush: true });
+    }
+    this.notify();
   }
 }
 

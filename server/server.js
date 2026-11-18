@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { spawn, exec } from 'child_process';
 import dgram from 'dgram';
 import os from 'os';
+import { buildImportBatch } from '../shared/taskImport.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -936,6 +937,92 @@ app.post('/api/sync', (req, res) => {
   const { mutations = [], deviceId = 'unknown' } = req.body;
   const applied = applyMutations(mutations, deviceId, null);
   res.json({ success: true, appliedCount: applied.length, timestamp: Date.now() });
+});
+
+// Lightweight lists directory endpoint for AI agents and scripts
+app.get('/api/lists', (req, res) => {
+  res.json({
+    lists: state.lists.map(l => ({
+      id: l.id,
+      name: l.name,
+      icon: normalizeListIcon(l.icon),
+      color: l.color || '#6366f1',
+      isSystem: Boolean(l.isSystem)
+    })),
+    timestamp: Date.now()
+  });
+});
+
+// Batch import tasks from structured JSON (AI agents, scripts, external tools)
+app.post('/api/tasks/import', (req, res) => {
+  const bodyObj = (!Array.isArray(req.body) && req.body && typeof req.body === 'object') ? req.body : {};
+  const authHeader = req.headers.authorization || '';
+  const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : null;
+  const deviceId = bodyObj.deviceId || req.query.deviceId || 'ai-agent-import';
+  const token = bodyObj.token || req.query.token || bearerToken || null;
+
+  if (!isAuthorizedCaller(req.ip, deviceId, token)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Unauthorized caller. Run locally on this machine or pair your device first.'
+    });
+  }
+
+  try {
+    const pad = n => String(n).padStart(2, '0');
+    const d0 = new Date();
+    const d1 = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 1);
+    const todayStr = `${d0.getFullYear()}-${pad(d0.getMonth() + 1)}-${pad(d0.getDate())}`;
+    const tomorrowStr = `${d1.getFullYear()}-${pad(d1.getMonth() + 1)}-${pad(d1.getDate())}`;
+    const now = Date.now();
+
+    const { createdLists, importedTodos, summary } = buildImportBatch({
+      rawInput: req.body,
+      existingTodos: state.todos,
+      existingLists: state.lists,
+      todayStr,
+      tomorrowStr,
+      normalizeIconFn: normalizeListIcon,
+      now
+    });
+
+    const mutations = [];
+    createdLists.forEach((l, idx) => {
+      mutations.push({
+        id: `mut-${now}-implist-${idx}-${l.id.slice(-5)}`,
+        entityId: l.id,
+        type: 'LIST_UPSERT',
+        data: l,
+        timestamp: now
+      });
+    });
+    importedTodos.forEach((t, idx) => {
+      mutations.push({
+        id: `mut-${now}-imptodo-${idx}-${t.id.slice(-5)}`,
+        entityId: t.id,
+        type: 'UPSERT',
+        data: t,
+        timestamp: now
+      });
+    });
+
+    const applied = applyMutations(mutations, deviceId, null);
+    return res.json({
+      success: true,
+      importedCount: importedTodos.length,
+      createdListsCount: createdLists.length,
+      createdLists: createdLists.map(l => l.name),
+      importedIds: importedTodos.map(t => t.id),
+      appliedCount: applied.length,
+      summary,
+      timestamp: now
+    });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      error: err?.message || 'Failed to parse task import JSON'
+    });
+  }
 });
 
 // Create HTTP server and bind WebSocket

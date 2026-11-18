@@ -1,0 +1,27 @@
+{
+  "defaultList": "Inbox",
+  "createMissingLists": true,
+  "tasks": [
+    {
+      "title": "OS - Review lecture 4 virtual memory slides",
+      "list": "OS",
+      "priority": "high",
+      "dueDate": "tomorrow",
+      "inMyDay": false,
+      "notes": "Focus on page table size and TLB hit rate calculations.",
+      "steps": [
+        "Skim slides 1-24",
+        "Work through the two multi-level paging examples"
+      ]
+    },
+    {
+      "title": "تمرین ۲ - ارسال فایل نهایی",
+      "list": "Homework",
+      "priority": "high",
+      "dueDate": "today",
+      "dueTime": "22:00",
+      "inMyDay": true,
+      "pinned": false
+    }
+  ]
+}

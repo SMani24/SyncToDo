@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Icon } from './SvgIcons';
 import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate, formatDueDateBadge, DAY_START_HOUR_OPTIONS } from '../utils/calendar';
+import { buildImportBatch, buildChatGPTInstructions } from '../../../shared/taskImport.js';
 
 export default function SettingsModal({
   calendarType = 'gregorian',
@@ -11,6 +12,7 @@ export default function SettingsModal({
   onSelectDayStartHour,
   onOpenThemeModal,
   onOpenDeviceModal,
+  onImportSuccess,
   syncEngine,
   syncState = {},
   deviceType = 'laptop',
@@ -18,6 +20,85 @@ export default function SettingsModal({
 }) {
   const today = new Date();
   const todayIso = today.toISOString().split('T')[0];
+  const fileInputRef = useRef(null);
+  const [showPasteBox, setShowPasteBox] = useState(false);
+  const [pasteJsonText, setPasteJsonText] = useState('');
+  const [importError, setImportError] = useState('');
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
+
+  const importPreview = useMemo(() => {
+    if (!pasteJsonText.trim()) return null;
+    try {
+      const res = buildImportBatch({
+        rawInput: pasteJsonText,
+        existingTodos: syncState.todos || [],
+        existingLists: syncState.lists || []
+      });
+      return { ok: true, summary: res.summary };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }, [pasteJsonText, syncState.todos, syncState.lists]);
+
+  const chatGptPrompt = useMemo(() => buildChatGPTInstructions(syncState.lists || []), [syncState.lists]);
+
+  const runJsonImport = (rawText) => {
+    setImportError('');
+    try {
+      const result = syncEngine.importTasks(rawText);
+      setPasteJsonText('');
+      setShowPasteBox(false);
+      if (onImportSuccess) {
+        onImportSuccess(result);
+      }
+      onClose();
+    } catch (err) {
+      setImportError(err.message || 'Could not import JSON.');
+    }
+  };
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      runJsonImport(text);
+    } catch (err) {
+      setImportError('Failed to read file: ' + err.message);
+      setShowPasteBox(true);
+    }
+  };
+
+  const handleCopyPrompt = async () => {
+    let copied = false;
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(chatGptPrompt);
+        copied = true;
+      } catch (_) {}
+    }
+    if (!copied) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = chatGptPrompt;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (_) {}
+    }
+    if (copied) {
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2200);
+    } else {
+      setShowPromptPreview(true);
+    }
+  };
 
   const handleExportBackup = () => {
     try {
@@ -413,48 +494,258 @@ export default function SettingsModal({
           </button>
         </div>
 
-        {/* SECTION 4: DATA BACKUP & EXPORT */}
+        {/* SECTION 4: AI TASK IMPORT & DATA BACKUP */}
         <div style={{
           padding: '14px 16px',
           borderRadius: '14px',
           background: 'var(--bg-subtle)',
           border: '1px solid var(--border)',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
           gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '32px', height: '32px', borderRadius: '8px',
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#10b981'
-            }}>
-              <Icon name="inbox" size={16} />
-            </div>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 700 }}>Backup & Export Data</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Download all tasks and lists as a standalone JSON file
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '8px',
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#10b981'
+              }}>
+                <Icon name="sparkles" size={16} />
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 700 }}>AI Task Import & Data Backup</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Import batch tasks from GPT, Codex, or JSON files, or export backup
+                </div>
               </div>
             </div>
           </div>
-          <button
-            onClick={handleExportBackup}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '8px',
-              border: '1px solid #10b981',
-              background: 'rgba(16, 185, 129, 0.1)',
-              color: '#10b981',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            Export JSON
-          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json,.txt"
+            onChange={handleFileSelected}
+            style={{ display: 'none' }}
+          />
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <button
+              type="button"
+              data-action="import-json-file"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--primary)',
+                background: 'var(--tag-bg)',
+                color: 'var(--primary)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Import JSON File
+            </button>
+            <button
+              type="button"
+              data-action="toggle-paste-json"
+              onClick={() => {
+                setImportError('');
+                setShowPasteBox(prev => !prev);
+              }}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: showPasteBox ? '1px solid var(--primary)' : '1px solid var(--border)',
+                background: showPasteBox ? 'var(--tag-bg)' : 'var(--surface)',
+                color: showPasteBox ? 'var(--primary)' : 'var(--text)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Paste JSON
+            </button>
+            <button
+              type="button"
+              data-action="copy-ai-prompt"
+              onClick={handleCopyPrompt}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: promptCopied ? '1px solid #10b981' : '1px solid var(--border)',
+                background: promptCopied ? 'rgba(16, 185, 129, 0.12)' : 'var(--surface)',
+                color: promptCopied ? '#10b981' : 'var(--text)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              {promptCopied ? '✓ Copied AI Prompt' : 'Copy GPT Prompt'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPromptPreview(prev => !prev)}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--text-muted)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              {showPromptPreview ? 'Hide Prompt' : 'View Prompt'}
+            </button>
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: '1px solid #10b981',
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginLeft: 'auto'
+              }}
+            >
+              Export JSON
+            </button>
+          </div>
+
+          {showPasteBox && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              padding: '10px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border)'
+            }}>
+              <textarea
+                data-input="paste-tasks-json"
+                value={pasteJsonText}
+                onChange={(e) => {
+                  setImportError('');
+                  setPasteJsonText(e.target.value);
+                }}
+                rows={6}
+                placeholder={'{\n  "tasks": [\n    { "title": "Review Lecture 3", "list": "OS", "priority": "high", "dueDate": "tomorrow", "steps": ["Read notes", "Solve Q1"] }\n  ]\n}'}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text)',
+                  padding: '9px 10px',
+                  fontSize: '11.5px',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  resize: 'vertical',
+                  outline: 'none'
+                }}
+              />
+              {importError && (
+                <div style={{ fontSize: '11.5px', color: '#ef4444', fontWeight: 600 }}>
+                  {importError}
+                </div>
+              )}
+              {!importError && importPreview && (
+                <div style={{
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: importPreview.ok ? '#10b981' : '#ef4444'
+                }}>
+                  {importPreview.ok
+                    ? `Ready: ${importPreview.summary.taskCount} task${importPreview.summary.taskCount === 1 ? '' : 's'} -> ${Object.entries(importPreview.summary.targetListCounts).map(([k, v]) => `${k} (${v})`).join(', ')}${importPreview.summary.createdListCount > 0 ? ` · +${importPreview.summary.createdListCount} new list${importPreview.summary.createdListCount === 1 ? '' : 's'}` : ''}`
+                    : importPreview.error}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasteBox(false);
+                    setImportError('');
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'transparent',
+                    color: 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  data-action="submit-paste-json"
+                  disabled={!pasteJsonText.trim() || (importPreview && !importPreview.ok)}
+                  onClick={() => runJsonImport(pasteJsonText)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: (!pasteJsonText.trim() || (importPreview && !importPreview.ok)) ? 'var(--border)' : 'var(--primary)',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: (!pasteJsonText.trim() || (importPreview && !importPreview.ok)) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Import Tasks
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showPromptPreview && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              padding: '10px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border)'
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                Paste into ChatGPT Custom Instructions, Project Knowledge, or chat:
+              </div>
+              <textarea
+                readOnly
+                value={chatGptPrompt}
+                rows={7}
+                onFocus={(e) => e.target.select()}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text)',
+                  padding: '8px 10px',
+                  fontSize: '11px',
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                  resize: 'vertical',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Footer info */}

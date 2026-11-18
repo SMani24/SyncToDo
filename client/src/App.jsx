@@ -5385,6 +5385,16 @@ export default function App() {
           onSelectDayStartHour={handleSelectDayStartHour}
           onOpenThemeModal={() => setShowThemeModal(true)}
           onOpenDeviceModal={() => setShowDevicesModal(true)}
+          onImportSuccess={(result) => {
+            const count = result?.summary?.taskCount || result?.importedTodos?.length || 0;
+            triggerUndoToast({
+              action: 'imported',
+              actionLabel: `Imported ${count} task${count === 1 ? '' : 's'}`,
+              title: Object.keys(result?.summary?.targetListCounts || {}).join(', ') || 'SyncToDo'
+            }, () => {
+              syncEngine.revertImportedBatch(result?.undoSnapshot);
+            });
+          }}
           syncEngine={syncEngine}
           syncState={syncState}
           deviceType={deviceType}
