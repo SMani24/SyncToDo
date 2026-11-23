@@ -303,6 +303,7 @@ export default function CalendarPickerModal({
             type="button"
             onClick={handlePrevMonth}
             title={isRTL ? 'ماه قبل' : 'Previous month'}
+            aria-label={isRTL ? 'ماه قبل' : 'Previous month'}
             style={{
               width: '34px',
               height: '34px',
@@ -310,8 +311,6 @@ export default function CalendarPickerModal({
               border: '1px solid var(--border)',
               background: 'var(--surface-elevated)',
               color: 'var(--text)',
-              fontSize: '18px',
-              fontWeight: 800,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -320,7 +319,7 @@ export default function CalendarPickerModal({
               lineHeight: 1
             }}
           >
-            {isRTL ? '›' : '‹'}
+            <Icon name={isRTL ? 'chev' : 'chevLeft'} size={16} />
           </button>
 
           {/* Month & Year Selectors */}
@@ -380,6 +379,7 @@ export default function CalendarPickerModal({
             type="button"
             onClick={handleNextMonth}
             title={isRTL ? 'ماه بعد' : 'Next month'}
+            aria-label={isRTL ? 'ماه بعد' : 'Next month'}
             style={{
               width: '34px',
               height: '34px',
@@ -387,8 +387,6 @@ export default function CalendarPickerModal({
               border: '1px solid var(--border)',
               background: 'var(--surface-elevated)',
               color: 'var(--text)',
-              fontSize: '18px',
-              fontWeight: 800,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -397,7 +395,7 @@ export default function CalendarPickerModal({
               lineHeight: 1
             }}
           >
-            {isRTL ? '‹' : '›'}
+            <Icon name={isRTL ? 'chevLeft' : 'chev'} size={16} />
           </button>
         </div>
 
