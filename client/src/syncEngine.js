@@ -142,8 +142,15 @@ export function detectDeviceType() {
 export function isTodoInMyDay(todo, todayStr) {
   if (!todo) return false;
   const plannedToday = Boolean(todo.inMyDay) && (!todo.plannedDate || todo.plannedDate === todayStr);
-  const dueToday = Boolean(todo.dueDate && todo.dueDate === todayStr && todo.myDayExcludedDate !== todayStr);
-  return plannedToday || dueToday;
+  const dueTodayOrOverdue = Boolean(todo.dueDate && todo.dueDate <= todayStr && todo.myDayExcludedDate !== todayStr);
+  return plannedToday || dueTodayOrOverdue;
+}
+
+export function isTodoLeftoverFromEarlier(todo, todayStr) {
+  if (!todo || todo.completed || todo.deletedAt) return false;
+  if (isTodoInMyDay(todo, todayStr)) return false;
+  if (todo.myDayExcludedDate === todayStr) return false;
+  return Boolean(todo.inMyDay && todo.plannedDate && todo.plannedDate < todayStr);
 }
 
 export function isTodoPinnedInContext(todo, context = 'today') {
@@ -721,9 +728,14 @@ export class SyncEngine {
         ...incoming
       };
     } else {
-      // Intent preservation: if incoming has inMyDay for today, preserve it!
+      // Intent preservation: if incoming has inMyDay for today, preserve it unless explicitly excluded today!
       const today = getLogicalDateStr(new Date(), getStoredDayStartHour());
-      if (incoming.inMyDay && (incoming.plannedDate === today || incoming.dueDate === today) && !current.completed) {
+      if (
+        incoming.inMyDay &&
+        (incoming.plannedDate === today || (incoming.dueDate && incoming.dueDate <= today)) &&
+        !current.completed &&
+        current.myDayExcludedDate !== today
+      ) {
         if (!current.inMyDay || current.plannedDate !== today) {
           current.inMyDay = true;
           current.plannedDate = incoming.plannedDate || today;
@@ -872,7 +884,7 @@ export class SyncEngine {
     const order = typeof extra.order === 'number' ? extra.order : (minOrder - 1);
     const myDayOrder = typeof extra.myDayOrder === 'number'
       ? extra.myDayOrder
-      : (extra.inMyDay || (dueDate && dueDate >= todayStr) ? this.getTopMyDayOrder(todayStr) : null);
+      : (extra.inMyDay || Boolean(dueDate) ? this.getTopMyDayOrder(todayStr) : null);
 
     const normalizedPinnedIn = Array.isArray(extra.pinnedIn) && extra.pinnedIn.length > 0
       ? [...new Set(extra.pinnedIn)]
@@ -1197,12 +1209,13 @@ export class SyncEngine {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
-  carryForwardUnfinished(selectedIds = null, dayStartHour = null) {
+  carryForwardUnfinished(selectedIds = null, dayStartHour = null, options = {}) {
     const startHour = typeof dayStartHour === 'number' ? dayStartHour : getStoredDayStartHour();
     const today = getLogicalDateStr(new Date(), startHour);
     const now = Date.now();
     let count = 0;
     const allowSet = Array.isArray(selectedIds) ? new Set(selectedIds) : null;
+    const dismissUnselected = Boolean(options && options.dismissUnselected);
     const newMutations = [];
 
     Object.values(this.todos).forEach(t => {
@@ -1217,13 +1230,14 @@ export class SyncEngine {
             : (t.plannedDate === today || t.dueDate === today);
           if (!completedToday) {
             t.inMyDay = false;
-            t.updatedAt = now;
+            t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
+            t.version = (t.version || 1) + 1;
             newMutations.push({
               id: `mut-${now}-${t.id.slice(-5)}-purge`,
               entityId: t.id,
               type: 'UPSERT',
-              data: t,
-              timestamp: now
+              data: { ...t },
+              timestamp: t.updatedAt
             });
           }
         }
@@ -1231,11 +1245,25 @@ export class SyncEngine {
       }
 
       // Active / unfinished tasks
-      if (allowSet && !allowSet.has(t.id)) return;
+      if (allowSet && !allowSet.has(t.id)) {
+        if (dismissUnselected && isTodoLeftoverFromEarlier(t, today)) {
+          t.inMyDay = false;
+          t.plannedDate = null;
+          t.myDayOrder = null;
+          t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
+          t.version = (t.version || 1) + 1;
+          newMutations.push({
+            id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+            entityId: t.id,
+            type: 'UPSERT',
+            data: { ...t },
+            timestamp: t.updatedAt
+          });
+        }
+        return;
+      }
       if (isTodoInMyDay(t, today)) return; // Already in today's focus!
-      const isPastDue = t.dueDate && t.dueDate < today;
-      const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < today;
-      if (isPastDue || isPastMyDay || allowSet) {
+      if (isTodoLeftoverFromEarlier(t, today) || allowSet) {
         // Compute destination My Day slot before marking inMyDay so task's own home-list order cannot distort it
         const nextMyDayOrder = this.getTopMyDayOrder(today);
         t.plannedDate = today;
@@ -1249,7 +1277,63 @@ export class SyncEngine {
           id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
           entityId: t.id,
           type: 'UPSERT',
-          data: t,
+          data: { ...t },
+          timestamp: t.updatedAt
+        });
+        count++;
+      }
+    });
+
+    if (count > 0 || newMutations.length > 0) {
+      this.scheduleSaveStoredTodos();
+      this.enqueueMutations(newMutations, { saveImmediate: false, flush: true });
+      this.notify();
+    }
+    return count;
+  }
+
+  dismissLeftovers(dayStartHour = null) {
+    const startHour = typeof dayStartHour === 'number' ? dayStartHour : getStoredDayStartHour();
+    const today = getLogicalDateStr(new Date(), startHour);
+    const now = Date.now();
+    let count = 0;
+    const newMutations = [];
+
+    Object.values(this.todos).forEach(t => {
+      if (t.deletedAt) return;
+
+      if (t.completed) {
+        if (t.inMyDay) {
+          const completedToday = t.completedAt
+            ? isSameLogicalDay(t.completedAt, today, startHour)
+            : (t.plannedDate === today || t.dueDate === today);
+          if (!completedToday) {
+            t.inMyDay = false;
+            t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
+            t.version = (t.version || 1) + 1;
+            newMutations.push({
+              id: `mut-${now}-${t.id.slice(-5)}-purge`,
+              entityId: t.id,
+              type: 'UPSERT',
+              data: { ...t },
+              timestamp: t.updatedAt
+            });
+          }
+        }
+        return;
+      }
+
+      if (isTodoLeftoverFromEarlier(t, today)) {
+        t.inMyDay = false;
+        t.plannedDate = null;
+        t.myDayOrder = null;
+        t.updatedAt = Math.max(now, (t.updatedAt || 0) + 1000);
+        t.version = (t.version || 1) + 1;
+        newMutations.push({
+          id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+          entityId: t.id,
+          type: 'UPSERT',
+          data: { ...t },
           timestamp: t.updatedAt
         });
         count++;
@@ -1271,7 +1355,7 @@ export class SyncEngine {
       this.updateTodo(id, {
         inMyDay: false,
         plannedDate: null,
-        myDayExcludedDate: todo.dueDate === todayStr ? todayStr : null,
+        myDayExcludedDate: todayStr,
         myDayOrder: null
       });
     } else {
@@ -1290,12 +1374,12 @@ export class SyncEngine {
 
     const now = Date.now();
     const extraReset = {};
-    if ('dueDate' in patch && !('myDayExcludedDate' in patch)) {
+    if (('dueDate' in patch || patch.inMyDay === true) && !('myDayExcludedDate' in patch)) {
       extraReset.myDayExcludedDate = null;
     }
     if ('dueDate' in patch && patch.dueDate && !('myDayOrder' in patch)) {
       const todayStr = getLogicalDateStr(new Date(), getStoredDayStartHour());
-      if (patch.dueDate >= todayStr && !isTodoInMyDay(todo, todayStr)) {
+      if (!isTodoInMyDay(todo, todayStr)) {
         extraReset.myDayOrder = this.getTopMyDayOrder(todayStr);
       }
     }

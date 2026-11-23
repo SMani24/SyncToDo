@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { normalizeListIcon, hasPersianChar, detectBidiDirection, isTodoInMyDay } from '../syncEngine';
+import { normalizeListIcon, hasPersianChar, detectBidiDirection, isTodoInMyDay, isTodoLeftoverFromEarlier } from '../syncEngine';
 import { Icon } from './SvgIcons';
 import { getLogicalDateStr, formatDayDateHeader } from '../utils/calendar';
 
@@ -9,7 +9,6 @@ export default function DailyPlannerModal({
   deviceType = 'laptop',
   calendarType = 'gregorian',
   dayStartHour = 0,
-  leftoversDismissedDate = null,
   onDismissLeftovers,
   onToggleInMyDay,
   onCarryForward,
@@ -21,15 +20,8 @@ export default function DailyPlannerModal({
   const activeTodos = todos.filter(t => !t.deletedAt);
   const myDayTodos = activeTodos.filter(t => !t.completed && isTodoInMyDay(t, today));
 
-  // Identify unfinished / overdue tasks from past days (ONLY active tasks, NEVER completed!)
-  const overdueTasks = activeTodos.filter(t => {
-    if (t.completed) return false;
-    // If it is ALREADY planned for today in My Day, it is not an unfinished leftover!
-    if (isTodoInMyDay(t, today)) return false;
-    const isPastDue = Boolean(t.dueDate && t.dueDate < today);
-    const isPastMyDay = Boolean(t.inMyDay && t.plannedDate && t.plannedDate < today);
-    return isPastDue || isPastMyDay;
-  });
+  // Unfinished tasks manually placed in an earlier day's My Day (overdue due-date tasks now enter My Day automatically)
+  const overdueTasks = activeTodos.filter(t => isTodoLeftoverFromEarlier(t, today));
 
   // Candidate backlog tasks available to add to My Day
   const candidateTasks = activeTodos.filter(t => {
@@ -141,7 +133,7 @@ export default function DailyPlannerModal({
         </div>
 
         {/* Overdue / Yesterday Carry-Forward Banner */}
-        {overdueTasks.length > 0 && leftoversDismissedDate !== today && (
+        {overdueTasks.length > 0 && (
           <div style={{
             margin: isPhone ? '12px 14px 0 14px' : '16px 20px 0 20px',
             padding: isPhone ? '12px 14px' : '14px 18px',
@@ -167,7 +159,6 @@ export default function DailyPlannerModal({
                 type="button"
                 onClick={() => {
                   onCarryForward();
-                  if (onDismissLeftovers) onDismissLeftovers();
                 }}
                 style={{
                   padding: '8px 14px',

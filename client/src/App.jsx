@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from
 import {
   syncEngine,
   isTodoInMyDay,
+  isTodoLeftoverFromEarlier,
   isTodoPinnedInContext as sharedIsTodoPinnedInContext,
   detectDeviceType,
   normalizeListIcon,
@@ -407,14 +408,7 @@ export default function App() {
   const [canvasTargetTodoId, setCanvasTargetTodoId] = useState(null);
   const [canvasInitialImage, setCanvasInitialImage] = useState(null);
 
-  // Leftovers / Carry-Forward state
-  const [leftoversDismissedDate, setLeftoversDismissedDate] = useState(() => {
-    try {
-      return localStorage.getItem('synctodo_leftovers_dismissed_date') || null;
-    } catch (_) {
-      return null;
-    }
-  });
+  // Leftovers / Carry-Forward state (driven directly by synced task state across devices)
   const [showLeftoversPicker, setShowLeftoversPicker] = useState(false);
   const [selectedLeftoverIds, setSelectedLeftoverIds] = useState(new Set());
   const [carryForwardNotice, setCarryForwardNotice] = useState(null);
@@ -1436,15 +1430,8 @@ export default function App() {
 
   const todayStr = getLogicalDateStr(new Date(), dayStartHour);
 
-  // Check for overdue/yesterday's unfinished tasks (ONLY active tasks, NEVER completed!)
-  const overdueTasks = syncState.todos.filter(t => {
-    if (t.completed || t.deletedAt) return false;
-    // If it is ALREADY planned for today in My Day, it is not an unfinished leftover needing carry-forward!
-    if (isTodoInMyDay(t, todayStr)) return false;
-    const isPastDue = t.dueDate && t.dueDate < todayStr;
-    const isPastMyDay = t.inMyDay && t.plannedDate && t.plannedDate < todayStr;
-    return isPastDue || isPastMyDay;
-  });
+  // Unfinished tasks manually placed in an earlier day's My Day (overdue due-date tasks now enter My Day automatically)
+  const overdueTasks = syncState.todos.filter(t => isTodoLeftoverFromEarlier(t, todayStr));
 
   // Filter Todos based on active view and filters
   const filteredTodos = syncState.todos.filter(todo => {
@@ -1455,7 +1442,7 @@ export default function App() {
     } else {
       if (activeView === 'today') {
         if (!todo.completed) {
-          // Active task belongs in My Day if due today (and not excluded) OR planned for today
+          // Active task belongs in My Day if due today/overdue (and not excluded) OR planned for today
           if (!isTodoInMyDay(todo, todayStr)) return false;
         } else {
           // Completed task belongs in today's My Day ONLY if it was completed on today's logical date
@@ -2257,16 +2244,22 @@ export default function App() {
 
   // Carry forward yesterday's unfinished tasks (all or selective)
   const handleCarryForward = (subsetIds = null) => {
-    const count = syncEngine.carryForwardUnfinished(subsetIds, dayStartHour);
+    const count = syncEngine.carryForwardUnfinished(
+      subsetIds,
+      dayStartHour,
+      Array.isArray(subsetIds) ? { dismissUnselected: true } : {}
+    );
     setShowLeftoversPicker(false);
-    setLeftoversDismissedDate(todayStr);
-    try {
-      localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
-    } catch (_) {}
     if (count > 0) {
       setCarryForwardNotice(`Carried forward ${count} task${count === 1 ? '' : 's'} to My Day!`);
       setTimeout(() => setCarryForwardNotice(null), 3500);
     }
+  };
+
+  // Dismiss earlier-day My Day leftovers and sync that dismissal across devices
+  const handleDismissLeftovers = () => {
+    syncEngine.dismissLeftovers(dayStartHour);
+    setShowLeftoversPicker(false);
   };
 
   const handleOpenCanvas = (todoId = null, initialImg = null) => {
@@ -3222,7 +3215,7 @@ export default function App() {
           )}
 
           {/* Upgraded Leftovers / Yesterday Carry-Forward Banner */}
-          {activeView === 'today' && overdueTasks.length > 0 && leftoversDismissedDate !== todayStr && (
+          {activeView === 'today' && overdueTasks.length > 0 && (
             <div style={{
               margin: '12px 16px 0 16px',
               padding: '12px 16px',
@@ -3289,12 +3282,7 @@ export default function App() {
                     Choose…
                   </button>
                   <button
-                    onClick={() => {
-                      setLeftoversDismissedDate(todayStr);
-                      try {
-                        localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
-                      } catch (_) {}
-                    }}
+                    onClick={handleDismissLeftovers}
                     style={{
                       padding: '6px 8px',
                       borderRadius: '8px',
@@ -3863,7 +3851,9 @@ export default function App() {
                               dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
                               style={{
                                 fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
-                                background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600,
+                                background: (!isCompleted && todo.dueDate < todayStr) ? 'rgba(239, 68, 68, 0.14)' : 'var(--bg-subtle)',
+                                color: (!isCompleted && todo.dueDate < todayStr) ? '#ef4444' : 'var(--text-muted)',
+                                fontWeight: (!isCompleted && todo.dueDate < todayStr) ? 700 : 600,
                                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                                 unicodeBidi: 'isolate'
                               }}
@@ -5162,13 +5152,7 @@ export default function App() {
           dayStartHour={dayStartHour}
           todos={syncState.todos}
           lists={syncState.lists}
-          leftoversDismissedDate={leftoversDismissedDate}
-          onDismissLeftovers={() => {
-            setLeftoversDismissedDate(todayStr);
-            try {
-              localStorage.setItem('synctodo_leftovers_dismissed_date', todayStr);
-            } catch (_) {}
-          }}
+          onDismissLeftovers={handleDismissLeftovers}
           onToggleInMyDay={(todoId) => {
             syncEngine.toggleTodoInMyDay(todoId, todayStr);
           }}
@@ -5657,7 +5641,9 @@ export default function App() {
                       dir={calendarType === 'gregorian' ? 'ltr' : 'rtl'}
                       style={{
                         fontSize: '10.5px', padding: '2px 7px', borderRadius: '6px',
-                        background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600,
+                        background: (!todo.completed && todo.dueDate < todayStr) ? 'rgba(239, 68, 68, 0.14)' : 'var(--bg-subtle)',
+                        color: (!todo.completed && todo.dueDate < todayStr) ? '#ef4444' : 'var(--text-muted)',
+                        fontWeight: (!todo.completed && todo.dueDate < todayStr) ? 700 : 600,
                         display: 'inline-flex', alignItems: 'center', gap: '4px',
                         unicodeBidi: 'isolate'
                       }}

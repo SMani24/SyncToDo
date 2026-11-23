@@ -305,9 +305,9 @@ export function buildImportBatch({
     const pinned = Boolean(raw.pinned) || (explicitPinnedIn && explicitPinnedIn.length > 0);
     const pinnedIn = explicitPinnedIn && explicitPinnedIn.length > 0
       ? explicitPinnedIn
-      : (pinned ? [...new Set([...(inMyDay || dueDate === effectiveToday ? ['today'] : []), resolvedList.id])] : []);
+      : (pinned ? [...new Set([...(inMyDay || (dueDate && dueDate <= effectiveToday) ? ['today'] : []), resolvedList.id])] : []);
 
-    const entersMyDay = Boolean(inMyDay || (dueDate && dueDate >= effectiveToday));
+    const entersMyDay = Boolean(inMyDay || dueDate);
 
     return {
       raw,
@@ -341,7 +341,7 @@ export function buildImportBatch({
   let baseMyDayTop = topMyDayOrder;
   if (typeof baseMyDayTop !== 'number') {
     const myDayOrders = activeTodos
-      .filter(t => !t.completed && (t.inMyDay || t.dueDate === effectiveToday))
+      .filter(t => !t.completed && (t.inMyDay || (t.dueDate && t.dueDate <= effectiveToday)))
       .map(t => (typeof t.myDayOrder === 'number' ? t.myDayOrder : t.order))
       .filter(o => typeof o === 'number' && Number.isFinite(o));
     baseMyDayTop = myDayOrders.length > 0 ? Math.min(...myDayOrders) - 1 : 0;

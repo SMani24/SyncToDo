@@ -21,6 +21,12 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+function getLocalTodayStr() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 const ICON_NAME_MAP = {
   inbox: '📥',
   briefcase: '💼',
@@ -877,7 +883,7 @@ app.all('/api/p2p/sync', (req, res) => {
     // 3. Merge Todos by ID & updatedAt (Last-Write-Wins)
     const todoValues = Array.isArray(todos) ? todos : Object.values(todos || {});
     if (todoValues.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalTodayStr();
       todoValues.forEach(t => {
         if (t && t.id) {
           const current = state.todos[t.id];
@@ -885,11 +891,20 @@ app.all('/api/p2p/sync', (req, res) => {
             state.todos[t.id] = { ...current, ...t };
             stateChanged = true;
           } else {
-            // Intent preservation: if incoming has inMyDay for today, preserve it!
-            if (t.inMyDay && (t.plannedDate === today || t.dueDate === today) && !current.completed) {
+            // Intent preservation: if incoming has inMyDay for today, preserve it unless explicitly excluded today!
+            if (
+              t.inMyDay &&
+              (t.plannedDate === today || (t.dueDate && t.dueDate <= today)) &&
+              !current.completed &&
+              current.myDayExcludedDate !== today
+            ) {
               if (!current.inMyDay || current.plannedDate !== today) {
                 current.inMyDay = true;
                 current.plannedDate = t.plannedDate || today;
+                current.myDayExcludedDate = null;
+                if (typeof t.myDayOrder === 'number' && typeof current.myDayOrder !== 'number') {
+                  current.myDayOrder = t.myDayOrder;
+                }
                 current.updatedAt = Math.max(current.updatedAt || 0, t.updatedAt || 0) + 100;
                 stateChanged = true;
               }
@@ -1184,12 +1199,21 @@ function applyMutations(mutations, deviceId, senderWs = null) {
       state.mutations.push(changelogEntry);
       applied.push(changelogEntry);
     } else if (type === 'UPSERT' && data && existing) {
-      // Intent preservation: if incoming UPSERT marks inMyDay for today, preserve it!
-      const today = new Date().toISOString().slice(0, 10);
-      if (data.inMyDay && (data.plannedDate === today || data.dueDate === today) && !existing.completed) {
+      // Intent preservation: if incoming UPSERT marks inMyDay for today, preserve it unless explicitly excluded today!
+      const today = getLocalTodayStr();
+      if (
+        data.inMyDay &&
+        (data.plannedDate === today || (data.dueDate && data.dueDate <= today)) &&
+        !existing.completed &&
+        existing.myDayExcludedDate !== today
+      ) {
         if (!existing.inMyDay || existing.plannedDate !== today) {
           existing.inMyDay = true;
           existing.plannedDate = data.plannedDate || today;
+          existing.myDayExcludedDate = null;
+          if (typeof data.myDayOrder === 'number' && typeof existing.myDayOrder !== 'number') {
+            existing.myDayOrder = data.myDayOrder;
+          }
           existing.updatedAt = Math.max(existing.updatedAt || 0, timestamp || now) + 100;
           const changelogEntry = {
             id: mutation.id || `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
