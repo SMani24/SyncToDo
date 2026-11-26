@@ -27,6 +27,13 @@ function getLocalTodayStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function getLocalYesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 const ICON_NAME_MAP = {
   inbox: '📥',
   briefcase: '💼',
@@ -118,7 +125,8 @@ function loadState() {
         serverDeviceId: parsed.serverDeviceId || state.serverDeviceId,
         serverDeviceName: parsed.serverDeviceName || state.serverDeviceName,
         pairingCode: parsed.pairingCode || state.pairingCode,
-        pairedDevices: parsed.pairedDevices || {}
+        pairedDevices: parsed.pairedDevices || {},
+        deletedLists: parsed.deletedLists || {}
       };
       let loadedMutated = false;
       if (state.todos && (state.todos['undefined'] || state.todos['null'])) {
@@ -232,6 +240,12 @@ function loadState() {
   }
 }
 
+function writeStateAtomic() {
+  const tmpFile = `${DB_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmpFile, JSON.stringify(state, null, 2), 'utf-8');
+  fs.renameSync(tmpFile, DB_FILE);
+}
+
 let saveStateTimer = null;
 function saveState(immediate = false) {
   if (immediate) {
@@ -240,7 +254,7 @@ function saveState(immediate = false) {
       saveStateTimer = null;
     }
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
+      writeStateAtomic();
     } catch (err) {
       console.error('[Store] Failed to save store:', err);
     }
@@ -251,7 +265,7 @@ function saveState(immediate = false) {
   saveStateTimer = setTimeout(() => {
     saveStateTimer = null;
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
+      writeStateAtomic();
     } catch (err) {
       console.error('[Store] Failed to save store:', err);
     }
@@ -510,7 +524,7 @@ try {
         const port = parseInt(parts[2] || '4567', 10);
         const deviceType = parts[3] || 'phone';
         const deviceId = parts[4] || null;
-        const deviceName = parts[5] ? decodeURIComponent(parts[5]) : null;
+        const deviceName = parts[5] ? decodeURIComponent(parts[5].replace(/\+/g, '%20')) : null;
         const tasksCount = parts[6] ? parseInt(parts[6], 10) : 0;
 
         recordDiscoveredPeer({ ip, port, deviceType, deviceId, deviceName, tasksCount });
@@ -769,6 +783,9 @@ function isAuthorizedCaller(reqIp, deviceId = null, token = null) {
   // 1. Direct deviceId match in pairedDevices (automatically updates IP on new network)
   if (deviceId && state.pairedDevices[deviceId]) {
     const pd = state.pairedDevices[deviceId];
+    if (token && pd.token && token !== pd.token) {
+      return false;
+    }
     if (cleanIp && !localIps.has(cleanIp) && cleanIp !== pd.ip) {
       pd.ip = cleanIp;
       pd.lastSeen = Date.now();
@@ -777,7 +794,7 @@ function isAuthorizedCaller(reqIp, deviceId = null, token = null) {
     return true;
   }
 
-  // 2. Token match, IP match, or deviceId match among all paired devices
+  // 2. Token match, IP match, or exact deviceId match among all paired devices
   for (const pd of Object.values(state.pairedDevices || {})) {
     if (token && pd.token && token === pd.token) {
       if (cleanIp && !localIps.has(cleanIp) && cleanIp !== pd.ip) {
@@ -788,9 +805,11 @@ function isAuthorizedCaller(reqIp, deviceId = null, token = null) {
       return true;
     }
     if (cleanIp && pd.ip && (cleanIp === pd.ip || cleanIp === pd.ip.replace('::ffff:', ''))) {
+      if (token && pd.token && token !== pd.token) continue;
       return true;
     }
-    if (deviceId && (deviceId === pd.deviceId || (pd.deviceId && pd.deviceId.includes(deviceId)))) {
+    if (deviceId && pd.deviceId && deviceId === pd.deviceId) {
+      if (token && pd.token && token !== pd.token) return false;
       if (cleanIp && !localIps.has(cleanIp) && cleanIp !== pd.ip) {
         pd.ip = cleanIp;
         pd.lastSeen = Date.now();
@@ -809,10 +828,22 @@ app.all('/api/p2p/sync', (req, res) => {
   const localIps = new Set(['127.0.0.1', 'localhost', '::1', '::ffff:127.0.0.1', ...getLocalIpAddresses()]);
   const isLoopback = localIps.has(senderIp);
 
+  if (req.method === 'GET') {
+    const qDevId = req.query.deviceId || null;
+    const qToken = req.query.token || req.headers['x-sync-token'] || null;
+    if (!isLoopback && !isAuthorizedCaller(senderIp, qDevId, qToken)) {
+      return res.status(403).json({
+        status: 'unpaired',
+        message: 'Device is not paired. Please pair devices using the 6-digit code or QR scanner first.'
+      });
+    }
+  }
+
   if (req.method === 'POST') {
     const {
       todos = {},
       lists = [],
+      deletedLists = null,
       mutations = [],
       deviceId = 'unknown',
       deviceName = null,
@@ -844,6 +875,23 @@ app.all('/api/p2p/sync', (req, res) => {
     }
 
     let stateChanged = false;
+    if (!state.deletedLists) state.deletedLists = {};
+
+    // 0. Apply incoming deleted list tombstones
+    if (deletedLists && typeof deletedLists === 'object') {
+      Object.entries(deletedLists).forEach(([lid, delTs]) => {
+        if (!lid || lid === 'inbox' || typeof delTs !== 'number') return;
+        if (!state.deletedLists[lid] || delTs > state.deletedLists[lid]) {
+          state.deletedLists[lid] = delTs;
+          stateChanged = true;
+        }
+        const existing = state.lists.find(l => l.id === lid);
+        if (existing && delTs >= (existing.updatedAt || existing.createdAt || 0)) {
+          state.lists = state.lists.filter(l => l.id !== lid);
+          stateChanged = true;
+        }
+      });
+    }
 
     // 1. Apply delta mutations if provided
     if (Array.isArray(mutations) && mutations.length > 0) {
@@ -851,19 +899,37 @@ app.all('/api/p2p/sync', (req, res) => {
     }
 
     // 2. Merge Lists by ID and deduplicate by name
+    const listIdRemap = new Map();
     if (Array.isArray(lists) && lists.length > 0) {
       lists.forEach(incomingList => {
         if (!incomingList || !incomingList.id) return;
         const normList = { ...incomingList, icon: normalizeListIcon(incomingList.icon) };
+        const inUpd = normList.updatedAt || normList.createdAt || 0;
+        const delTs = state.deletedLists[normList.id] || 0;
+        if (normList.deletedAt || (delTs && delTs >= inUpd)) return;
+        if (delTs && inUpd > delTs) {
+          delete state.deletedLists[normList.id];
+          stateChanged = true;
+        }
+
         let existingIdx = state.lists.findIndex(l => l.id === normList.id);
         if (existingIdx < 0 && !normList.isSystem && normList.name) {
           existingIdx = state.lists.findIndex(l => !l.isSystem && l.name && l.name.trim().toLowerCase() === normList.name.trim().toLowerCase());
         }
         if (existingIdx >= 0) {
           const existing = state.lists[existingIdx];
-          if ((normList.updatedAt || normList.createdAt || 0) >= (existing.updatedAt || existing.createdAt || 0)) {
+          if (inUpd >= (existing.updatedAt || existing.createdAt || 0)) {
+            const oldId = existing.id;
             state.lists[existingIdx] = { ...existing, ...normList };
+            if (oldId && oldId !== normList.id) {
+              listIdRemap.set(oldId, normList.id);
+              Object.values(state.todos).forEach(t => {
+                if (t && t.listId === oldId) t.listId = normList.id;
+              });
+            }
             stateChanged = true;
+          } else if (existing.id && existing.id !== normList.id) {
+            listIdRemap.set(normList.id, existing.id);
           }
         } else {
           state.lists.push(normList);
@@ -884,19 +950,26 @@ app.all('/api/p2p/sync', (req, res) => {
     const todoValues = Array.isArray(todos) ? todos : Object.values(todos || {});
     if (todoValues.length > 0) {
       const today = getLocalTodayStr();
-      todoValues.forEach(t => {
-        if (t && t.id) {
+      const yesterday = getLocalYesterdayStr();
+      todoValues.forEach(rawTodo => {
+        if (rawTodo && rawTodo.id) {
+          const t = (rawTodo.listId && listIdRemap.has(rawTodo.listId))
+            ? { ...rawTodo, listId: listIdRemap.get(rawTodo.listId) }
+            : rawTodo;
           const current = state.todos[t.id];
           if (!current || (t.updatedAt || 0) >= (current.updatedAt || 0)) {
             state.todos[t.id] = { ...current, ...t };
             stateChanged = true;
           } else {
-            // Intent preservation: if incoming has inMyDay for today, preserve it unless explicitly excluded today!
+            // Intent preservation: if incoming has inMyDay for today, preserve it unless deleted or explicitly excluded!
+            const excludedRecently = current.myDayExcludedDate === today || current.myDayExcludedDate === yesterday;
             if (
               t.inMyDay &&
+              !t.deletedAt &&
+              !current.deletedAt &&
               (t.plannedDate === today || (t.dueDate && t.dueDate <= today)) &&
               !current.completed &&
-              current.myDayExcludedDate !== today
+              !excludedRecently
             ) {
               if (!current.inMyDay || current.plannedDate !== today) {
                 current.inMyDay = true;
@@ -905,7 +978,7 @@ app.all('/api/p2p/sync', (req, res) => {
                 if (typeof t.myDayOrder === 'number' && typeof current.myDayOrder !== 'number') {
                   current.myDayOrder = t.myDayOrder;
                 }
-                current.updatedAt = Math.max(current.updatedAt || 0, t.updatedAt || 0) + 100;
+                current.updatedAt = Math.max(current.updatedAt || 0, t.updatedAt || 0) + 1;
                 stateChanged = true;
               }
             }
@@ -928,6 +1001,7 @@ app.all('/api/p2p/sync', (req, res) => {
     deviceType: 'laptop',
     todos: Object.values(state.todos),
     lists: state.lists,
+    deletedLists: state.deletedLists || {},
     mutations: state.mutations.slice(-1000),
     timestamp: Date.now()
   });
@@ -935,6 +1009,10 @@ app.all('/api/p2p/sync', (req, res) => {
 
 // Delta sync endpoint
 app.get('/api/sync', (req, res) => {
+  const senderIp = req.ip ? req.ip.replace('::ffff:', '') : '127.0.0.1';
+  if (!isAuthorizedCaller(senderIp, req.query.deviceId || null, req.query.token || req.headers['x-sync-token'] || null)) {
+    return res.status(403).json({ status: 'unpaired', message: 'Device is not paired.' });
+  }
   const since = parseInt(req.query.since || '0', 10);
   const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-1000) : [];
   const activeTodos = Object.values(state.todos);
@@ -943,13 +1021,18 @@ app.get('/api/sync', (req, res) => {
     timestamp: Date.now(),
     deltas,
     todos: activeTodos,
-    lists: state.lists
+    lists: state.lists,
+    deletedLists: state.deletedLists || {}
   });
 });
 
 // Push mutations endpoint
 app.post('/api/sync', (req, res) => {
-  const { mutations = [], deviceId = 'unknown' } = req.body;
+  const senderIp = req.ip ? req.ip.replace('::ffff:', '') : '127.0.0.1';
+  const { mutations = [], deviceId = 'unknown', token = null } = req.body || {};
+  if (!isAuthorizedCaller(senderIp, deviceId, token || req.headers['x-sync-token'] || null)) {
+    return res.status(403).json({ status: 'unpaired', message: 'Device is not paired.' });
+  }
   const applied = applyMutations(mutations, deviceId, null);
   res.json({ success: true, appliedCount: applied.length, timestamp: Date.now() });
 });
@@ -1105,12 +1188,15 @@ function broadcastFullSyncState(originDevice) {
   const payload = JSON.stringify({
     type: 'WELCOME',
     serverTime: Date.now(),
+    isPaired: true,
     originDevice,
     todos: Object.values(state.todos),
-    lists: state.lists
+    lists: state.lists,
+    deletedLists: state.deletedLists || {}
   });
   for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
+    const info = connectedClients.get(client);
+    if (client.readyState === WebSocket.OPEN && (info?.isPaired || info?.isLoopback)) {
       client.send(payload);
     }
   }
@@ -1120,6 +1206,7 @@ function broadcastFullSyncState(originDevice) {
 function applyMutations(mutations, deviceId, senderWs = null) {
   const applied = [];
   const now = Date.now();
+  if (!state.deletedLists) state.deletedLists = {};
 
   for (const mutation of mutations) {
     if (!mutation) continue;
@@ -1128,17 +1215,29 @@ function applyMutations(mutations, deviceId, senderWs = null) {
     if (!targetId) continue;
 
     if (type === 'LIST_UPSERT') {
-      const normalizedData = data ? { ...data, id: data.id || targetId, icon: normalizeListIcon(data.icon), updatedAt: timestamp || now } : data;
+      const mutTs = timestamp || now;
+      const delTs = state.deletedLists[targetId] || 0;
+      if (delTs && delTs >= mutTs) continue;
+      if (delTs && mutTs > delTs) {
+        delete state.deletedLists[targetId];
+      }
+      const normalizedData = data ? { ...data, id: data.id || targetId, icon: normalizeListIcon(data.icon), updatedAt: mutTs } : data;
       let listIdx = state.lists.findIndex(l => l.id === targetId);
       if (listIdx < 0 && normalizedData && !normalizedData.isSystem && normalizedData.name) {
         listIdx = state.lists.findIndex(l => !l.isSystem && l.name && l.name.trim().toLowerCase() === normalizedData.name.trim().toLowerCase());
       }
       if (listIdx >= 0) {
         const existingList = state.lists[listIdx];
-        if ((timestamp || now) < (existingList.updatedAt || existingList.createdAt || 0)) {
+        if (mutTs < (existingList.updatedAt || existingList.createdAt || 0)) {
           continue;
         }
+        const oldId = existingList.id;
         state.lists[listIdx] = { ...existingList, ...normalizedData };
+        if (oldId && normalizedData?.id && oldId !== normalizedData.id) {
+          Object.values(state.todos).forEach(t => {
+            if (t && t.listId === oldId) t.listId = normalizedData.id;
+          });
+        }
       } else if (normalizedData) {
         state.lists.push(normalizedData);
       }
@@ -1150,13 +1249,21 @@ function applyMutations(mutations, deviceId, senderWs = null) {
         if (hasB) return 1;
         return 0;
       });
-      const entry = { id: mutation.id || `mut-${now}`, entityId: targetId, type, data: normalizedData, timestamp: timestamp || now, originDevice: deviceId };
+      const entry = { id: mutation.id || `mut-${now}`, entityId: targetId, type, data: normalizedData, timestamp: mutTs, originDevice: deviceId };
       state.mutations.push(entry);
       applied.push(entry);
       continue;
     } else if (type === 'LIST_DELETE') {
-      state.lists = state.lists.filter(l => l.id !== targetId);
-      const entry = { id: mutation.id || `mut-${now}`, entityId: targetId, type, data: null, timestamp: timestamp || now, originDevice: deviceId };
+      const delTs = timestamp || now;
+      const existingList = state.lists.find(l => l.id === targetId);
+      if (existingList && delTs < (existingList.updatedAt || existingList.createdAt || 0)) {
+        continue;
+      }
+      if (targetId !== 'inbox') {
+        state.deletedLists[targetId] = Math.max(state.deletedLists[targetId] || 0, delTs);
+        state.lists = state.lists.filter(l => l.id !== targetId);
+      }
+      const entry = { id: mutation.id || `mut-${now}`, entityId: targetId, type, data: null, timestamp: delTs, originDevice: deviceId };
       state.mutations.push(entry);
       applied.push(entry);
       continue;
@@ -1199,13 +1306,17 @@ function applyMutations(mutations, deviceId, senderWs = null) {
       state.mutations.push(changelogEntry);
       applied.push(changelogEntry);
     } else if (type === 'UPSERT' && data && existing) {
-      // Intent preservation: if incoming UPSERT marks inMyDay for today, preserve it unless explicitly excluded today!
+      // Intent preservation: if incoming UPSERT marks inMyDay for today, preserve it unless deleted or explicitly excluded!
       const today = getLocalTodayStr();
+      const yesterday = getLocalYesterdayStr();
+      const excludedRecently = existing.myDayExcludedDate === today || existing.myDayExcludedDate === yesterday;
       if (
         data.inMyDay &&
+        !data.deletedAt &&
+        !existing.deletedAt &&
         (data.plannedDate === today || (data.dueDate && data.dueDate <= today)) &&
         !existing.completed &&
-        existing.myDayExcludedDate !== today
+        !excludedRecently
       ) {
         if (!existing.inMyDay || existing.plannedDate !== today) {
           existing.inMyDay = true;
@@ -1214,7 +1325,7 @@ function applyMutations(mutations, deviceId, senderWs = null) {
           if (typeof data.myDayOrder === 'number' && typeof existing.myDayOrder !== 'number') {
             existing.myDayOrder = data.myDayOrder;
           }
-          existing.updatedAt = Math.max(existing.updatedAt || 0, timestamp || now) + 100;
+          existing.updatedAt = Math.max(existing.updatedAt || 0, timestamp || now) + 1;
           const changelogEntry = {
             id: mutation.id || `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
             entityId: targetId,
@@ -1302,7 +1413,8 @@ wss.on('connection', (ws, req) => {
         pairingCode: state.pairingCode
       },
       todos: Object.values(state.todos),
-      lists: state.lists
+      lists: state.lists,
+      deletedLists: state.deletedLists || {}
     }));
   } else {
     // Remote connection: Send handshake notice, full data sent after IDENTIFY with pairing token
@@ -1349,7 +1461,8 @@ wss.on('connection', (ws, req) => {
                 pairingCode: state.pairingCode
               },
               todos: Object.values(state.todos),
-              lists: state.lists
+              lists: state.lists,
+              deletedLists: state.deletedLists || {}
             }));
           }
 
@@ -1382,6 +1495,12 @@ wss.on('connection', (ws, req) => {
           timestamp: Date.now()
         }));
       } else if (msg.type === 'SYNC_PULL') {
+        const clientInfo = connectedClients.get(ws);
+        const authorized = clientInfo?.isPaired || clientInfo?.isLoopback || isAuthorizedCaller(clientIp, clientInfo?.deviceId, clientInfo?.token);
+        if (!authorized) {
+          ws.send(JSON.stringify({ type: 'SYNC_ERROR', message: 'Device not paired' }));
+          return;
+        }
         const since = msg.since || 0;
         const deltas = since > 0 ? state.mutations.filter(m => m.timestamp > since).slice(-1000) : [];
         ws.send(JSON.stringify({
@@ -1389,6 +1508,7 @@ wss.on('connection', (ws, req) => {
           deltas,
           todos: Object.values(state.todos),
           lists: state.lists,
+          deletedLists: state.deletedLists || {},
           timestamp: Date.now()
         }));
       }
@@ -1429,10 +1549,12 @@ function getLocalIpAddresses() {
 
 let mdnsProcess = null;
 let mdnsServiceProcess = null;
+let mdnsServiceUnavailable = false;
+let mdnsHostUnavailable = false;
 
 function ensureMdnsServicePublisher() {
   try {
-    if (mdnsServiceProcess) return;
+    if (mdnsServiceProcess || mdnsServiceUnavailable) return;
     mdnsServiceProcess = spawn('avahi-publish-service', [
       '-s',
       `SyncToDo-Laptop-${state.serverDeviceId.slice(-4)}`,
@@ -1442,6 +1564,12 @@ function ensureMdnsServicePublisher() {
       `deviceName=${state.serverDeviceName}`
     ], {
       stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    mdnsServiceProcess.on('error', (err) => {
+      console.log('[mDNS-SD] Notice: avahi-publish-service unavailable:', err.message);
+      if (err && err.code === 'ENOENT') mdnsServiceUnavailable = true;
+      mdnsServiceProcess = null;
     });
 
     mdnsServiceProcess.stdout?.on('data', (d) => {
@@ -1457,7 +1585,9 @@ function ensureMdnsServicePublisher() {
 
     mdnsServiceProcess.on('exit', () => {
       mdnsServiceProcess = null;
-      setTimeout(ensureMdnsServicePublisher, 5000);
+      if (!mdnsServiceUnavailable) {
+        setTimeout(ensureMdnsServicePublisher, 5000);
+      }
     });
   } catch (e) {
     console.log('[mDNS-SD] Notice: avahi-publish-service not available:', e.message);
@@ -1465,12 +1595,14 @@ function ensureMdnsServicePublisher() {
 }
 
 function ensureMdnsPublisher(hostName = 'g16laptop.local') {
+  if (mdnsProcess || mdnsHostUnavailable) return;
   const ips = getLocalIpAddresses();
   const primaryIp = ips[0];
   if (!primaryIp) return;
 
   // Check if avahi-publish or mDNS is already resolving this hostname
   exec(`avahi-resolve -n ${hostName}`, (err, stdout) => {
+    if (mdnsProcess || mdnsHostUnavailable) return;
     if (!err && stdout && stdout.includes(hostName)) {
       console.log(`📡 [mDNS] Hostname ${hostName} is active and resolving via mDNS.`);
       return;
@@ -1479,6 +1611,12 @@ function ensureMdnsPublisher(hostName = 'g16laptop.local') {
     try {
       mdnsProcess = spawn('avahi-publish', ['-a', '-R', hostName, primaryIp], {
         stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      mdnsProcess.on('error', (spawnErr) => {
+        console.log('[mDNS] Notice: avahi-publish unavailable:', spawnErr.message);
+        if (spawnErr && spawnErr.code === 'ENOENT') mdnsHostUnavailable = true;
+        mdnsProcess = null;
       });
 
       mdnsProcess.stdout?.on('data', (d) => {
@@ -1494,7 +1632,9 @@ function ensureMdnsPublisher(hostName = 'g16laptop.local') {
 
       mdnsProcess.on('exit', () => {
         mdnsProcess = null;
-        setTimeout(() => ensureMdnsPublisher(hostName), 4000);
+        if (!mdnsHostUnavailable) {
+          setTimeout(() => ensureMdnsPublisher(hostName), 4000);
+        }
       });
     } catch (e) {
       console.log('[mDNS] Notice: avahi-publish not available:', e.message);
@@ -1503,11 +1643,13 @@ function ensureMdnsPublisher(hostName = 'g16laptop.local') {
 }
 
 process.on('SIGINT', () => {
+  saveState(true);
   if (mdnsProcess) { try { mdnsProcess.kill('SIGTERM'); } catch {} }
   if (mdnsServiceProcess) { try { mdnsServiceProcess.kill('SIGTERM'); } catch {} }
   process.exit(0);
 });
 process.on('SIGTERM', () => {
+  saveState(true);
   if (mdnsProcess) { try { mdnsProcess.kill('SIGTERM'); } catch {} }
   if (mdnsServiceProcess) { try { mdnsServiceProcess.kill('SIGTERM'); } catch {} }
   process.exit(0);

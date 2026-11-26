@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './SvgIcons';
 import { normalizeListIcon, hasPersianChar, detectBidiDirection, isTodoPinnedInContext, isTodoInMyDay } from '../syncEngine';
-import { formatCalendarDate } from '../utils/calendar';
+import { formatCalendarDate, getLogicalDateStr, getStoredDayStartHour } from '../utils/calendar';
 import CalendarPickerModal from './CalendarPickerModal';
 
 export default function TaskDetailPanel({
@@ -25,21 +25,96 @@ export default function TaskDetailPanel({
   const [notesText, setNotesText] = useState(todo?.notes || '');
   const [newStepText, setNewStepText] = useState('');
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [recurrenceIntervalDraft, setRecurrenceIntervalDraft] = useState(String(todo?.recurrenceInterval || 1));
 
+  const titleInputRef = useRef(null);
+  const notesInputRef = useRef(null);
+  const stepInputRef = useRef(null);
+  const draftRef = useRef(null);
+
+  const isInlineNote = Boolean(todo && (todo.isInlineHandwriting || (todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title.trim() === ''))));
+
+  draftRef.current = todo ? {
+    id: todo.id,
+    titleText,
+    notesText,
+    savedTitle: todo.title || '',
+    savedNotes: todo.notes || '',
+    isInlineNote
+  } : null;
+
+  const flushDrafts = () => {
+    const d = draftRef.current;
+    if (!d || !d.id) return;
+    const patch = {};
+    const trimmedTitle = d.titleText.trim();
+    if (d.isInlineNote) {
+      const normalizedSaved = d.savedTitle === 'Handwritten task' ? '' : d.savedTitle;
+      if (trimmedTitle !== normalizedSaved) {
+        patch.title = trimmedTitle;
+      }
+    } else if (trimmedTitle && trimmedTitle !== d.savedTitle) {
+      patch.title = trimmedTitle;
+    }
+    if (d.notesText !== d.savedNotes) {
+      patch.notes = d.notesText;
+    }
+    if (Object.keys(patch).length > 0) {
+      syncEngine.updateTodo(d.id, patch);
+      if ('title' in patch) d.savedTitle = patch.title;
+      if ('notes' in patch) d.savedNotes = patch.notes;
+    }
+  };
+
+  // Reset per-task drafts only when switching to a different todo, flushing previous drafts first
   useEffect(() => {
     setTitleText(todo?.title || '');
     setNotesText(todo?.notes || '');
     setNewStepText('');
-  }, [todo?.id, todo?.title, todo?.notes]);
+    setShowCalendarModal(false);
+    setRecurrenceIntervalDraft(String(todo?.recurrenceInterval || 1));
+    return () => {
+      flushDrafts();
+    };
+  }, [todo?.id]);
+
+  // Sync external title updates only when user is not actively typing in the title input
+  useEffect(() => {
+    if (document.activeElement !== titleInputRef.current) {
+      setTitleText(todo?.title || '');
+    }
+  }, [todo?.title]);
+
+  // Sync external notes updates only when user is not actively typing in the notes textarea
+  useEffect(() => {
+    if (document.activeElement !== notesInputRef.current) {
+      setNotesText(todo?.notes || '');
+    }
+  }, [todo?.notes]);
+
+  useEffect(() => {
+    setRecurrenceIntervalDraft(String(todo?.recurrenceInterval || 1));
+  }, [todo?.recurrenceInterval]);
 
   if (!todo) return null;
 
-  const isInlineNote = todo.isInlineHandwriting || (todo.handwriting && (!todo.title || todo.title === 'Handwritten task' || todo.title.trim() === ''));
   const steps = Array.isArray(todo.steps) ? todo.steps : [];
   const doneStepsCount = steps.filter(s => s.completed).length;
 
+  const handleClose = () => {
+    flushDrafts();
+    onClose();
+  };
+
   const commitTitle = () => {
     const trimmed = titleText.trim();
+    if (isInlineNote) {
+      const normalizedSaved = todo.title === 'Handwritten task' ? '' : (todo.title || '');
+      if (trimmed !== normalizedSaved) {
+        syncEngine.updateTodo(todo.id, { title: trimmed });
+      }
+      return;
+    }
     if (trimmed && trimmed !== todo.title) {
       syncEngine.updateTodo(todo.id, { title: trimmed });
     } else if (!trimmed) {
@@ -58,6 +133,10 @@ export default function TaskDetailPanel({
     if (!newStepText.trim()) return;
     syncEngine.addStep(todo.id, newStepText.trim());
     setNewStepText('');
+    if (deviceType === 'phone') {
+      stepInputRef.current?.blur();
+      try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
+    }
   };
 
   const setQuickDate = (offsetDays) => {
@@ -65,8 +144,9 @@ export default function TaskDetailPanel({
       syncEngine.updateTodo(todo.id, { dueDate: null });
       return;
     }
-    const d = new Date();
-    d.setDate(d.getDate() + offsetDays);
+    const baseToday = todayStr || getLogicalDateStr(new Date(), getStoredDayStartHour());
+    const [by, bm, bd] = baseToday.split('-').map(Number);
+    const d = new Date(by, bm - 1, bd + offsetDays);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     syncEngine.updateTodo(todo.id, { dueDate: iso });
   };
@@ -107,7 +187,7 @@ export default function TaskDetailPanel({
           Task Details
         </span>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             width: '28px',
             height: '28px',
@@ -192,11 +272,17 @@ export default function TaskDetailPanel({
                 />
               </div>
               <input
+                ref={titleInputRef}
                 type="text"
                 placeholder="Optional text title / transcription..."
                 value={titleText === 'Handwritten task' ? '' : titleText}
                 onChange={(e) => setTitleText(e.target.value)}
                 onBlur={commitTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.target.blur();
+                  }
+                }}
                 dir={detectBidiDirection(titleText)}
                 style={{
                   background: 'transparent',
@@ -211,6 +297,7 @@ export default function TaskDetailPanel({
             </div>
           ) : (
             <input
+              ref={titleInputRef}
               type="text"
               value={titleText}
               onChange={(e) => setTitleText(e.target.value)}
@@ -401,6 +488,7 @@ export default function TaskDetailPanel({
 
           <form onSubmit={handleAddStep} style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
             <input
+              ref={stepInputRef}
               type="text"
               placeholder="+ Add a step..."
               value={newStepText}
@@ -421,6 +509,7 @@ export default function TaskDetailPanel({
             {newStepText.trim() && (
               <button
                 type="submit"
+                onMouseDown={(e) => e.preventDefault()}
                 style={{
                   padding: '7px 12px',
                   borderRadius: '8px',
@@ -634,8 +723,23 @@ export default function TaskDetailPanel({
                   type="number"
                   min="1"
                   max="365"
-                  value={todo.recurrenceInterval || 1}
-                  onChange={(e) => syncEngine.updateTodo(todo.id, { recurrenceInterval: parseInt(e.target.value, 10) || 1 })}
+                  value={recurrenceIntervalDraft}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRecurrenceIntervalDraft(val);
+                    const parsed = parseInt(val, 10);
+                    if (!Number.isNaN(parsed) && parsed >= 1) {
+                      syncEngine.updateTodo(todo.id, { recurrenceInterval: Math.min(365, parsed) });
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInt(recurrenceIntervalDraft, 10);
+                    const clamped = Number.isNaN(parsed) ? 1 : Math.min(365, Math.max(1, parsed));
+                    setRecurrenceIntervalDraft(String(clamped));
+                    if (clamped !== (todo.recurrenceInterval || 1)) {
+                      syncEngine.updateTodo(todo.id, { recurrenceInterval: clamped });
+                    }
+                  }}
                   style={{
                     width: '56px', padding: '7px 8px', borderRadius: '8px',
                     border: '1px solid var(--border)', background: 'var(--surface)',
@@ -653,6 +757,7 @@ export default function TaskDetailPanel({
             Notes
           </label>
           <textarea
+            ref={notesInputRef}
             rows={4}
             placeholder="Add notes, links, or details..."
             value={notesText}
@@ -780,7 +885,7 @@ export default function TaskDetailPanel({
     <>
       {deviceType === 'phone' ? (
         <div
-          onClick={onClose}
+          onClick={handleClose}
           style={{
             position: 'fixed',
             inset: 0,
@@ -794,7 +899,7 @@ export default function TaskDetailPanel({
         </div>
       ) : isOverlay ? (
         <div
-          onClick={onClose}
+          onClick={handleClose}
           data-detail-drawer-backdrop="true"
           style={{
             position: 'absolute',
@@ -816,6 +921,7 @@ export default function TaskDetailPanel({
         <CalendarPickerModal
           isOpen={showCalendarModal}
           value={todo.dueDate}
+          todayStr={todayStr}
           calendarType={calendarType}
           deviceType={deviceType}
           onSelect={(newDate) => syncEngine.updateTodo(todo.id, { dueDate: newDate })}

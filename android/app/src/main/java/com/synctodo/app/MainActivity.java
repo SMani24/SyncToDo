@@ -1,10 +1,14 @@
 package com.synctodo.app;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -22,6 +26,25 @@ public class MainActivity extends BridgeActivity {
         public void setModalOpen(boolean open) {
             isModalOpen = open;
         }
+
+        @JavascriptInterface
+        public void hideKeyboard() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                        View target = getCurrentFocus();
+                        if (target == null && bridge != null) {
+                            target = bridge.getWebView();
+                        }
+                        if (imm != null && target != null) {
+                            imm.hideSoftInputFromWindow(target.getWindowToken(), 0);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
     }
 
     private void notifyStylusButton(String action) {
@@ -29,7 +52,10 @@ public class MainActivity extends BridgeActivity {
             bridge.getWebView().post(new Runnable() {
                 @Override
                 public void run() {
-                    bridge.getWebView().evaluateJavascript(
+                    if (bridge == null) return;
+                    WebView wv = bridge.getWebView();
+                    if (wv == null) return;
+                    wv.evaluateJavascript(
                         "window.dispatchEvent(new CustomEvent('stylusbutton', { detail: { action: '" + action + "' } }));",
                         null
                     );
@@ -43,7 +69,10 @@ public class MainActivity extends BridgeActivity {
             bridge.getWebView().post(new Runnable() {
                 @Override
                 public void run() {
-                    bridge.getWebView().evaluateJavascript(
+                    if (bridge == null) return;
+                    WebView wv = bridge.getWebView();
+                    if (wv == null) return;
+                    wv.evaluateJavascript(
                         "try { if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) { document.activeElement.blur(); } window.dispatchEvent(new CustomEvent('keyboardhide')); } catch(e) {}",
                         null
                     );
@@ -55,9 +84,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
-        if (code == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
-            notifyDismissKeyboard();
-        }
         // Android Stylus Button keycodes (308: Primary, 309: Secondary, 310: Tertiary, 311: Tail)
         if (code == 308 || code == 309 || code == 310 || code == 311 ||
             code == KeyEvent.KEYCODE_BUTTON_1 || code == KeyEvent.KEYCODE_BUTTON_2) {
@@ -122,9 +148,9 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Start embedded Decentralized P2P LAN Server
+        // Start embedded Decentralized P2P LAN Server with ApplicationContext to avoid Activity leaks
         // Allows Phone and Tablet to sync directly over Wi-Fi without any laptop
-        peerServer = new LocalPeerServer(this);
+        peerServer = new LocalPeerServer(getApplicationContext());
         peerServer.start();
 
         if (getWindow() != null && getWindow().getDecorView() != null) {
@@ -156,13 +182,15 @@ public class MainActivity extends BridgeActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                notifyDismissKeyboard();
                 if (isModalOpen) {
                     if (bridge != null && bridge.getWebView() != null) {
                         bridge.getWebView().post(new Runnable() {
                             @Override
                             public void run() {
-                                bridge.getWebView().evaluateJavascript(
+                                if (bridge == null) return;
+                                WebView wv = bridge.getWebView();
+                                if (wv == null) return;
+                                wv.evaluateJavascript(
                                     "if (window.__handleAndroidBack) { window.__handleAndroidBack(); }",
                                     null
                                 );
@@ -170,6 +198,7 @@ public class MainActivity extends BridgeActivity {
                         });
                     }
                 } else {
+                    notifyDismissKeyboard();
                     setEnabled(false);
                     getOnBackPressedDispatcher().onBackPressed();
                     setEnabled(true);
@@ -184,48 +213,9 @@ public class MainActivity extends BridgeActivity {
         if (getWindow() != null && getWindow().getDecorView() != null) {
             getWindow().getDecorView().setBackgroundColor(0xFF090E17);
         }
-
         if (bridge != null && bridge.getWebView() != null) {
             bridge.getWebView().setBackgroundColor(0xFF090E17);
-            bridge.getWebView().addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
-            // Prevent Chromium WebView from double-subtracting IME keyboard height
-            // because DecorView (SystemBars + adjustResize) already pads for IME & systemBars
-            ViewCompat.setOnApplyWindowInsetsListener(bridge.getWebView(), (v, windowInsets) -> {
-                boolean imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
-                if (lastImeVisible && !imeVisible) {
-                    notifyDismissKeyboard();
-                }
-                lastImeVisible = imeVisible;
-
-                WindowInsetsCompat stripped = new WindowInsetsCompat.Builder(windowInsets)
-                    .setInsets(
-                        WindowInsetsCompat.Type.ime() | WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout(),
-                        Insets.NONE
-                    )
-                    .build();
-                return ViewCompat.onApplyWindowInsets(v, stripped);
-            });
         }
-    }
-
-    @Override
-    public void onBackPressed() {
-        notifyDismissKeyboard();
-        if (isModalOpen) {
-            if (bridge != null && bridge.getWebView() != null) {
-                bridge.getWebView().post(new Runnable() {
-                    @Override
-                    public void run() {
-                        bridge.getWebView().evaluateJavascript(
-                            "if (window.__handleAndroidBack) { window.__handleAndroidBack(); }",
-                            null
-                        );
-                    }
-                });
-            }
-            return;
-        }
-        super.onBackPressed();
     }
 
     @Override

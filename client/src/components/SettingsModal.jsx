@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Icon } from './SvgIcons';
-import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate, formatDueDateBadge, DAY_START_HOUR_OPTIONS } from '../utils/calendar';
+import { CALENDAR_TYPES, formatCalendarDate, formatFullHeaderDate, formatDueDateBadge, DAY_START_HOUR_OPTIONS, getLogicalDateStr } from '../utils/calendar';
 import { buildImportBatch, buildChatGPTInstructions } from '../../../shared/taskImport.js';
 
 export default function SettingsModal({
@@ -19,7 +19,7 @@ export default function SettingsModal({
   onClose
 }) {
   const today = new Date();
-  const todayIso = today.toISOString().split('T')[0];
+  const todayIso = getLogicalDateStr(today, dayStartHour);
   const fileInputRef = useRef(null);
   const [showPasteBox, setShowPasteBox] = useState(false);
   const [pasteJsonText, setPasteJsonText] = useState('');
@@ -47,6 +47,10 @@ export default function SettingsModal({
     setImportError('');
     try {
       const result = syncEngine.importTasks(rawText);
+      if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        document.activeElement.blur();
+      }
+      try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
       setPasteJsonText('');
       setShowPasteBox(false);
       if (onImportSuccess) {
@@ -117,7 +121,7 @@ export default function SettingsModal({
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       alert('Could not export backup: ' + err.message);
     }
@@ -673,6 +677,7 @@ export default function SettingsModal({
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setShowPasteBox(false);
                     setImportError('');
@@ -693,6 +698,7 @@ export default function SettingsModal({
                 <button
                   type="button"
                   data-action="submit-paste-json"
+                  onMouseDown={(e) => e.preventDefault()}
                   disabled={!pasteJsonText.trim() || (importPreview && !importPreview.ok)}
                   onClick={() => runJsonImport(pasteJsonText)}
                   style={{

@@ -71,17 +71,11 @@ export class P2PEngine {
     if (!item) return true;
     const myDevId = this.syncEngine?.deviceId;
     const localDevId = this.localServerInfo?.deviceId;
-    const myName = (this.syncEngine?.deviceName || '').trim().toLowerCase();
-    const localName = (this.localServerInfo?.deviceName || '').trim().toLowerCase();
-    const myIp = this.myLocalIp !== 'Detecting...' ? this.myLocalIp : null;
+    const myIp = (this.myLocalIp && this.myLocalIp !== 'Detecting...' && this.myLocalIp !== 'Local Wi-Fi') ? this.myLocalIp : null;
 
     if (item.deviceId && ((myDevId && item.deviceId === myDevId) || (localDevId && item.deviceId === localDevId))) return true;
     if (item.ip && (item.ip === '127.0.0.1' || item.ip === 'localhost' || item.ip === '::1')) return true;
     if (item.ip && myIp && item.ip === myIp) return true;
-    if (item.deviceName) {
-      const devName = item.deviceName.trim().toLowerCase();
-      if ((myName && devName === myName) || (localName && devName === localName)) return true;
-    }
     return false;
   }
 
@@ -346,6 +340,7 @@ export class P2PEngine {
         }
       }
     }
+    return merged;
   }
 
   addPeer(ip, port = null, meta = {}) {
@@ -420,16 +415,26 @@ export class P2PEngine {
     this.saveKnownPeers();
     this.savePeerPorts();
 
-    // Notify local server if applicable
-    try {
-      const host = window.location.hostname || 'localhost';
-      const port = window.location.port || '4000';
-      fetch(`http://${host}:${port}/api/p2p/unpair`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: ipOrDeviceId })
-      }).catch(() => {});
-    } catch {}
+    // Notify local server (Android embedded server on mobile, local Node server on laptop)
+    if (this.syncEngine?.deviceType === 'laptop') {
+      try {
+        const host = window.location.hostname || 'localhost';
+        const port = window.location.port || '4000';
+        fetch(`http://${host}:${port}/api/p2p/unpair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: ipOrDeviceId })
+        }).catch(() => {});
+      } catch {}
+    } else {
+      try {
+        fetch(`http://127.0.0.1:${P2P_PORT}/api/p2p/unpair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: ipOrDeviceId })
+        }).catch(() => {});
+      } catch {}
+    }
 
     this.notify();
   }
@@ -442,25 +447,26 @@ export class P2PEngine {
       this.syncEngine.setDeviceName(clean);
     }
 
-    // Update Android embedded server if present
-    try {
-      await fetch(`http://127.0.0.1:${P2P_PORT}/api/p2p/rename`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceName: clean })
-      });
-    } catch {}
-
-    // Update Laptop server if running on laptop
-    try {
-      const host = window.location.hostname || 'localhost';
-      const port = window.location.port || '4000';
-      await fetch(`http://${host}:${port}/api/p2p/rename`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceName: clean })
-      });
-    } catch {}
+    // Update Android embedded server on mobile, or Laptop server on laptop (never rename remote laptop from mobile browser!)
+    if (this.syncEngine?.deviceType === 'laptop') {
+      try {
+        const host = window.location.hostname || 'localhost';
+        const port = window.location.port || '4000';
+        await fetch(`http://${host}:${port}/api/p2p/rename`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceName: clean })
+        });
+      } catch {}
+    } else {
+      try {
+        await fetch(`http://127.0.0.1:${P2P_PORT}/api/p2p/rename`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceName: clean })
+        });
+      } catch {}
+    }
 
     this.notify();
   }
@@ -539,9 +545,21 @@ export class P2PEngine {
 
     this.pairPollTimer = setInterval(async () => {
       attempts++;
-      if (attempts > 60 || !this.outgoingPairSession || this.outgoingPairSession.status !== 'waiting') {
+      if (!this.outgoingPairSession || this.outgoingPairSession.status !== 'waiting') {
         clearInterval(this.pairPollTimer);
         this.pairPollTimer = null;
+        return;
+      }
+      if (attempts > 60) {
+        clearInterval(this.pairPollTimer);
+        this.pairPollTimer = null;
+        this.outgoingPairSession = {
+          peer,
+          code: null,
+          status: 'error',
+          errorMsg: 'Pairing request timed out waiting for approval.'
+        };
+        this.notify();
         return;
       }
 
@@ -839,7 +857,8 @@ export class P2PEngine {
           this.localServerInfo.deviceId = data.deviceId;
           if (this.syncEngine && this.syncEngine.deviceId !== data.deviceId) {
             this.syncEngine.deviceId = data.deviceId;
-            localStorage.setItem('synctodo_device_id_v1', data.deviceId);
+            localStorage.setItem('synctodo_device_info_v1', data.deviceId);
+            this.syncEngine.setDeviceName(this.syncEngine.deviceName);
           }
         }
         if (data.deviceName) {
@@ -876,12 +895,13 @@ export class P2PEngine {
         if (res.ok) {
           const data = await res.json();
           if (data.deviceId) {
-          this.localServerInfo.deviceId = data.deviceId;
-          if (this.syncEngine && this.syncEngine.deviceId !== data.deviceId) {
-            this.syncEngine.deviceId = data.deviceId;
-            localStorage.setItem('synctodo_device_id_v1', data.deviceId);
+            this.localServerInfo.deviceId = data.deviceId;
+            if (this.syncEngine && this.syncEngine.deviceId !== data.deviceId) {
+              this.syncEngine.deviceId = data.deviceId;
+              localStorage.setItem('synctodo_device_info_v1', data.deviceId);
+              this.syncEngine.setDeviceName(this.syncEngine.deviceName);
+            }
           }
-        }
           if (data.deviceName) this.localServerInfo.deviceName = data.deviceName;
           if (data.pairingCode) this.localServerInfo.pairingCode = data.pairingCode;
           if (data.ip && data.ip !== '127.0.0.1') {
@@ -896,17 +916,35 @@ export class P2PEngine {
     // 3. Fallback to WebRTC ICE candidate local IP discovery
     try {
       const pc = new RTCPeerConnection({ iceServers: [] });
+      let closed = false;
+      const finish = (ip = null) => {
+        if (closed) return;
+        closed = true;
+        clearTimeout(fallbackTimer);
+        try { pc.close(); } catch {}
+        if (ip) {
+          this.myLocalIp = ip;
+          this.notify();
+          setTimeout(() => this.scanLocalNetwork(), 600);
+        } else if (this.myLocalIp === 'Detecting...') {
+          this.myLocalIp = 'Local Wi-Fi';
+          this.notify();
+        }
+      };
+      const fallbackTimer = setTimeout(() => finish(null), 4000);
       pc.createDataChannel('');
-      pc.createOffer().then(o => pc.setLocalDescription(o));
+      pc.createOffer()
+        .then(o => pc.setLocalDescription(o))
+        .catch(() => finish(null));
       pc.onicecandidate = (ice) => {
-        if (!ice || !ice.candidate || !ice.candidate.candidate) return;
-        const candidate = ice.candidate.candidate;
+        if (!ice || !ice.candidate) {
+          finish(null);
+          return;
+        }
+        const candidate = ice.candidate.candidate || '';
         const match = candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
         if (match && match[1] && !match[1].startsWith('127.')) {
-          this.myLocalIp = match[1];
-          this.notify();
-          pc.close();
-          setTimeout(() => this.scanLocalNetwork(), 600);
+          finish(match[1]);
         }
       };
     } catch {
@@ -1007,7 +1045,7 @@ export class P2PEngine {
       });
     }
 
-    if (Array.isArray(data.pairedDevices)) {
+    if (isLocal && Array.isArray(data.pairedDevices)) {
       data.pairedDevices.forEach(pd => {
         if (!pd || !pd.deviceId) return;
         if (this.isSelfDevice(pd)) return;
@@ -1027,7 +1065,7 @@ export class P2PEngine {
       data.peers.forEach(p => this.recordNearbyPeer(p));
     }
 
-    if (Array.isArray(data.pendingRequests)) {
+    if (isLocal && Array.isArray(data.pendingRequests)) {
       this.pendingRequests = data.pendingRequests;
     }
 
@@ -1036,7 +1074,8 @@ export class P2PEngine {
 
   handleSignalingMessage(msg) {
     if (msg.type === 'PAIRING_UPDATE') {
-      this.ingestDiscoveryResponse(msg);
+      const isLocal = this.syncEngine?.deviceType === 'laptop';
+      this.ingestDiscoveryResponse(msg, isLocal);
     }
   }
 
@@ -1109,7 +1148,8 @@ export class P2PEngine {
     }
 
     // Run parallel sync requests with Promise.allSettled so no peer blocks another
-    await Promise.allSettled(Array.from(targets).map(ip => this.syncWithPeer(ip)));
+    const settled = await Promise.allSettled(Array.from(targets).map(ip => this.syncWithPeer(ip)));
+    return settled.map(r => r.status === 'fulfilled' && r.value === true);
   }
 
   // Direct Peer-to-Peer HTTP Delta & Full Merge Sync (Todos + Lists)
@@ -1141,7 +1181,7 @@ export class P2PEngine {
         if (matchIp || matchHost || matchActive || matchNearby || matchOnline) {
           token = pd.token;
           peerMeta = pd;
-          if (pd.ip !== ip && ip !== 'g16laptop.local' && !ip.includes('.')) {
+          if (pd.ip !== ip && ip !== 'g16laptop.local' && /^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
             pd.ip = ip;
             this.savePairedDevices();
           }
@@ -1179,6 +1219,7 @@ export class P2PEngine {
             port: this.syncEngine.deviceType === 'laptop' ? LAPTOP_PORT : P2P_PORT,
             todos: this.syncEngine.todos,
             lists: this.syncEngine.lists,
+            deletedLists: this.syncEngine.deletedLists,
             mutations: this.syncEngine.mutationQueue,
             token,
             timestamp: Date.now()
@@ -1246,6 +1287,11 @@ export class P2PEngine {
             }
 
             let changed = false;
+            // Apply deleted list tombstones before merging lists
+            if (peerData.deletedLists && this.syncEngine.applyDeletedLists(peerData.deletedLists)) {
+              this.syncEngine.saveStoredLists();
+              changed = true;
+            }
             // Merge incoming peer lists
             if (Array.isArray(peerData.lists)) {
               peerData.lists.forEach(l => {

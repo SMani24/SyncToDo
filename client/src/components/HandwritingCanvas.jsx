@@ -52,10 +52,19 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
   const [strokeColor, setStrokeColor] = useState('#6366f1');
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [history, setHistory] = useState([]);
-  const [historyStep, setHistoryStep] = useState(-1);
+  const [historyState, setHistoryState] = useState({ stack: [], step: -1 });
+  const historyRef = useRef({ stack: [], step: -1 });
+  const loadSeqRef = useRef(0);
+  const lastPointRef = useRef(null);
+  const highlightPointsRef = useRef(null);
+  const highlightBaseRef = useRef(null);
+  const hardwareBarrelDownRef = useRef(false);
+  const dprRef = useRef(2.5);
   const [usePenOnly, setUsePenOnly] = useState(false); // Palm rejection mode
   const [isBarrelEraser, setIsBarrelEraser] = useState(false); // S-Pen side button eraser mode
+
+  const history = historyState.stack;
+  const historyStep = historyState.step;
 
   const colors = [
     { label: 'Indigo', hex: '#6366f1' },
@@ -67,14 +76,25 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     { label: 'White', hex: '#ffffff' }
   ];
 
+  const resetHistoryWithCurrentCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL();
+    const next = { stack: [dataUrl], step: 0 };
+    historyRef.current = next;
+    setHistoryState(next);
+  };
+
   // Initialize canvas with high-resolution Retina / High-DPI scaling
   useEffect(() => {
+    let cancelled = false;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     // Set internal resolution matching display aspect with High-DPI multiplier
     const rect = canvas.getBoundingClientRect();
     const dpr = Math.max(2.5, window.devicePixelRatio || 2);
+    dprRef.current = dpr;
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
 
@@ -89,69 +109,95 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
     if (initialImage) {
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, rect.width, rect.height);
-        saveHistoryState();
+        if (cancelled) return;
+        ctx.globalCompositeOperation = 'source-over';
+        const pad = 16;
+        const maxW = Math.max(1, rect.width - pad * 2);
+        const maxH = Math.max(1, rect.height - pad * 2);
+        // Preserve aspect ratio instead of stretching cropped ink across the whole canvas
+        const naturalCssW = (img.naturalWidth || rect.width) / dpr;
+        const naturalCssH = (img.naturalHeight || rect.height) / dpr;
+        const scale = Math.min(1, maxW / Math.max(1, naturalCssW), maxH / Math.max(1, naturalCssH));
+        const drawW = naturalCssW * scale;
+        const drawH = naturalCssH * scale;
+        const drawX = (rect.width - drawW) / 2;
+        const drawY = (rect.height - drawH) / 2;
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+        resetHistoryWithCurrentCanvas();
       };
       img.src = initialImage;
     } else {
-      saveHistoryState();
+      resetHistoryWithCurrentCanvas();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const saveHistoryState = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dataUrl = canvas.toDataURL();
-    setHistory(prev => {
-      const newHist = prev.slice(0, historyStep + 1);
-      return [...newHist, dataUrl];
-    });
-    setHistoryStep(prev => prev + 1);
+    const cur = historyRef.current;
+    const nextStack = [...cur.stack.slice(0, cur.step + 1), dataUrl];
+    const next = { stack: nextStack, step: nextStack.length - 1 };
+    historyRef.current = next;
+    setHistoryState(next);
+  };
+
+  const renderHistoryIndex = (targetStep) => {
+    const cur = historyRef.current;
+    if (targetStep < 0 || targetStep >= cur.stack.length) return;
+    const next = { stack: cur.stack, step: targetStep };
+    historyRef.current = next;
+    setHistoryState(next);
+
+    const dataUrl = cur.stack[targetStep];
+    const seq = ++loadSeqRef.current;
+    const img = new Image();
+    img.onload = () => {
+      if (loadSeqRef.current !== seq) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    };
+    img.src = dataUrl;
   };
 
   const undo = () => {
-    if (historyStep <= 0) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const prevData = history[historyStep - 1];
-    const img = new Image();
-    img.onload = () => {
-      const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
-      setHistoryStep(s => s - 1);
-    };
-    img.src = prevData;
+    const cur = historyRef.current;
+    if (cur.step <= 0) return;
+    renderHistoryIndex(cur.step - 1);
   };
 
   const redo = () => {
-    if (historyStep >= history.length - 1) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const nextData = history[historyStep + 1];
-    const img = new Image();
-    img.onload = () => {
-      const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
-      setHistoryStep(s => s + 1);
-    };
-    img.src = nextData;
+    const cur = historyRef.current;
+    if (cur.step >= cur.stack.length - 1) return;
+    renderHistoryIndex(cur.step + 1);
   };
 
   const previousToolRef = useRef(tool);
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
 
   useEffect(() => {
     // Intercept S-Pen / stylus hardware barrel button events dispatched from Android bridge
     const handleStylusEvent = (e) => {
       const action = e.detail?.action;
       if (action === 'down' || action === 'eraser_active') {
-        if (tool !== 'eraser') {
-          previousToolRef.current = tool;
+        hardwareBarrelDownRef.current = true;
+        if (toolRef.current !== 'eraser') {
+          previousToolRef.current = toolRef.current;
         }
         setTool('eraser');
         setIsBarrelEraser(true);
       } else if (action === 'up') {
+        hardwareBarrelDownRef.current = false;
         setIsBarrelEraser(false);
         setTool(previousToolRef.current || 'pen');
       }
@@ -167,12 +213,13 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
       window.removeEventListener('stylusbutton', handleStylusEvent);
       window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
     };
-  }, [tool]);
+  }, []);
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
+    ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, rect.width, rect.height);
     saveHistoryState();
   };
@@ -193,28 +240,44 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
 
     e.preventDefault();
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch (_) {}
+
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-
-    const barrel = isStylusButtonEraser(e);
+    const barrel = hardwareBarrelDownRef.current || isStylusButtonEraser(e);
     setIsBarrelEraser(barrel);
     if (barrel) {
       if (tool !== 'eraser') previousToolRef.current = tool;
       setTool('eraser');
     }
 
-    // Dynamic pressure calculation
-    const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
-    applyContextStyle(ctx, pressure, barrel);
+    const effectiveHighlighter = !barrel && tool === 'highlighter';
+    lastPointRef.current = { x, y };
 
-    ctx.lineTo(x + 0.1, y + 0.1);
-    ctx.stroke();
+    if (effectiveHighlighter) {
+      // Snapshot current ink once so continuous highlighter stroke never compounds/darkens over itself
+      highlightBaseRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      highlightPointsRef.current = [{ x, y }];
+      applyContextStyle(ctx, 0.5, false);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 0.1, y + 0.1);
+      ctx.stroke();
+    } else {
+      highlightBaseRef.current = null;
+      highlightPointsRef.current = null;
+      const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
+      applyContextStyle(ctx, pressure, barrel);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 0.1, y + 0.1);
+      ctx.stroke();
+    }
 
     setIsDrawing(true);
   };
@@ -225,38 +288,66 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
 
     e.preventDefault();
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
 
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const barrel = isStylusButtonEraser(e);
+    const barrel = hardwareBarrelDownRef.current || isStylusButtonEraser(e);
     if (barrel !== isBarrelEraser) {
       setIsBarrelEraser(barrel);
       if (barrel) {
         if (tool !== 'eraser') previousToolRef.current = tool;
         setTool('eraser');
+        highlightBaseRef.current = null;
+        highlightPointsRef.current = null;
       } else {
         setTool(previousToolRef.current || 'pen');
       }
-      ctx.beginPath();
-      ctx.moveTo(x, y);
+      lastPointRef.current = { x, y };
     }
 
-    const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
-    applyContextStyle(ctx, pressure, barrel);
+    const effectiveHighlighter = !barrel && tool === 'highlighter' && highlightBaseRef.current && highlightPointsRef.current;
+    if (effectiveHighlighter) {
+      highlightPointsRef.current.push({ x, y });
+      ctx.putImageData(highlightBaseRef.current, 0, 0);
+      applyContextStyle(ctx, 0.5, false);
+      ctx.beginPath();
+      const pts = highlightPointsRef.current;
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+    } else {
+      const prev = lastPointRef.current || { x, y };
+      const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
+      applyContextStyle(ctx, pressure, barrel);
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
 
-    ctx.lineTo(x, y);
-    ctx.stroke();
+    lastPointRef.current = { x, y };
   };
 
   const handlePointerUp = (e) => {
     if (!isDrawing) return;
-    if (isBarrelEraser) {
+    try {
+      if (e?.pointerId !== undefined) {
+        e.currentTarget?.releasePointerCapture?.(e.pointerId);
+      }
+    } catch (_) {}
+    if (isBarrelEraser && !hardwareBarrelDownRef.current) {
       setIsBarrelEraser(false);
       setTool(previousToolRef.current || 'pen');
     }
+    lastPointRef.current = null;
+    highlightBaseRef.current = null;
+    highlightPointsRef.current = null;
     // Reset composite mode so history snapshots always capture correctly
     const canvas = canvasRef.current;
     if (canvas) {
@@ -290,8 +381,8 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
   const handleExport = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const cropped = cropInkBounds(canvas, 10) || canvas.toDataURL('image/png');
-    onSave(cropped);
+    const cropped = cropInkBounds(canvas, 10);
+    onSave(cropped || null);
   };
 
   return (
@@ -422,7 +513,7 @@ export default function HandwritingCanvas({ initialImage = null, onSave, onCance
             {colors.map(c => (
               <button
                 key={c.hex}
-                onClick={() => { setStrokeColor(c.hex); setTool('pen'); }}
+                onClick={() => { setStrokeColor(c.hex); if (tool === 'eraser') setTool('pen'); }}
                 title={c.label}
                 style={{
                   width: '22px',

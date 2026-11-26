@@ -31,18 +31,22 @@ export default function EditListModal({
   const [color, setColor] = useState('#6366f1');
 
   useEffect(() => {
-    if (list) {
+    if (isOpen && list) {
       setName(list.name || '');
       setIcon(normalizeListIcon(list.icon) || '📁');
       setColor(list.color || '#6366f1');
     }
-  }, [list, isOpen]);
+  }, [list?.id, isOpen]);
 
   if (!isOpen || !list) return null;
 
   const handleSubmit = (e) => {
     e?.preventDefault();
     if (!name.trim()) return;
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+    try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
     onSave({
       name: name.trim(),
       icon: normalizeListIcon(icon) || '📁',
@@ -216,6 +220,7 @@ export default function EditListModal({
             {onDelete && list.id !== 'inbox' ? (
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onClose();
                   onDelete(list.id);
@@ -238,6 +243,7 @@ export default function EditListModal({
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={onClose}
                 style={{
                   padding: '9px 16px',
@@ -254,6 +260,7 @@ export default function EditListModal({
               </button>
               <button
                 type="submit"
+                onMouseDown={(e) => e.preventDefault()}
                 disabled={!name.trim()}
                 style={{
                   padding: '9px 20px',

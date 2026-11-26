@@ -27,16 +27,16 @@ public class LocalPeerServer {
     private static final String NSD_SERVICE_TYPE = "_synctodo._tcp.";
 
     private final Context context;
-    private ServerSocket serverSocket;
-    private DatagramSocket udpSocket;
-    private boolean isRunning = false;
-    private String localIp = "127.0.0.1";
+    private volatile ServerSocket serverSocket;
+    private volatile DatagramSocket udpSocket;
+    private volatile boolean isRunning = false;
+    private volatile String localIp = "127.0.0.1";
     private final File dataFile;
     private final File metaFile;
 
-    private String deviceId;
-    private String deviceName;
-    private String pairingCode;
+    private volatile String deviceId;
+    private volatile String deviceName;
+    private volatile String pairingCode;
 
     // key (deviceId or ip) -> JSONObject { deviceId, deviceName, ip, port, deviceType, tasksCount, lastSeen }
     private final Map<String, JSONObject> discoveredPeers = new ConcurrentHashMap<>();
@@ -107,6 +107,27 @@ public class LocalPeerServer {
         saveMeta();
     }
 
+    private static String optNonNullString(JSONObject obj, String key, String fallback) {
+        if (obj == null || !obj.has(key) || obj.isNull(key)) return fallback;
+        String val = obj.optString(key, fallback);
+        if (val == null || "null".equalsIgnoreCase(val.trim())) return fallback;
+        return val;
+    }
+
+    private void writeFileAtomic(File target, String content) throws IOException {
+        File tmp = new File(target.getParentFile(), target.getName() + ".tmp");
+        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tmp), StandardCharsets.UTF_8)) {
+            writer.write(content);
+        }
+        if (!tmp.renameTo(target)) {
+            try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(target), StandardCharsets.UTF_8)) {
+                writer.write(content);
+            }
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+        }
+    }
+
     private synchronized void saveMeta() {
         try {
             JSONObject meta = new JSONObject();
@@ -118,9 +139,7 @@ public class LocalPeerServer {
                 pairedObj.put(entry.getKey(), entry.getValue());
             }
             meta.put("pairedDevices", pairedObj);
-            try (FileWriter fw = new FileWriter(metaFile)) {
-                fw.write(meta.toString());
-            }
+            writeFileAtomic(metaFile, meta.toString());
         } catch (Exception e) {
             Log.e(TAG, "Failed to save meta", e);
         }
@@ -226,34 +245,40 @@ public class LocalPeerServer {
     }
 
     private void recordDiscoveredPeer(String ip, int port, String deviceType, String peerId, String peerName, int tasksCount) {
-        if (ip == null || ip.isEmpty() || ip.equals("127.0.0.1") || ip.equals(localIp)) return;
+        if (ip == null || ip.isEmpty() || "null".equalsIgnoreCase(ip) || ip.equals("127.0.0.1") || ip.equals(localIp)) return;
         if (peerId != null && peerId.equals(this.deviceId)) return;
 
         try {
             String key = (peerId != null && !peerId.isEmpty()) ? peerId : ip;
             JSONObject existing = discoveredPeers.get(key);
-            JSONObject obj = existing != null ? existing : new JSONObject();
+            JSONObject obj = new JSONObject();
 
-            String finalId = (peerId != null && !peerId.isEmpty()) ? peerId : obj.optString("deviceId", "peer-" + ip);
-            String finalName = (peerName != null && !peerName.isEmpty()) ? peerName : obj.optString("deviceName", "laptop".equals(deviceType) ? "Laptop" : "Nearby Device");
+            String finalId = (peerId != null && !peerId.isEmpty()) ? peerId : (existing != null ? existing.optString("deviceId", "peer-" + ip) : "peer-" + ip);
+            String finalName = (peerName != null && !peerName.isEmpty()) ? peerName : (existing != null ? existing.optString("deviceName", "laptop".equals(deviceType) ? "Laptop" : "Nearby Device") : ("laptop".equals(deviceType) ? "Laptop" : "Nearby Device"));
+            int effectivePort = port > 0 ? port : (existing != null ? existing.optInt("port", 4567) : 4567);
 
             obj.put("deviceId", finalId);
             obj.put("deviceName", finalName);
             obj.put("ip", ip);
-            obj.put("port", port > 0 ? port : 4567);
+            obj.put("port", effectivePort);
             obj.put("deviceType", deviceType != null ? deviceType : "peer");
-            obj.put("tasksCount", tasksCount > 0 ? tasksCount : obj.optInt("tasksCount", 0));
+            obj.put("tasksCount", tasksCount > 0 ? tasksCount : (existing != null ? existing.optInt("tasksCount", 0) : 0));
             obj.put("lastSeen", System.currentTimeMillis());
 
             discoveredPeers.put(key, obj);
 
-            if (pairedDevices.containsKey(finalId)) {
-                JSONObject pd = pairedDevices.get(finalId);
-                if (pd != null) {
-                    pd.put("ip", ip);
-                    pd.put("port", port > 0 ? port : 4567);
-                    pd.put("deviceName", finalName);
-                    pd.put("lastSeen", System.currentTimeMillis());
+            JSONObject existingPd = pairedDevices.get(finalId);
+            if (existingPd != null) {
+                boolean metaChanged = !ip.equals(existingPd.optString("ip", ""))
+                        || effectivePort != existingPd.optInt("port", 4567)
+                        || !finalName.equals(existingPd.optString("deviceName", ""));
+                JSONObject updatedPd = new JSONObject(existingPd.toString());
+                updatedPd.put("ip", ip);
+                updatedPd.put("port", effectivePort);
+                updatedPd.put("deviceName", finalName);
+                updatedPd.put("lastSeen", System.currentTimeMillis());
+                pairedDevices.put(finalId, updatedPd);
+                if (metaChanged) {
                     saveMeta();
                 }
             }
@@ -262,8 +287,9 @@ public class LocalPeerServer {
 
     private void runHttpLoop() {
         try {
-            serverSocket = new ServerSocket(HTTP_PORT);
+            serverSocket = new ServerSocket();
             serverSocket.setReuseAddress(true);
+            serverSocket.bind(new InetSocketAddress(HTTP_PORT));
             while (isRunning) {
                 try {
                     Socket client = serverSocket.accept();
@@ -277,13 +303,34 @@ public class LocalPeerServer {
         }
     }
 
+    private static String readHttpLine(BufferedInputStream in) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int prev = -1;
+        int b;
+        while ((b = in.read()) != -1) {
+            if (b == '\n') {
+                byte[] bytes = baos.toByteArray();
+                int len = (prev == '\r' && bytes.length > 0) ? bytes.length - 1 : bytes.length;
+                return new String(bytes, 0, len, StandardCharsets.UTF_8);
+            }
+            baos.write(b);
+            prev = b;
+            if (baos.size() > 65536) break;
+        }
+        if (baos.size() == 0) return null;
+        return new String(baos.toByteArray(), StandardCharsets.UTF_8);
+    }
+
     private void handleHttpClient(Socket socket) {
+        try {
+            socket.setSoTimeout(15000);
+        } catch (Exception ignored) {}
         try (
-            InputStream in = socket.getInputStream();
-            OutputStream out = socket.getOutputStream();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))
+            Socket s = socket;
+            BufferedInputStream in = new BufferedInputStream(s.getInputStream());
+            OutputStream out = s.getOutputStream()
         ) {
-            String line = reader.readLine();
+            String line = readHttpLine(in);
             if (line == null) return;
 
             String[] parts = line.split(" ");
@@ -291,11 +338,15 @@ public class LocalPeerServer {
             String fullPath = parts.length > 1 ? parts[1] : "/";
 
             int contentLength = 0;
-            while ((line = reader.readLine()) != null && !line.isEmpty()) {
-                if (line.toLowerCase().startsWith("content-length:")) {
+            String headerToken = "";
+            while ((line = readHttpLine(in)) != null && !line.isEmpty()) {
+                String lower = line.toLowerCase(Locale.US);
+                if (lower.startsWith("content-length:")) {
                     try {
                         contentLength = Integer.parseInt(line.substring(15).trim());
                     } catch (NumberFormatException ignored) {}
+                } else if (lower.startsWith("x-sync-token:")) {
+                    headerToken = line.substring(13).trim();
                 }
             }
 
@@ -304,16 +355,22 @@ public class LocalPeerServer {
                 return;
             }
 
+            if (contentLength > 10 * 1024 * 1024) {
+                sendResponse(out, "413 Payload Too Large", "application/json", "{\"error\":\"Payload too large\"}");
+                return;
+            }
+
+            // Read exact UTF-8 byte count (NOT char count!) so emojis and Persian text never deadlock
             String body = "";
             if (contentLength > 0) {
-                char[] buf = new char[contentLength];
+                byte[] buf = new byte[contentLength];
                 int read = 0;
                 while (read < contentLength) {
-                    int r = reader.read(buf, read, contentLength - read);
+                    int r = in.read(buf, read, contentLength - read);
                     if (r == -1) break;
                     read += r;
                 }
-                body = new String(buf, 0, read);
+                body = new String(buf, 0, read, StandardCharsets.UTF_8);
             }
 
             this.localIp = getLocalWifiIp();
@@ -389,12 +446,13 @@ public class LocalPeerServer {
 
             } else if (fullPath.startsWith("/api/p2p/pair-request")) {
                 JSONObject req = body.isEmpty() ? new JSONObject() : new JSONObject(body);
-                String reqDevId = req.optString("deviceId", "peer-" + System.currentTimeMillis());
-                String reqName = req.optString("deviceName", "Nearby Device");
-                String reqType = req.optString("deviceType", "peer");
-                String reqIp = req.optString("ip", socket.getInetAddress().getHostAddress());
+                String reqDevId = optNonNullString(req, "deviceId", "peer-" + System.currentTimeMillis());
+                String reqName = optNonNullString(req, "deviceName", "Nearby Device");
+                String reqType = optNonNullString(req, "deviceType", "peer");
+                String fallbackIp = socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : "";
+                String reqIp = optNonNullString(req, "ip", fallbackIp);
                 int reqPort = req.optInt("port", 4567);
-                String code = req.optString("code", "").replaceAll("\\s+", "");
+                String code = optNonNullString(req, "code", "").replaceAll("\\s+", "");
 
                 recordDiscoveredPeer(reqIp, reqPort, reqType, reqDevId, reqName, 0);
 
@@ -420,12 +478,13 @@ public class LocalPeerServer {
                     JSONObject srv = new JSONObject();
                     srv.put("deviceId", deviceId);
                     srv.put("deviceName", deviceName);
-                    srv.put("deviceType", "phone");
+                    srv.put("deviceType", getDeviceTypeString());
                     srv.put("ip", localIp);
                     srv.put("port", HTTP_PORT);
                     res.put("serverDevice", srv);
                     res.put("todos", store.optJSONArray("todosArray") != null ? store.optJSONArray("todosArray") : todosMapToArray(store.optJSONObject("todos")));
                     res.put("lists", store.optJSONArray("lists"));
+                    res.put("deletedLists", store.optJSONObject("deletedLists") != null ? store.optJSONObject("deletedLists") : new JSONObject());
                     sendResponse(out, "200 OK", "application/json", res.toString());
                 } else if (!code.isEmpty()) {
                     sendResponse(out, "400 Bad Request", "application/json", "{\"status\":\"invalid_code\",\"message\":\"Code did not match\"}");
@@ -448,10 +507,72 @@ public class LocalPeerServer {
                     sendResponse(out, "200 OK", "application/json", res.toString());
                 }
 
+            } else if (fullPath.startsWith("/api/p2p/pair-status")) {
+                String queryDevId = "";
+                int qIdx = fullPath.indexOf('?');
+                if (qIdx >= 0) {
+                    String[] qParts = fullPath.substring(qIdx + 1).split("&");
+                    for (String qp : qParts) {
+                        if (qp.startsWith("deviceId=")) {
+                            try {
+                                queryDevId = URLDecoder.decode(qp.substring(9), "UTF-8");
+                            } catch (Exception ignored) {
+                                queryDevId = qp.substring(9);
+                            }
+                        }
+                    }
+                }
+                JSONObject pr = !queryDevId.isEmpty() ? pendingPairRequests.get(queryDevId) : null;
+                JSONObject pd = !queryDevId.isEmpty() ? pairedDevices.get(queryDevId) : null;
+                if (pd != null && (pr == null || "paired".equals(pr.optString("status", "")))) {
+                    JSONObject store = readCurrentStoreJson();
+                    JSONObject res = new JSONObject();
+                    res.put("status", "paired");
+                    res.put("token", optNonNullString(pd, "token", ""));
+                    JSONObject srv = new JSONObject();
+                    srv.put("deviceId", deviceId);
+                    srv.put("deviceName", deviceName);
+                    srv.put("deviceType", getDeviceTypeString());
+                    srv.put("ip", localIp);
+                    srv.put("port", HTTP_PORT);
+                    res.put("serverDevice", srv);
+                    res.put("todos", todosMapToArray(store.optJSONObject("todos")));
+                    res.put("lists", store.optJSONArray("lists") != null ? store.optJSONArray("lists") : new JSONArray());
+                    res.put("deletedLists", store.optJSONObject("deletedLists") != null ? store.optJSONObject("deletedLists") : new JSONObject());
+                    sendResponse(out, "200 OK", "application/json", res.toString());
+                } else if (pr != null) {
+                    JSONObject res = new JSONObject();
+                    res.put("status", optNonNullString(pr, "status", "pending"));
+                    sendResponse(out, "200 OK", "application/json", res.toString());
+                } else {
+                    sendResponse(out, "200 OK", "application/json", "{\"status\":\"pending\"}");
+                }
+
+            } else if (fullPath.startsWith("/api/p2p/unpair")) {
+                String clientIp = socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : "127.0.0.1";
+                boolean isLoopback = "127.0.0.1".equals(clientIp) || "localhost".equalsIgnoreCase(clientIp) || "::1".equals(clientIp);
+                if (!isLoopback) {
+                    sendResponse(out, "403 Forbidden", "application/json", "{\"status\":\"forbidden\"}");
+                    return;
+                }
+                JSONObject req = body.isEmpty() ? new JSONObject() : new JSONObject(body);
+                String target = optNonNullString(req, "deviceId", "");
+                if (!target.isEmpty()) {
+                    pairedDevices.remove(target);
+                    pendingPairRequests.remove(target);
+                    for (Map.Entry<String, JSONObject> entry : new ArrayList<>(pairedDevices.entrySet())) {
+                        if (target.equals(optNonNullString(entry.getValue(), "ip", ""))) {
+                            pairedDevices.remove(entry.getKey());
+                        }
+                    }
+                    saveMeta();
+                }
+                sendResponse(out, "200 OK", "application/json", "{\"status\":\"ok\"}");
+
             } else if (fullPath.startsWith("/api/p2p/pair-respond")) {
                 JSONObject req = body.isEmpty() ? new JSONObject() : new JSONObject(body);
-                String targetId = req.optString("deviceId");
-                String action = req.optString("action");
+                String targetId = optNonNullString(req, "deviceId", "");
+                String action = optNonNullString(req, "action", "");
                 JSONObject pr = pendingPairRequests.get(targetId);
                 if (pr != null && "allow".equals(action)) {
                     String token = "tok-" + UUID.randomUUID().toString().substring(0, 8);
@@ -459,9 +580,9 @@ public class LocalPeerServer {
                     pr.put("token", token);
                     JSONObject pd = new JSONObject();
                     pd.put("deviceId", targetId);
-                    pd.put("deviceName", pr.optString("deviceName", "Device"));
-                    pd.put("deviceType", pr.optString("deviceType", "peer"));
-                    pd.put("ip", pr.optString("ip"));
+                    pd.put("deviceName", optNonNullString(pr, "deviceName", "Device"));
+                    pd.put("deviceType", optNonNullString(pr, "deviceType", "peer"));
+                    pd.put("ip", optNonNullString(pr, "ip", ""));
                     pd.put("port", pr.optInt("port", 4567));
                     pd.put("token", token);
                     pd.put("pairedAt", System.currentTimeMillis());
@@ -478,25 +599,47 @@ public class LocalPeerServer {
                 String clientIp = socket.getInetAddress() != null ? socket.getInetAddress().getHostAddress() : "127.0.0.1";
                 boolean isLoopback = "127.0.0.1".equals(clientIp) || "localhost".equalsIgnoreCase(clientIp) || "::1".equals(clientIp);
 
+                if ("GET".equalsIgnoreCase(method) && !isLoopback) {
+                    boolean authorized = false;
+                    for (JSONObject pd : pairedDevices.values()) {
+                        String tok = optNonNullString(pd, "token", "");
+                        if (!tok.isEmpty() && tok.equals(headerToken)) {
+                            authorized = true;
+                            break;
+                        }
+                        if (clientIp.equals(optNonNullString(pd, "ip", "")) && (tok.isEmpty() || headerToken.isEmpty() || tok.equals(headerToken))) {
+                            authorized = true;
+                            break;
+                        }
+                    }
+                    if (!authorized) {
+                        sendResponse(out, "403 Forbidden", "application/json", "{\"status\":\"unpaired\",\"message\":\"Device is not paired. Pair devices first.\"}");
+                        return;
+                    }
+                }
+
                 if ("POST".equalsIgnoreCase(method) && !body.isEmpty()) {
                     JSONObject incoming = new JSONObject(body);
-                    String senderDevId = incoming.optString("deviceId", "");
-                    String senderToken = incoming.optString("token", "");
+                    String senderDevId = optNonNullString(incoming, "deviceId", "");
+                    String senderToken = optNonNullString(incoming, "token", headerToken);
 
                     // Non-loopback requests MUST be from a paired device with a valid matching token or IP
                     if (!isLoopback) {
                         boolean authorized = false;
                         JSONObject paired = pairedDevices.get(senderDevId);
                         if (paired != null) {
-                            String token = paired.optString("token", "");
+                            String token = optNonNullString(paired, "token", "");
                             if (token.isEmpty() || senderToken.equals(token)) {
                                 authorized = true;
                             }
-                        }
-                        if (!authorized) {
+                        } else {
                             for (JSONObject pd : pairedDevices.values()) {
-                                if (clientIp.equals(pd.optString("ip")) ||
-                                    (!senderDevId.isEmpty() && senderDevId.equals(pd.optString("deviceId")))) {
+                                String token = optNonNullString(pd, "token", "");
+                                if (!token.isEmpty() && token.equals(senderToken)) {
+                                    authorized = true;
+                                    break;
+                                }
+                                if (clientIp.equals(optNonNullString(pd, "ip", "")) && (token.isEmpty() || senderToken.isEmpty() || token.equals(senderToken))) {
                                     authorized = true;
                                     break;
                                 }
@@ -507,19 +650,28 @@ public class LocalPeerServer {
                             return;
                         }
                     } else {
-                        // Loopback sync: Ingest paired devices from WebView client
-                        JSONArray incomingPaired = incoming.optJSONArray("pairedDevices");
-                        if (incomingPaired != null && incomingPaired.length() > 0) {
-                            for (int i = 0; i < incomingPaired.length(); i++) {
-                                JSONObject pd = incomingPaired.optJSONObject(i);
-                                if (pd != null) {
-                                    String pdDevId = pd.optString("deviceId", "");
-                                    if (!pdDevId.isEmpty() && !pdDevId.equals(deviceId)) {
-                                        pairedDevices.put(pdDevId, pd);
+                        // Loopback sync: reconcile paired devices from WebView client (including removals!)
+                        if (incoming.has("pairedDevices") && !incoming.isNull("pairedDevices")) {
+                            JSONArray incomingPaired = incoming.optJSONArray("pairedDevices");
+                            if (incomingPaired != null) {
+                                Set<String> keepIds = new HashSet<>();
+                                for (int i = 0; i < incomingPaired.length(); i++) {
+                                    JSONObject pd = incomingPaired.optJSONObject(i);
+                                    if (pd != null) {
+                                        String pdDevId = optNonNullString(pd, "deviceId", "");
+                                        if (!pdDevId.isEmpty() && !pdDevId.equals(deviceId)) {
+                                            pairedDevices.put(pdDevId, pd);
+                                            keepIds.add(pdDevId);
+                                        }
                                     }
                                 }
+                                for (String existingKey : new ArrayList<>(pairedDevices.keySet())) {
+                                    if (!keepIds.contains(existingKey)) {
+                                        pairedDevices.remove(existingKey);
+                                    }
+                                }
+                                saveMeta();
                             }
-                            saveMeta();
                         }
                     }
 
@@ -533,6 +685,7 @@ public class LocalPeerServer {
                 res.put("deviceType", getDeviceTypeString());
                 res.put("todos", todosMapToArray(currentStore.optJSONObject("todos")));
                 res.put("lists", currentStore.optJSONArray("lists") != null ? currentStore.optJSONArray("lists") : new JSONArray());
+                res.put("deletedLists", currentStore.optJSONObject("deletedLists") != null ? currentStore.optJSONObject("deletedLists") : new JSONObject());
                 res.put("mutations", currentStore.optJSONArray("mutations") != null ? currentStore.optJSONArray("mutations") : new JSONArray());
                 res.put("timestamp", System.currentTimeMillis());
                 sendResponse(out, "200 OK", "application/json", res.toString());
@@ -579,9 +732,9 @@ public class LocalPeerServer {
     private synchronized void mergeIncomingSyncPayload(String body, String senderIp) {
         try {
             JSONObject incoming = new JSONObject(body);
-            String peerDevId = incoming.optString("deviceId", null);
-            String peerDevName = incoming.optString("deviceName", null);
-            String peerDevType = incoming.optString("deviceType", "peer");
+            String peerDevId = optNonNullString(incoming, "deviceId", null);
+            String peerDevName = optNonNullString(incoming, "deviceName", null);
+            String peerDevType = optNonNullString(incoming, "deviceType", "peer");
             int peerPort = incoming.optInt("port", 4567);
 
             if (senderIp != null && !senderIp.equals("127.0.0.1")) {
@@ -598,6 +751,25 @@ public class LocalPeerServer {
             if (listsArr == null) {
                 listsArr = new JSONArray();
                 store.put("lists", listsArr);
+            }
+            JSONObject deletedLists = store.optJSONObject("deletedLists");
+            if (deletedLists == null) {
+                deletedLists = new JSONObject();
+                store.put("deletedLists", deletedLists);
+            }
+
+            // 0. Merge incoming deletedLists tombstones
+            JSONObject inDeletedLists = incoming.optJSONObject("deletedLists");
+            if (inDeletedLists != null) {
+                Iterator<String> delKeys = inDeletedLists.keys();
+                while (delKeys.hasNext()) {
+                    String lid = delKeys.next();
+                    if ("inbox".equals(lid)) continue;
+                    long delTs = inDeletedLists.optLong(lid, 0);
+                    if (delTs > deletedLists.optLong(lid, 0)) {
+                        deletedLists.put(lid, delTs);
+                    }
+                }
             }
 
             // 1. Merge incoming todos (either JSONObject map or JSONArray)
@@ -617,37 +789,45 @@ public class LocalPeerServer {
                 }
             }
 
-            // 2. Merge incoming lists by id (Last-Write-Wins by updatedAt/createdAt) and preserve order
+            // 2. Merge incoming lists by id (Last-Write-Wins by updatedAt/createdAt) respecting deletedLists tombstones
+            Map<String, JSONObject> listById = new LinkedHashMap<>();
+            for (int i = 0; i < listsArr.length(); i++) {
+                JSONObject l = listsArr.optJSONObject(i);
+                if (l != null && l.has("id")) {
+                    String lid = l.optString("id");
+                    long upd = Math.max(l.optLong("updatedAt", 0), l.optLong("createdAt", 0));
+                    long delTs = deletedLists.optLong(lid, 0);
+                    if (delTs == 0 || upd > delTs) {
+                        listById.put(lid, l);
+                    }
+                }
+            }
             JSONArray inLists = incoming.optJSONArray("lists");
             if (inLists != null) {
-                Map<String, JSONObject> listById = new LinkedHashMap<>();
-                for (int i = 0; i < listsArr.length(); i++) {
-                    JSONObject l = listsArr.optJSONObject(i);
-                    if (l != null && l.has("id")) listById.put(l.optString("id"), l);
-                }
                 for (int i = 0; i < inLists.length(); i++) {
                     JSONObject inList = inLists.optJSONObject(i);
                     if (inList != null && inList.has("id")) {
                         String lid = inList.optString("id");
-                        JSONObject existing = listById.get(lid);
                         long inUpdated = Math.max(inList.optLong("updatedAt", 0), inList.optLong("createdAt", 0));
+                        long delTs = deletedLists.optLong(lid, 0);
+                        if (delTs > 0 && delTs >= inUpdated) continue;
+                        if (delTs > 0 && inUpdated > delTs) deletedLists.remove(lid);
+                        JSONObject existing = listById.get(lid);
                         long exUpdated = existing != null ? Math.max(existing.optLong("updatedAt", 0), existing.optLong("createdAt", 0)) : -1;
                         if (existing == null || inUpdated >= exUpdated) {
                             listById.put(lid, inList);
                         }
                     }
                 }
-                List<JSONObject> sortedLists = new ArrayList<>(listById.values());
-                Collections.sort(sortedLists, (a, b) -> Integer.compare(a.optInt("order", 9999), b.optInt("order", 9999)));
-                JSONArray mergedLists = new JSONArray();
-                for (JSONObject l : sortedLists) mergedLists.put(l);
-                store.put("lists", mergedLists);
             }
+            List<JSONObject> sortedLists = new ArrayList<>(listById.values());
+            Collections.sort(sortedLists, (a, b) -> Integer.compare(a.optInt("order", 9999), b.optInt("order", 9999)));
+            JSONArray mergedLists = new JSONArray();
+            for (JSONObject l : sortedLists) mergedLists.put(l);
+            store.put("lists", mergedLists);
 
             store.put("lastUpdated", System.currentTimeMillis());
-            try (FileWriter writer = new FileWriter(dataFile)) {
-                writer.write(store.toString());
-            }
+            writeFileAtomic(dataFile, store.toString());
         } catch (Exception e) {
             Log.e(TAG, "Error merging sync payload", e);
         }
@@ -655,14 +835,22 @@ public class LocalPeerServer {
 
     private void mergeSingleTodo(JSONObject todosMap, JSONObject inTodo) {
         if (inTodo == null) return;
-        String id = inTodo.optString("id", "");
+        String id = optNonNullString(inTodo, "id", "");
         if (id.isEmpty()) return;
         try {
             JSONObject existing = todosMap.optJSONObject(id);
             long inUpdated = inTodo.optLong("updatedAt", 0);
             long exUpdated = existing != null ? existing.optLong("updatedAt", 0) : -1;
-            if (existing == null || inUpdated >= exUpdated) {
+            if (existing == null) {
                 todosMap.put(id, inTodo);
+            } else if (inUpdated >= exUpdated) {
+                JSONObject merged = new JSONObject(existing.toString());
+                Iterator<String> keys = inTodo.keys();
+                while (keys.hasNext()) {
+                    String k = keys.next();
+                    merged.put(k, inTodo.get(k));
+                }
+                todosMap.put(id, merged);
             }
         } catch (Exception ignored) {}
     }
@@ -673,6 +861,7 @@ public class LocalPeerServer {
                 JSONObject empty = new JSONObject();
                 empty.put("todos", new JSONObject());
                 empty.put("lists", new JSONArray());
+                empty.put("deletedLists", new JSONObject());
                 empty.put("mutations", new JSONArray());
                 empty.put("lastUpdated", System.currentTimeMillis());
                 return empty;
@@ -680,7 +869,7 @@ public class LocalPeerServer {
                 return new JSONObject();
             }
         }
-        try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(dataFile), StandardCharsets.UTF_8))) {
             StringBuilder sb = new StringBuilder();
             String l;
             while ((l = reader.readLine()) != null) sb.append(l);
@@ -699,38 +888,43 @@ public class LocalPeerServer {
             byte[] buf = new byte[1024];
 
             while (isRunning) {
-                DatagramPacket packet = new DatagramPacket(buf, buf.length);
-                udpSocket.receive(packet);
+                try {
+                    DatagramPacket packet = new DatagramPacket(buf, buf.length);
+                    udpSocket.receive(packet);
 
-                String msg = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
-                if (msg.startsWith("SYNCTODO_DISCOVER")) {
-                    String encName = URLEncoder.encode(deviceName, "UTF-8");
-                    String reply = "SYNCTODO_OFFER:" + localIp + ":" + HTTP_PORT + ":" + getDeviceTypeString() + ":" + deviceId + ":" + encName + ":" + getActiveTasksCount();
-                    byte[] replyBytes = reply.getBytes(StandardCharsets.UTF_8);
-                    DatagramPacket replyPacket = new DatagramPacket(replyBytes, replyBytes.length, packet.getAddress(), packet.getPort());
-                    udpSocket.send(replyPacket);
-                } else if (msg.startsWith("SYNCTODO_BEACON:") || msg.startsWith("SYNCTODO_OFFER:")) {
-                    String[] parts = msg.split(":");
-                    if (parts.length >= 2) {
-                        String peerIp = parts[1].trim();
-                        int peerPort = HTTP_PORT;
-                        if (parts.length >= 3) {
-                            try { peerPort = Integer.parseInt(parts[2].trim()); } catch (Exception ignored) {}
-                        }
-                        String peerDevType = parts.length >= 4 ? parts[3].trim() : "peer";
-                        String peerDevId = parts.length >= 5 ? parts[4].trim() : null;
-                        String peerDevName = parts.length >= 6 ? URLDecoder.decode(parts[5].trim(), "UTF-8") : null;
-                        int peerTasks = 0;
-                        if (parts.length >= 7) {
-                            try { peerTasks = Integer.parseInt(parts[6].trim()); } catch (Exception ignored) {}
-                        }
+                    String msg = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
+                    if (msg.startsWith("SYNCTODO_DISCOVER")) {
+                        String encName = URLEncoder.encode(deviceName, "UTF-8").replace("+", "%20");
+                        String reply = "SYNCTODO_OFFER:" + localIp + ":" + HTTP_PORT + ":" + getDeviceTypeString() + ":" + deviceId + ":" + encName + ":" + getActiveTasksCount();
+                        byte[] replyBytes = reply.getBytes(StandardCharsets.UTF_8);
+                        DatagramPacket replyPacket = new DatagramPacket(replyBytes, replyBytes.length, packet.getAddress(), packet.getPort());
+                        udpSocket.send(replyPacket);
+                    } else if (msg.startsWith("SYNCTODO_BEACON:") || msg.startsWith("SYNCTODO_OFFER:")) {
+                        String[] parts = msg.split(":");
+                        if (parts.length >= 2) {
+                            String peerIp = parts[1].trim();
+                            int peerPort = HTTP_PORT;
+                            if (parts.length >= 3) {
+                                try { peerPort = Integer.parseInt(parts[2].trim()); } catch (Exception ignored) {}
+                            }
+                            String peerDevType = parts.length >= 4 ? parts[3].trim() : "peer";
+                            String peerDevId = parts.length >= 5 ? parts[4].trim() : null;
+                            String peerDevName = parts.length >= 6 ? URLDecoder.decode(parts[5].trim(), "UTF-8") : null;
+                            int peerTasks = 0;
+                            if (parts.length >= 7) {
+                                try { peerTasks = Integer.parseInt(parts[6].trim()); } catch (Exception ignored) {}
+                            }
 
-                        recordDiscoveredPeer(peerIp, peerPort, peerDevType, peerDevId, peerDevName, peerTasks);
+                            recordDiscoveredPeer(peerIp, peerPort, peerDevType, peerDevId, peerDevName, peerTasks);
+                        }
                     }
+                } catch (Exception loopErr) {
+                    if (!isRunning) break;
+                    Log.w(TAG, "Transient UDP discovery loop error", loopErr);
                 }
             }
         } catch (IOException e) {
-            if (isRunning) Log.e(TAG, "UDP discovery error", e);
+            if (isRunning) Log.e(TAG, "UDP discovery bind error", e);
         }
     }
 
@@ -759,7 +953,7 @@ public class LocalPeerServer {
             try {
                 this.localIp = getLocalWifiIp();
                 if (localIp != null && !localIp.equals("127.0.0.1") && udpSocket != null && !udpSocket.isClosed()) {
-                    String encName = URLEncoder.encode(deviceName, "UTF-8");
+                    String encName = URLEncoder.encode(deviceName, "UTF-8").replace("+", "%20");
                     String beacon = "SYNCTODO_BEACON:" + localIp + ":" + HTTP_PORT + ":" + getDeviceTypeString() + ":" + deviceId + ":" + encName + ":" + getActiveTasksCount();
                     byte[] bytes = beacon.getBytes(StandardCharsets.UTF_8);
                     String discover = "SYNCTODO_DISCOVER";

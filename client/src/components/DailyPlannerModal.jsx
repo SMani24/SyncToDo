@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { normalizeListIcon, hasPersianChar, detectBidiDirection, isTodoInMyDay, isTodoLeftoverFromEarlier } from '../syncEngine';
 import { Icon } from './SvgIcons';
 import { getLogicalDateStr, formatDayDateHeader } from '../utils/calendar';
@@ -16,6 +16,12 @@ export default function DailyPlannerModal({
 }) {
   const today = getLogicalDateStr(new Date(), dayStartHour);
   const [selectedListFilter, setSelectedListFilter] = useState('all');
+
+  useEffect(() => {
+    if (selectedListFilter !== 'all' && !lists.some(l => l.id === selectedListFilter)) {
+      setSelectedListFilter('all');
+    }
+  }, [lists, selectedListFilter]);
 
   const activeTodos = todos.filter(t => !t.deletedAt);
   const myDayTodos = activeTodos.filter(t => !t.completed && isTodoInMyDay(t, today));

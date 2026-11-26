@@ -1,28 +1,36 @@
 import React from 'react';
 import { normalizeListIcon } from '../syncEngine';
+import { getLogicalDateStr, getStoredDayStartHour } from '../utils/calendar';
 
 export default function AnalyticsDashboard({ todos = [], lists = [], onClose }) {
+  const dayStartHour = getStoredDayStartHour();
   const activeTodos = todos.filter(t => !t.deletedAt);
   const completedTodos = activeTodos.filter(t => t.completed);
+  const openTodos = activeTodos.filter(t => !t.completed);
   const totalCount = activeTodos.length;
   const completedCount = completedTodos.length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  const todayLogicalStr = getLogicalDateStr(new Date(), dayStartHour);
+  const [ty, tm, td] = todayLogicalStr.split('-').map(Number);
+
+  // Precompute completion counts by logical date (local timezone + dayStartHour)
+  const completionsByDate = new Map();
+  completedTodos.forEach(t => {
+    if (!t.completedAt) return;
+    const compDateObj = new Date(t.completedAt);
+    if (isNaN(compDateObj.getTime())) return;
+    const compStr = getLogicalDateStr(compDateObj, dayStartHour);
+    completionsByDate.set(compStr, (completionsByDate.get(compStr) || 0) + 1);
+  });
+
   // Calculate 7-Day Completion Trend
   const last7Days = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const d = new Date(ty, tm - 1, td - i, 12, 0, 0);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
-
-    // Count tasks completed on this day
-    const count = completedTodos.filter(t => {
-      if (!t.completedAt) return false;
-      const compDate = new Date(t.completedAt).toISOString().split('T')[0];
-      return compDate === dateStr;
-    }).length;
-
+    const count = completionsByDate.get(dateStr) || 0;
     last7Days.push({ dateStr, dayName, count });
   }
 
@@ -31,21 +39,17 @@ export default function AnalyticsDashboard({ todos = [], lists = [], onClose }) 
   // Calculate Streak
   let streak = 0;
   for (let i = 0; i < 30; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const hasCompletion = completedTodos.some(t => {
-      if (!t.completedAt) return false;
-      return new Date(t.completedAt).toISOString().split('T')[0] === dateStr;
-    });
+    const d = new Date(ty, tm - 1, td - i, 12, 0, 0);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const hasCompletion = (completionsByDate.get(dateStr) || 0) > 0;
     if (hasCompletion) streak++;
     else if (i > 0) break; // Break streak if yesterday had none (allow today to be in progress)
   }
 
-  // Priority distribution
-  const highCount = activeTodos.filter(t => t.priority === 'high').length;
-  const mediumCount = activeTodos.filter(t => t.priority === 'medium').length;
-  const lowCount = activeTodos.filter(t => t.priority === 'low').length;
+  // Active (incomplete) priority distribution
+  const highCount = openTodos.filter(t => t.priority === 'high').length;
+  const mediumCount = openTodos.filter(t => t.priority === 'medium').length;
+  const lowCount = openTodos.filter(t => t.priority === 'low').length;
 
   // Breakdown by Project / List
   const listStats = lists.map(list => {

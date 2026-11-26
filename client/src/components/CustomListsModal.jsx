@@ -16,12 +16,20 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
     if (!name.trim()) return;
     onAddList(name.trim(), selectedIcon, selectedColor);
     setName('');
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+    try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
   };
 
   const handleSaveEdit = (id) => {
     if (!editName.trim()) return;
     onUpdateList(id, { name: editName.trim() });
     setEditingListId(null);
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+    try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
   };
 
   return (
@@ -117,6 +125,7 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
               />
               <button
                 type="submit"
+                onMouseDown={(e) => e.preventDefault()}
                 disabled={!name.trim()}
                 style={{
                   padding: '9px 16px',
@@ -220,23 +229,38 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: '8px',
                     padding: '10px 14px',
                     borderRadius: '12px',
                     backgroundColor: 'var(--surface)',
                     border: '1px solid var(--border)'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                    <span style={{ fontSize: '18px' }}>{normalizeListIcon(list.icon)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: '18px', flexShrink: 0 }}>{normalizeListIcon(list.icon)}</span>
                     {editingListId === list.id ? (
-                      <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSaveEdit(list.id);
+                        }}
+                        style={{ display: 'flex', gap: '6px', flex: 1, minWidth: 0, alignItems: 'center' }}
+                      >
                         <input
                           type="text"
+                          autoFocus
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              e.stopPropagation();
+                              setEditingListId(null);
+                            }
+                          }}
                           dir="auto"
                           style={{
                             flex: 1,
+                            minWidth: 0,
                             padding: '4px 8px',
                             borderRadius: '6px',
                             border: '1px solid var(--primary)',
@@ -247,18 +271,19 @@ export default function CustomListsModal({ lists = [], onAddList, onUpdateList, 
                           }}
                         />
                         <button
-                          onClick={() => handleSaveEdit(list.id)}
-                          style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
+                          type="submit"
+                          onMouseDown={(e) => e.preventDefault()}
+                          style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '11px', cursor: 'pointer', flexShrink: 0 }}
                         >
                           Save
                         </button>
-                      </div>
+                      </form>
                     ) : (
-                      <span dir="auto" style={{ fontSize: '13px', fontWeight: 600, unicodeBidi: 'plaintext' }}>{list.name}</span>
+                      <span dir="auto" style={{ fontSize: '13px', fontWeight: 600, unicodeBidi: 'plaintext', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: list.color }} />
                     {list.id !== 'inbox' && (
                       <>

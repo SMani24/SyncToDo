@@ -8,6 +8,10 @@ if (typeof window !== 'undefined') {
 }
 
 function resetDocumentScroll() {
+  // On mobile web browsers without native adjustResize, don't fight visualViewport keyboard panning
+  if (window.visualViewport && window.visualViewport.height < window.innerHeight - 80) {
+    return;
+  }
   if (window.scrollY !== 0) window.scrollTo(0, 0);
   if (document.body && document.body.scrollTop !== 0) document.body.scrollTop = 0;
   if (document.documentElement && document.documentElement.scrollTop !== 0) document.documentElement.scrollTop = 0;

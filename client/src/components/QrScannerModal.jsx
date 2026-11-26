@@ -17,8 +17,15 @@ export default function QrScannerModal({ onScan, onClose }) {
     async function startCamera() {
       try {
         setCameraError(null);
+        setHasTorch(false);
+        setTorchOn(false);
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+          animFrameRef.current = null;
+        }
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
         }
 
         if (!navigator?.mediaDevices?.getUserMedia) {
@@ -45,15 +52,19 @@ export default function QrScannerModal({ onScan, onClose }) {
           videoRef.current.srcObject = stream;
           videoRef.current.setAttribute('playsinline', 'true');
           await videoRef.current.play();
+          if (!active) {
+            stream.getTracks().forEach(t => t.stop());
+            if (streamRef.current === stream) streamRef.current = null;
+            if (videoRef.current) videoRef.current.srcObject = null;
+            return;
+          }
 
           // Check torch capability
           const videoTrack = stream.getVideoTracks()[0];
           const capabilities = videoTrack?.getCapabilities?.() || {};
-          if (capabilities.torch) {
-            setHasTorch(true);
-          }
+          setHasTorch(Boolean(capabilities.torch));
 
-          startScanningLoop();
+          startScanningLoop(() => active);
         }
       } catch (err) {
         if (!active) return;
@@ -70,9 +81,16 @@ export default function QrScannerModal({ onScan, onClose }) {
 
     return () => {
       active = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
   }, [facingMode]);
@@ -92,10 +110,12 @@ export default function QrScannerModal({ onScan, onClose }) {
   };
 
   const toggleFacingMode = () => {
+    setHasTorch(false);
+    setTorchOn(false);
     setFacingMode(prev => (prev === 'environment' ? 'user' : 'environment'));
   };
 
-  const startScanningLoop = () => {
+  const startScanningLoop = (isActive = () => true) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
@@ -107,16 +127,17 @@ export default function QrScannerModal({ onScan, onClose }) {
     }
 
     const scanFrame = async () => {
+      if (!isActive()) return;
       const video = videoRef.current;
       if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        animFrameRef.current = requestAnimationFrame(scanFrame);
+        if (isActive()) animFrameRef.current = requestAnimationFrame(scanFrame);
         return;
       }
 
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       if (vw === 0 || vh === 0) {
-        animFrameRef.current = requestAnimationFrame(scanFrame);
+        if (isActive()) animFrameRef.current = requestAnimationFrame(scanFrame);
         return;
       }
 
@@ -124,6 +145,7 @@ export default function QrScannerModal({ onScan, onClose }) {
       if (barcodeDetector) {
         try {
           const barcodes = await barcodeDetector.detect(video);
+          if (!isActive()) return;
           if (barcodes && barcodes.length > 0) {
             const val = barcodes[0].rawValue;
             if (val) {
@@ -131,8 +153,12 @@ export default function QrScannerModal({ onScan, onClose }) {
               return;
             }
           }
-        } catch (_) {}
+        } catch (_) {
+          if (!isActive()) return;
+        }
       }
+
+      if (!isActive()) return;
 
       // 2. Pure JavaScript jsQR scan
       canvas.width = Math.min(vw, 640);
@@ -144,20 +170,28 @@ export default function QrScannerModal({ onScan, onClose }) {
         inversionAttempts: 'dontInvert'
       });
 
+      if (!isActive()) return;
       if (code && code.data) {
         onScan(code.data);
         return;
       }
 
-      animFrameRef.current = requestAnimationFrame(scanFrame);
+      if (isActive()) {
+        animFrameRef.current = requestAnimationFrame(scanFrame);
+      }
     };
 
-    animFrameRef.current = requestAnimationFrame(scanFrame);
+    if (isActive()) {
+      animFrameRef.current = requestAnimationFrame(scanFrame);
+    }
   };
 
   return (
     <div
-      onClick={onClose}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
       style={{
         position: 'fixed',
         inset: 0,
@@ -205,7 +239,7 @@ export default function QrScannerModal({ onScan, onClose }) {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Icon name="device" size={17} />
+              <Icon name="qr" size={17} />
             </span>
             <div>
               <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#ffffff' }}>

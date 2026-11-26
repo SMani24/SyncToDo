@@ -198,10 +198,12 @@ export class SyncEngine {
     // Load initial cached data
     this.todos = this.loadStoredTodos();
     this.lists = this.loadStoredLists();
+    this.deletedLists = this.loadDeletedLists();
     this.mutationQueue = this.loadStoredQueue();
     this.pendingCount = this.mutationQueue.length;
     this.inFlightMutationIds = null;
     this.pendingFlushAfterAck = false;
+    this._isMirroringLocal = false;
 
     // Initialize P2P LAN Mesh Engine
     this.p2pEngine = new P2PEngine(this);
@@ -293,7 +295,7 @@ export class SyncEngine {
 
     // 3. Fallback to paired laptop IP if available
     try {
-      const pairedRaw = localStorage.getItem('synctodo_paired_devices_v1');
+      const pairedRaw = localStorage.getItem('synctodo_paired_devices_v2') || localStorage.getItem('synctodo_paired_devices_v1');
       if (pairedRaw) {
         const list = JSON.parse(pairedRaw);
         const laptop = Array.isArray(list)
@@ -307,6 +309,48 @@ export class SyncEngine {
 
     // 4. Default for mobile discovery
     return 'ws://g16laptop.local:4000';
+  }
+
+  nextTimestamp(entity = null) {
+    const prev = entity && typeof entity.updatedAt === 'number' ? entity.updatedAt : 0;
+    return Math.max(Date.now(), prev + 1);
+  }
+
+  loadDeletedLists() {
+    try {
+      const raw = localStorage.getItem('synctodo_deleted_lists_v1');
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  saveDeletedLists() {
+    try {
+      localStorage.setItem('synctodo_deleted_lists_v1', JSON.stringify(this.deletedLists || {}));
+    } catch {}
+  }
+
+  applyDeletedLists(deletedMap) {
+    if (!deletedMap || typeof deletedMap !== 'object') return false;
+    let changed = false;
+    Object.entries(deletedMap).forEach(([listId, delTs]) => {
+      if (!listId || listId === 'inbox' || typeof delTs !== 'number') return;
+      if (!this.deletedLists[listId] || delTs > this.deletedLists[listId]) {
+        this.deletedLists[listId] = delTs;
+        changed = true;
+      }
+      const existing = this.lists.find(l => l.id === listId);
+      if (existing && delTs >= (existing.updatedAt || existing.createdAt || 0)) {
+        this.lists = this.lists.filter(l => l.id !== listId);
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.saveDeletedLists();
+    }
+    return changed;
   }
 
   setServerUrl(url) {
@@ -354,24 +398,75 @@ export class SyncEngine {
   }
 
   // Keep Android's embedded LocalPeerServer store in sync with WebView localStorage
+  // and pull any tasks pushed directly to LocalPeerServer by LAN peers
   mirrorToLocalEmbeddedServer() {
-    if (this.deviceType === 'laptop') return;
+    if (this.deviceType === 'laptop' || this._isMirroringLocal) return;
+    this._isMirroringLocal = true;
     try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 8000);
       fetch('http://127.0.0.1:4567/api/p2p/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           deviceId: this.deviceId,
           deviceName: this.deviceName,
           deviceType: this.deviceType,
           todos: this.todos,
           lists: this.lists,
+          deletedLists: this.deletedLists,
           mutations: this.mutationQueue,
           pairedDevices: this.p2pEngine ? Array.from(this.p2pEngine.pairedDevices.values()) : [],
           timestamp: Date.now()
         })
-      }).catch(() => {});
-    } catch {}
+      })
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => {
+          if (!data) return;
+          let changed = false;
+          if (data.deletedLists) {
+            if (this.applyDeletedLists(data.deletedLists)) changed = true;
+          }
+          const incomingTodos = Array.isArray(data.todos)
+            ? data.todos
+            : (data.todos && typeof data.todos === 'object' ? Object.values(data.todos) : []);
+          incomingTodos.forEach(t => {
+            if (!t || !t.id) return;
+            const cur = this.todos[t.id];
+            if (!cur || (t.updatedAt || 0) > (cur.updatedAt || 0)) {
+              this.mergeTodo(t);
+              changed = true;
+            }
+          });
+          if (Array.isArray(data.lists)) {
+            data.lists.forEach(l => {
+              if (!l || !l.id) return;
+              const cur = this.lists.find(x => x.id === l.id);
+              const inUpd = l.updatedAt || l.createdAt || 0;
+              const curUpd = cur ? (cur.updatedAt || cur.createdAt || 0) : -1;
+              if (!cur || inUpd > curUpd) {
+                this.mergeList(l);
+                changed = true;
+              }
+            });
+          }
+          if (changed) {
+            try {
+              localStorage.setItem(STORAGE_KEY_TODOS, JSON.stringify(this.todos));
+              localStorage.setItem(STORAGE_KEY_LISTS, JSON.stringify(this.lists));
+            } catch {}
+            this.notify();
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          clearTimeout(tid);
+          this._isMirroringLocal = false;
+        });
+    } catch {
+      this._isMirroringLocal = false;
+    }
   }
 
   loadStoredTodos() {
@@ -486,6 +581,8 @@ export class SyncEngine {
   }
 
   disconnect() {
+    this.inFlightMutationIds = null;
+    this.pendingFlushAfterAck = false;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -599,6 +696,9 @@ export class SyncEngine {
       }
       // Only merge data if device is confirmed paired or running locally
       if (msg.isPaired !== false) {
+        if (msg.deletedLists) {
+          this.applyDeletedLists(msg.deletedLists);
+        }
         if (Array.isArray(msg.todos)) {
           msg.todos.forEach(t => this.mergeTodo(t));
           this.saveStoredTodos();
@@ -617,7 +717,7 @@ export class SyncEngine {
           this.p2pEngine.ingestPresenceDevices(msg.devices);
         }
         if (Array.isArray(msg.pairedDevices)) {
-          this.p2pEngine.ingestDiscoveryResponse({ pairedDevices: msg.pairedDevices }, true);
+          this.p2pEngine.ingestDiscoveryResponse({ pairedDevices: msg.pairedDevices }, this.deviceType === 'laptop');
         }
       }
       this.notify();
@@ -626,6 +726,11 @@ export class SyncEngine {
     } else if (msg.type === 'P2P_SIGNAL') {
       this.p2pEngine?.handleSignalingMessage(msg);
     } else if (msg.type === 'SYNC_RESPONSE') {
+      const isLocalHost = Boolean(this.serverUrl && (this.serverUrl.includes('localhost') || this.serverUrl.includes('127.0.0.1')));
+      if (!this.isPaired && !isLocalHost) return;
+      if (msg.deletedLists) {
+        this.applyDeletedLists(msg.deletedLists);
+      }
       // Merge full todos state if provided by server
       if (Array.isArray(msg.todos)) {
         msg.todos.forEach(t => this.mergeTodo(t));
@@ -637,7 +742,7 @@ export class SyncEngine {
             this.mergeList(delta.data);
             this.saveStoredLists();
           } else if (delta.type === 'LIST_DELETE') {
-            this.lists = this.lists.filter(l => l.id !== delta.entityId);
+            this.applyDeletedLists({ [delta.entityId]: delta.timestamp || Date.now() });
             this.saveStoredLists();
           } else if (delta.data) {
             this.mergeTodo(delta.data);
@@ -660,7 +765,7 @@ export class SyncEngine {
             this.mergeList(m.data);
             listsChanged = true;
           } else if (m.type === 'LIST_DELETE') {
-            this.lists = this.lists.filter(l => l.id !== m.entityId);
+            this.applyDeletedLists({ [m.entityId]: m.timestamp || Date.now() });
             listsChanged = true;
           } else if (m.data) {
             this.mergeTodo(m.data);
@@ -694,21 +799,42 @@ export class SyncEngine {
   mergeList(rawList) {
     if (!rawList || !rawList.id) return;
     const l = { ...rawList, icon: normalizeListIcon(rawList.icon) };
+    const inUpd = l.updatedAt || l.createdAt || 0;
+    const deletedTs = this.deletedLists?.[l.id] || 0;
+    if (l.deletedAt || (deletedTs && deletedTs >= inUpd)) {
+      const effectiveDel = Math.max(l.deletedAt || 0, deletedTs);
+      if (effectiveDel) this.applyDeletedLists({ [l.id]: effectiveDel });
+      return;
+    }
+    if (deletedTs && inUpd > deletedTs) {
+      delete this.deletedLists[l.id];
+      this.saveDeletedLists();
+    }
+
     const idx = this.lists.findIndex(existing => existing.id === l.id);
     if (idx >= 0) {
-      this.lists[idx] = { ...this.lists[idx], ...l };
+      const curUpd = this.lists[idx].updatedAt || this.lists[idx].createdAt || 0;
+      if (inUpd >= curUpd) {
+        this.lists[idx] = { ...this.lists[idx], ...l };
+      }
     } else {
       // Check if a non-system list with the same name already exists to prevent duplicates
-      const nameMatchIdx = this.lists.findIndex(existing => !existing.isSystem && existing.name && existing.name.trim().toLowerCase() === l.name.trim().toLowerCase());
+      const incomingName = typeof l.name === 'string' ? l.name.trim().toLowerCase() : '';
+      const nameMatchIdx = incomingName
+        ? this.lists.findIndex(existing => !existing.isSystem && typeof existing.name === 'string' && existing.name.trim().toLowerCase() === incomingName)
+        : -1;
       if (nameMatchIdx >= 0) {
         const existing = this.lists[nameMatchIdx];
-        const oldId = existing.id;
-        this.lists[nameMatchIdx] = { ...existing, ...l };
-        if (oldId !== l.id) {
-          Object.values(this.todos).forEach(t => {
-            if (t.listId === oldId) t.listId = l.id;
-          });
-          this.saveStoredTodos();
+        const curUpd = existing.updatedAt || existing.createdAt || 0;
+        if (inUpd >= curUpd) {
+          const oldId = existing.id;
+          this.lists[nameMatchIdx] = { ...existing, ...l };
+          if (oldId !== l.id) {
+            Object.values(this.todos).forEach(t => {
+              if (t.listId === oldId) t.listId = l.id;
+            });
+            this.saveStoredTodos();
+          }
         }
       } else {
         this.lists.push(l);
@@ -728,10 +854,12 @@ export class SyncEngine {
         ...incoming
       };
     } else {
-      // Intent preservation: if incoming has inMyDay for today, preserve it unless explicitly excluded today!
+      // Intent preservation: if incoming has inMyDay for today, preserve it unless deleted or explicitly excluded today!
       const today = getLogicalDateStr(new Date(), getStoredDayStartHour());
       if (
         incoming.inMyDay &&
+        !incoming.deletedAt &&
+        !current.deletedAt &&
         (incoming.plannedDate === today || (incoming.dueDate && incoming.dueDate <= today)) &&
         !current.completed &&
         current.myDayExcludedDate !== today
@@ -743,7 +871,7 @@ export class SyncEngine {
           if (typeof incoming.myDayOrder === 'number' && typeof current.myDayOrder !== 'number') {
             current.myDayOrder = incoming.myDayOrder;
           }
-          current.updatedAt = Math.max(current.updatedAt || 0, incoming.updatedAt || 0) + 100;
+          current.updatedAt = Math.max(current.updatedAt || 0, incoming.updatedAt || 0) + 1;
         }
       }
     }
@@ -786,7 +914,7 @@ export class SyncEngine {
   updateList(id, patch) {
     const idx = this.lists.findIndex(l => l.id === id);
     if (idx >= 0) {
-      const now = Date.now();
+      const now = this.nextTimestamp(this.lists[idx]);
       const cleanPatch = { ...patch, updatedAt: now };
       if (cleanPatch.icon) cleanPatch.icon = normalizeListIcon(cleanPatch.icon);
       this.lists[idx] = { ...this.lists[idx], ...cleanPatch };
@@ -795,7 +923,7 @@ export class SyncEngine {
         id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
         entityId: id,
         type: 'LIST_UPSERT',
-        data: this.lists[idx],
+        data: { ...this.lists[idx] },
         timestamp: now
       });
       this.notify();
@@ -804,7 +932,10 @@ export class SyncEngine {
 
   deleteList(id) {
     if (id === 'inbox') return; // Cannot delete inbox
-    const now = Date.now();
+    const existingList = this.lists.find(l => l.id === id);
+    const now = this.nextTimestamp(existingList);
+    this.deletedLists[id] = now;
+    this.saveDeletedLists();
     this.lists = this.lists.filter(l => l.id !== id);
     this.saveStoredLists();
 
@@ -828,19 +959,22 @@ export class SyncEngine {
 
   // Restore deleted lists & restore moved tasks back to their original listId (for UNDO)
   restoreListsSnapshot(deletedLists = [], previousTodoListMap = {}) {
-    const now = Date.now();
     deletedLists.forEach(list => {
       if (!list || !list.id) return;
-      const restored = { ...list, updatedAt: now };
+      const prevTs = Math.max(list.updatedAt || 0, this.deletedLists[list.id] || 0);
+      const ts = Math.max(Date.now(), prevTs + 1);
+      delete this.deletedLists[list.id];
+      const restored = { ...list, deletedAt: null, updatedAt: ts };
       this.mergeList(restored);
       this.queueMutation({
-        id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
+        id: `mut-${ts}-${Math.random().toString(36).substring(2, 7)}`,
         entityId: restored.id,
         type: 'LIST_UPSERT',
-        data: restored,
-        timestamp: now
+        data: { ...restored },
+        timestamp: ts
       });
     });
+    this.saveDeletedLists();
     this.saveStoredLists();
 
     Object.entries(previousTodoListMap).forEach(([todoId, origListId]) => {
@@ -999,16 +1133,17 @@ export class SyncEngine {
       const todo = this.todos[id];
       const nextOrder = targetOrders ? targetOrders[index] : index;
       if (todo && todo[field] !== nextOrder) {
+        const ts = this.nextTimestamp(todo);
         todo[field] = nextOrder;
-        todo.updatedAt = now;
+        todo.updatedAt = ts;
         todo.version = (todo.version || 1) + 1;
         hasChanges = true;
         newMutations.push({
-          id: `mut-${now}-${id.slice(-5)}-${index}`,
+          id: `mut-${ts}-${id.slice(-5)}-${index}`,
           entityId: id,
           type: 'UPSERT',
-          data: todo,
-          timestamp: now
+          data: { ...todo },
+          timestamp: ts
         });
       }
     });
@@ -1024,7 +1159,6 @@ export class SyncEngine {
 
   reorderLists(orderedIds) {
     if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
-    const now = Date.now();
     const orderMap = new Map(orderedIds.map((id, idx) => [id, idx]));
     let hasChanges = false;
     const newMutations = [];
@@ -1034,13 +1168,14 @@ export class SyncEngine {
         const newOrder = orderMap.has(l.id) ? orderMap.get(l.id) : (orderedIds.length + idx);
         if (l.order !== newOrder) {
           hasChanges = true;
-          const updated = { ...l, order: newOrder, updatedAt: now };
+          const ts = this.nextTimestamp(l);
+          const updated = { ...l, order: newOrder, updatedAt: ts };
           newMutations.push({
-            id: `mut-${now}-list-${l.id.slice(-5)}-${newOrder}`,
+            id: `mut-${ts}-list-${l.id.slice(-5)}-${newOrder}`,
             entityId: l.id,
             type: 'LIST_UPSERT',
-            data: updated,
-            timestamp: now
+            data: { ...updated },
+            timestamp: ts
           });
           return updated;
         }
@@ -1057,17 +1192,19 @@ export class SyncEngine {
 
   toggleTodo(id) {
     const todo = this.todos[id];
-    if (!todo) return;
+    if (!todo) return { spawnedTodoId: null };
 
-    const now = Date.now();
+    const now = this.nextTimestamp(todo);
     const willBeCompleted = !todo.completed;
     todo.completed = willBeCompleted;
     todo.completedAt = willBeCompleted ? now : null;
     todo.updatedAt = now;
     todo.version = (todo.version || 1) + 1;
 
-    // Handle Recurring Task creation upon completion
-    if (willBeCompleted && todo.recurrence && todo.recurrence !== 'none') {
+    let spawnedTodoId = null;
+
+    // Handle Recurring Task creation synchronously & idempotently upon completion
+    if (willBeCompleted && todo.recurrence && todo.recurrence !== 'none' && !todo.recurrenceSpawned) {
       const todayStr = getLogicalDateStr(new Date(), getStoredDayStartHour());
       const baseDate = (todo.recurrence === 'daily' && (!todo.dueDate || todo.dueDate < todayStr))
         ? todayStr
@@ -1088,33 +1225,34 @@ export class SyncEngine {
         ? todo.order
         : undefined;
 
-      setTimeout(() => {
-        const latest = this.todos[id];
-        if (!latest || !latest.completed || latest.deletedAt) return;
-        this.addTodo(
-          todo.title,
-          todo.listId,
-          todo.priority,
-          nextDate,
-          todo.notes || '',
-          {
-            dueTime: todo.dueTime || null,
-            reminderTime: todo.reminderTime || null,
-            recurrence: todo.recurrence,
-            recurrenceInterval: todo.recurrenceInterval || 1,
-            handwriting: todo.handwriting || null,
-            isInlineHandwriting: Boolean(todo.isInlineHandwriting),
-            steps: Array.isArray(todo.steps) ? todo.steps.map(s => ({ ...s, completed: false })) : [],
-            inMyDay: false,
-            plannedDate: null,
-            pinned: nextPinned,
-            pinnedIn: nextPinnedIn,
-            pinnedAt: nextPinned ? (todo.pinnedAt || now) : null,
-            ...(preservedMyDayOrder !== null ? { myDayOrder: preservedMyDayOrder } : {}),
-            ...(preservedListOrder !== undefined ? { order: preservedListOrder } : {})
-          }
-        );
-      }, 350);
+      const spawned = this.addTodo(
+        todo.title,
+        todo.listId,
+        todo.priority,
+        nextDate,
+        todo.notes || '',
+        {
+          dueTime: todo.dueTime || null,
+          reminderTime: todo.reminderTime || null,
+          recurrence: todo.recurrence,
+          recurrenceInterval: todo.recurrenceInterval || 1,
+          handwriting: todo.handwriting || null,
+          isInlineHandwriting: Boolean(todo.isInlineHandwriting),
+          steps: Array.isArray(todo.steps) ? todo.steps.map(s => ({ ...s, completed: false })) : [],
+          inMyDay: false,
+          plannedDate: null,
+          pinned: nextPinned,
+          pinnedIn: nextPinnedIn,
+          pinnedAt: nextPinned ? (todo.pinnedAt || now) : null,
+          ...(preservedMyDayOrder !== null ? { myDayOrder: preservedMyDayOrder } : {}),
+          ...(preservedListOrder !== undefined ? { order: preservedListOrder } : {})
+        }
+      );
+      if (spawned && spawned.id) {
+        todo.recurrenceSpawned = true;
+        todo.spawnedRecurrenceId = spawned.id;
+        spawnedTodoId = spawned.id;
+      }
     }
 
     this.saveStoredTodos();
@@ -1123,11 +1261,12 @@ export class SyncEngine {
       id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
       entityId: id,
       type: 'UPSERT',
-      data: todo,
+      data: { ...todo },
       timestamp: now
     });
 
     this.notify();
+    return { spawnedTodoId };
   }
 
   togglePinTodo(id, context = 'today') {
@@ -1201,7 +1340,11 @@ export class SyncEngine {
     } else if (recurrence === 'weekly') {
       d.setDate(d.getDate() + (7 * safeInterval));
     } else if (recurrence === 'monthly') {
-      d.setMonth(d.getMonth() + safeInterval);
+      const origDay = d.getDate();
+      const targetYear = d.getFullYear();
+      const targetMonth = d.getMonth() + safeInterval;
+      const maxDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+      d.setFullYear(targetYear, targetMonth, Math.min(origDay, maxDay));
     } else if (recurrence === 'custom') {
       d.setDate(d.getDate() + safeInterval);
     }
@@ -1372,7 +1515,7 @@ export class SyncEngine {
     const todo = this.todos[id];
     if (!todo) return;
 
-    const now = Date.now();
+    const now = this.nextTimestamp(todo);
     const extraReset = {};
     if (('dueDate' in patch || patch.inMyDay === true) && !('myDayExcludedDate' in patch)) {
       extraReset.myDayExcludedDate = null;
@@ -1394,7 +1537,7 @@ export class SyncEngine {
       id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
       entityId: id,
       type: 'UPSERT',
-      data: todo,
+      data: { ...todo },
       timestamp: now
     });
 
@@ -1406,7 +1549,7 @@ export class SyncEngine {
     if (!todo) return null;
 
     const snapshot = JSON.parse(JSON.stringify(todo));
-    const now = Date.now();
+    const now = this.nextTimestamp(todo);
     todo.deletedAt = now;
     todo.updatedAt = now;
 
@@ -1427,12 +1570,13 @@ export class SyncEngine {
   // Restore a deleted or modified todo snapshot (for UNDO toast)
   restoreTodoSnapshot(snapshot) {
     if (!snapshot || !snapshot.id) return;
-    const now = Date.now();
+    const existing = this.todos[snapshot.id];
+    const now = Math.max(this.nextTimestamp(existing), this.nextTimestamp(snapshot));
     const restored = {
       ...snapshot,
       deletedAt: null,
       updatedAt: now,
-      version: (snapshot.version || 1) + 1
+      version: Math.max((existing?.version || 1), (snapshot.version || 1)) + 1
     };
     this.todos[restored.id] = restored;
     this.saveStoredTodos();
@@ -1441,7 +1585,7 @@ export class SyncEngine {
       id: `mut-${now}-${Math.random().toString(36).substring(2, 7)}`,
       entityId: restored.id,
       type: 'UPSERT',
-      data: restored,
+      data: { ...restored },
       timestamp: now
     });
 
@@ -1512,11 +1656,17 @@ export class SyncEngine {
 
     const toSend = [...this.mutationQueue];
     this.inFlightMutationIds = new Set(toSend.map(m => m.id));
-    this.ws.send(JSON.stringify({
-      type: 'SYNC_PUSH',
-      deviceId: this.deviceId,
-      mutations: toSend
-    }));
+    try {
+      this.ws.send(JSON.stringify({
+        type: 'SYNC_PUSH',
+        deviceId: this.deviceId,
+        mutations: toSend
+      }));
+    } catch (err) {
+      console.warn('[SyncEngine] Failed to send SYNC_PUSH:', err);
+      this.inFlightMutationIds = null;
+      this.pendingFlushAfterAck = false;
+    }
 
     this.notify();
   }
@@ -1651,24 +1801,26 @@ export class SyncEngine {
 
     Object.entries(prevTodos).forEach(([id, prev], idx) => {
       if (prev) {
-        const restored = { ...prev, updatedAt: now, version: (prev.version || 1) + 1 };
+        const ts = Math.max(this.nextTimestamp(this.todos[id]), this.nextTimestamp(prev));
+        const restored = { ...prev, updatedAt: ts, version: Math.max((this.todos[id]?.version || 1), (prev.version || 1)) + 1 };
         this.todos[id] = restored;
         mutations.push({
-          id: `mut-${now}-undotodo-${idx}-${id.slice(-5)}`,
+          id: `mut-${ts}-undotodo-${idx}-${id.slice(-5)}`,
           entityId: id,
           type: 'UPSERT',
-          data: restored,
-          timestamp: now
+          data: { ...restored },
+          timestamp: ts
         });
       } else if (this.todos[id]) {
-        this.todos[id].deletedAt = now;
-        this.todos[id].updatedAt = now;
+        const ts = this.nextTimestamp(this.todos[id]);
+        this.todos[id].deletedAt = ts;
+        this.todos[id].updatedAt = ts;
         mutations.push({
-          id: `mut-${now}-deltodo-${idx}-${id.slice(-5)}`,
+          id: `mut-${ts}-deltodo-${idx}-${id.slice(-5)}`,
           entityId: id,
           type: 'DELETE',
           data: null,
-          timestamp: now
+          timestamp: ts
         });
       }
     });
@@ -1681,16 +1833,20 @@ export class SyncEngine {
       const removable = createdListIds.filter(lid => createdSet.has(lid) && !activeListIds.has(lid));
       if (removable.length > 0) {
         const removeSet = new Set(removable);
-        this.lists = this.lists.filter(l => !removeSet.has(l.id));
         removable.forEach((lid, idx) => {
+          const existingList = this.lists.find(l => l.id === lid);
+          const ts = this.nextTimestamp(existingList);
+          this.deletedLists[lid] = ts;
           mutations.push({
-            id: `mut-${now}-dellist-${idx}-${lid.slice(-5)}`,
+            id: `mut-${ts}-dellist-${idx}-${lid.slice(-5)}`,
             entityId: lid,
             type: 'LIST_DELETE',
             data: null,
-            timestamp: now
+            timestamp: ts
           });
         });
+        this.lists = this.lists.filter(l => !removeSet.has(l.id));
+        this.saveDeletedLists();
         this.saveStoredLists();
       }
     }

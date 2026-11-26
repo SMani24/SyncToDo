@@ -62,6 +62,9 @@ export const JALAALI_WEEKDAYS_FA = [
 ];
 
 export function toJalaali(gy, gm, gd) {
+  gy = Number(gy);
+  gm = Number(gm);
+  gd = Number(gd);
   var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
   var jy = (gy <= 1600) ? 0 : 979;
   gy -= (gy <= 1600) ? 621 : 1600;
@@ -81,6 +84,9 @@ export function toJalaali(gy, gm, gd) {
 }
 
 export function toGregorian(jy, jm, jd) {
+  jy = Number(jy);
+  jm = Number(jm);
+  jd = Number(jd);
   var gy = (jy <= 979) ? 621 : 1600;
   jy -= (jy <= 979) ? 0 : 979;
   var days = (365 * jy) + ((parseInt(jy / 33)) * 8) + parseInt(((jy % 33) + 3) / 4) + 78 + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
@@ -149,10 +155,14 @@ export function toIslamic(date) {
 }
 
 export function islamicToGregorian(hy, hm, hd) {
+  hy = Number(hy);
+  hm = Number(hm);
+  hd = Math.max(1, Math.min(30, Number(hd) || 1));
+  let testDate = new Date();
   try {
     const approxYear = Math.round(hy * 0.970229 + 621.57);
     const approxMonth = (hm - 1) * 29.53;
-    let testDate = new Date(approxYear, 0, 1, 12, 0, 0);
+    testDate = new Date(approxYear, 0, 1, 12, 0, 0);
     testDate.setDate(testDate.getDate() + Math.floor(approxMonth) + (hd - 1));
 
     for (let i = 0; i < 40; i++) {
@@ -166,8 +176,15 @@ export function islamicToGregorian(hy, hm, hd) {
       const step = dDiff === 0 ? 1 : (dDiff > 0 ? 1 : -1) * Math.max(1, Math.min(Math.abs(dDiff), 30));
       testDate.setDate(testDate.getDate() + step);
     }
+    // If day 30 was requested on a 29-day Hijri month, step back to day 29 of target month
+    if (hd === 30) {
+      const prev = new Date(testDate.getFullYear(), testDate.getMonth(), testDate.getDate() - 1, 12, 0, 0);
+      const pCur = toIslamic(prev);
+      if (pCur.hy === hy && pCur.hm === hm) return prev;
+    }
+    return new Date(testDate.getFullYear(), testDate.getMonth(), testDate.getDate(), 12, 0, 0);
   } catch (_) {}
-  return new Date();
+  return new Date(testDate.getFullYear(), testDate.getMonth(), testDate.getDate(), 12, 0, 0);
 }
 
 export function getIslamicMonthLength(hy, hm) {
@@ -250,10 +267,18 @@ export function isSameLogicalDay(timestamp, targetDateStr, dayStartHour = 0) {
  */
 export function formatDayDateHeader(date = new Date(), calendarType = 'gregorian', dayStartHour = 0) {
   try {
-    const dObj = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date);
-    if (dObj.getHours && dObj.getHours() < dayStartHour) {
-      dObj.setDate(dObj.getDate() - 1);
+    let dObj;
+    const isDateOnlyStr = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.trim());
+    if (isDateOnlyStr) {
+      const [y, m, d] = date.trim().split('-').map(Number);
+      dObj = new Date(y, m - 1, d, 12, 0, 0);
+    } else {
+      dObj = typeof date === 'string' ? new Date(date) : new Date(date);
+      if (!isNaN(dObj.getTime()) && dObj.getHours() < dayStartHour) {
+        dObj.setDate(dObj.getDate() - 1);
+      }
     }
+    if (isNaN(dObj.getTime())) return '';
 
     if (calendarType === 'shamsi') {
       const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
@@ -354,9 +379,12 @@ export function formatCalendarDate(dateStr, calendarType = 'gregorian', options 
       return `\u2067${content.trim()}\u2069`;
     } else {
       // Gregorian
+      const showYear = options.year !== undefined
+        ? options.year
+        : (options.includeYear === false ? undefined : (options.includeYear === true || new Date().getFullYear() !== year ? 'numeric' : undefined));
       return new Intl.DateTimeFormat('en-US', {
         ...(options.includeWeekday ? { weekday: options.weekday || 'short' } : {}),
-        year: options.year !== undefined ? options.year : (new Date().getFullYear() !== year ? 'numeric' : undefined),
+        ...(showYear ? { year: showYear } : {}),
         month: options.month || 'short',
         day: options.day || 'numeric'
       }).format(date);
@@ -371,7 +399,9 @@ export function formatCalendarDate(dateStr, calendarType = 'gregorian', options 
  */
 export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregorian', includeWeekday = false) {
   if (!dueDateStr) return '';
-  const isToday = dueDateStr === todayStr;
+  const normalizedDue = String(dueDateStr).split('T')[0];
+  const normalizedToday = todayStr ? String(todayStr).split('T')[0] : '';
+  const isToday = normalizedDue === normalizedToday;
 
   if (isToday) {
     if (!includeWeekday) {
@@ -380,8 +410,7 @@ export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregori
       return 'Today';
     }
     try {
-      const raw = String(dueDateStr).split('T')[0];
-      const parts = raw.split('-');
+      const parts = normalizedDue.split('-');
       const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
       if (calendarType === 'shamsi') {
         const w = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { weekday: 'long' }).format(d);
@@ -394,14 +423,32 @@ export function formatDueDateBadge(dueDateStr, todayStr, calendarType = 'gregori
         return `Today (${w})`;
       }
     } catch (_) {
-      return calendarType === 'shamsi' ? 'امروز' : 'Today';
+      if (calendarType === 'shamsi') return 'امروز';
+      if (calendarType === 'islamic') return 'اليوم';
+      return 'Today';
     }
   }
 
-  return formatCalendarDate(dueDateStr, calendarType, {
+  // Only omit the year when the due date is in the same calendar year as todayStr
+  let includeYear = false;
+  try {
+    const dp = normalizedDue.split('-').map(Number);
+    const tp = normalizedToday ? normalizedToday.split('-').map(Number) : null;
+    if (dp.length === 3 && tp && tp.length === 3) {
+      if (calendarType === 'shamsi') {
+        includeYear = toJalaali(dp[0], dp[1], dp[2]).jy !== toJalaali(tp[0], tp[1], tp[2]).jy;
+      } else if (calendarType === 'islamic') {
+        includeYear = toIslamic(new Date(dp[0], dp[1] - 1, dp[2], 12)).hy !== toIslamic(new Date(tp[0], tp[1] - 1, tp[2], 12)).hy;
+      } else {
+        includeYear = dp[0] !== tp[0];
+      }
+    }
+  } catch (_) {}
+
+  return formatCalendarDate(normalizedDue, calendarType, {
     month: calendarType === 'shamsi' ? 'long' : 'short',
     day: 'numeric',
-    includeYear: false,
+    includeYear,
     includeWeekday: Boolean(includeWeekday)
   });
 }

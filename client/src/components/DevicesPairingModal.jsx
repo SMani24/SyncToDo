@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { Icon } from './SvgIcons';
 import QrScannerModal from './QrScannerModal';
@@ -25,6 +25,7 @@ export default function DevicesPairingModal({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [manualIpInput, setManualIpInput] = useState('');
   const [serverUrlInput, setServerUrlInput] = useState(syncEngine.serverUrl || '');
+  const serverUrlInputRef = useRef(null);
   const [showScanner, setShowScanner] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [syncingDeviceId, setSyncingDeviceId] = useState(null);
@@ -32,8 +33,10 @@ export default function DevicesPairingModal({
   const [syncFailedDeviceId, setSyncFailedDeviceId] = useState(null);
 
   const myName = syncEngine.deviceName || p2pInfo.deviceName || 'My Device';
-  const myCode = p2pInfo.pairingCode || '482913';
-  const myIp = p2pInfo.myLocalIp || 'Local Wi-Fi';
+  const myCode = p2pInfo.pairingCode || '';
+  const rawIp = p2pInfo.myLocalIp || '';
+  const hasValidLocalIp = Boolean(rawIp && rawIp !== 'Detecting...' && rawIp !== 'Local Wi-Fi' && !/\s/.test(rawIp));
+  const myIp = hasValidLocalIp ? rawIp : 'Local Wi-Fi';
   const myPort = p2pInfo.port || (deviceType === 'laptop' ? 4000 : 4567);
   const myDeviceId = p2pInfo.deviceId || syncEngine.deviceId;
 
@@ -42,22 +45,44 @@ export default function DevicesPairingModal({
   const pendingRequests = p2pInfo.pendingRequests || [];
   const outgoingSession = p2pInfo.outgoingPairSession || null;
 
-  // Generate crisp standard scannable QR Code (320px high-res)
   useEffect(() => {
-    const qrSeed = `synctodo://${myIp}:${myPort}?code=${myCode}&deviceId=${encodeURIComponent(myDeviceId || '')}&name=${encodeURIComponent(myName)}`;
+    if (document.activeElement !== serverUrlInputRef.current && syncEngine.serverUrl) {
+      setServerUrlInput(syncEngine.serverUrl);
+    }
+  }, [syncEngine.serverUrl]);
+
+  // Generate crisp standard scannable QR Code (320px high-res) only once valid IP & code are ready
+  useEffect(() => {
+    let cancelled = false;
+    if (!hasValidLocalIp || !myCode) {
+      setQrDataUrl('');
+      return () => { cancelled = true; };
+    }
+    const qrSeed = `synctodo://${rawIp}:${myPort}?code=${myCode}&deviceId=${encodeURIComponent(myDeviceId || '')}&name=${encodeURIComponent(myName)}`;
     QRCode.toDataURL(qrSeed, {
       width: 320,
       margin: 1,
       color: { dark: '#0f172a', light: '#ffffff' },
       errorCorrectionLevel: 'M'
     })
-      .then(url => setQrDataUrl(url))
+      .then(url => {
+        if (!cancelled) setQrDataUrl(url);
+      })
       .catch(err => console.warn('QR generation error:', err));
-  }, [myIp, myPort, myCode, myDeviceId, myName]);
+    return () => { cancelled = true; };
+  }, [hasValidLocalIp, rawIp, myPort, myCode, myDeviceId, myName]);
+
+  const dismissSoftKeyboard = () => {
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+    try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
+  };
 
   const handleSaveName = async (e) => {
     e.preventDefault();
     if (!nameInput.trim()) return;
+    dismissSoftKeyboard();
     await syncEngine.p2pEngine?.renameThisDevice(nameInput.trim());
     setIsEditingName(false);
   };
@@ -68,7 +93,6 @@ export default function DevicesPairingModal({
     setCodeFeedback(null);
     try {
       const res = await syncEngine.p2pEngine?.pairWithScannedQr(scannedData);
-      setIsSubmittingCode(false);
       if (res?.status === 'paired') {
         setCodeFeedback({
           type: 'success',
@@ -81,8 +105,9 @@ export default function DevicesPairingModal({
         });
       }
     } catch (err) {
+      setCodeFeedback({ type: 'error', text: 'Pairing failed: ' + (err?.message || 'Unknown error') });
+    } finally {
       setIsSubmittingCode(false);
-      setCodeFeedback({ type: 'error', text: 'Pairing failed: ' + err.message });
     }
   };
 
@@ -93,23 +118,31 @@ export default function DevicesPairingModal({
       setCodeFeedback({ type: 'error', text: 'Enter the 6-digit code shown on your other device.' });
       return;
     }
+    dismissSoftKeyboard();
     setIsSubmittingCode(true);
     setCodeFeedback(null);
-    const res = await syncEngine.p2pEngine?.pairBySixDigitCode(cleaned);
-    setIsSubmittingCode(false);
-    if (res?.status === 'paired') {
-      setSixDigitInput('');
-      setCodeFeedback({ type: 'success', text: 'Devices paired & synced!' });
-    } else {
-      setCodeFeedback({
-        type: 'error',
-        text: res?.message || 'Could not find a nearby device with that code. Try tapping the device below.'
-      });
+    try {
+      const res = await syncEngine.p2pEngine?.pairBySixDigitCode(cleaned);
+      if (res?.status === 'paired') {
+        setSixDigitInput('');
+        setCodeFeedback({ type: 'success', text: 'Devices paired & synced!' });
+      } else {
+        setCodeFeedback({
+          type: 'error',
+          text: res?.message || 'Could not find a nearby device with that code. Try tapping the device below.'
+        });
+      }
+    } catch (err) {
+      setCodeFeedback({ type: 'error', text: 'Pairing failed: ' + (err?.message || 'Unknown error') });
+    } finally {
+      setIsSubmittingCode(false);
     }
   };
 
-  const handleManualPair = async () => {
+  const handleManualPair = async (e) => {
+    e?.preventDefault?.();
     if (!manualIpInput.trim()) return;
+    dismissSoftKeyboard();
     const target = manualIpInput.trim();
     setIsSubmittingCode(true);
     setCodeFeedback(null);
@@ -121,6 +154,8 @@ export default function DevicesPairingModal({
       } else {
         setCodeFeedback({ type: 'error', text: res?.message || 'Could not connect to specified host.' });
       }
+    } catch (err) {
+      setCodeFeedback({ type: 'error', text: 'Connection failed: ' + (err?.message || 'Unknown error') });
     } finally {
       setIsSubmittingCode(false);
     }
@@ -152,8 +187,10 @@ export default function DevicesPairingModal({
     }
   };
 
-  const handleSaveServerUrl = () => {
+  const handleSaveServerUrl = (e) => {
+    e?.preventDefault?.();
     if (serverUrlInput.trim()) {
+      dismissSoftKeyboard();
       syncEngine.setServerUrl(serverUrlInput.trim());
     }
   };
@@ -165,6 +202,7 @@ export default function DevicesPairingModal({
   };
 
   return (
+    <>
     <div
       onClick={onClose}
       style={{
@@ -434,6 +472,7 @@ export default function DevicesPairingModal({
                     />
                     <button
                       type="submit"
+                      onMouseDown={(e) => e.preventDefault()}
                       style={{
                         padding: '4px 10px', borderRadius: '6px', border: 'none',
                         background: 'var(--primary)', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
@@ -491,7 +530,9 @@ export default function DevicesPairingModal({
                   style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', imageRendering: 'pixelated' }}
                 />
               ) : (
-                <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'center' }}>Generating QR…</div>
+                <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', padding: '6px' }}>
+                  {hasValidLocalIp ? 'Generating QR…' : 'Connect to Wi-Fi to generate QR'}
+                </div>
               )}
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
@@ -512,7 +553,9 @@ export default function DevicesPairingModal({
             }}>
               <span style={{ color: 'var(--text-muted)' }}>Local URL:</span>
               <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)' }}>
-                http://g16laptop.local:{myPort || 4000}
+                {hasValidLocalIp
+                  ? `http://${rawIp}:${myPort}`
+                  : (deviceType === 'laptop' ? `http://g16laptop.local:${myPort}` : 'Detecting Wi-Fi IP…')}
               </span>
             </div>
           </div>
@@ -568,6 +611,7 @@ export default function DevicesPairingModal({
             />
             <button
               type="submit"
+              onMouseDown={(e) => e.preventDefault()}
               disabled={isSubmittingCode}
               style={{
                 flexShrink: 0,
@@ -657,7 +701,7 @@ export default function DevicesPairingModal({
 
           {nearbyPeers.length === 0 ? (
             <div style={{
-              padding: deviceType === 'phone' ? 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px' : '16px',
+              padding: deviceType === 'phone' ? '14px 12px' : '16px',
               borderRadius: '12px',
               background: 'var(--bg-subtle)',
               border: '1px dashed var(--border)',
@@ -962,21 +1006,21 @@ export default function DevicesPairingModal({
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                   Direct IP:Port Pair (Fallback if router blocks UDP broadcast):
                 </label>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <form onSubmit={handleManualPair} style={{ display: 'flex', gap: '6px' }}>
                   <input
                     type="text"
                     placeholder="e.g. 192.168.1.45:4000"
                     value={manualIpInput}
                     onChange={(e) => setManualIpInput(e.target.value)}
                     style={{
-                      flex: 1, padding: '7px 10px', borderRadius: '8px',
+                      flex: 1, minWidth: 0, padding: '7px 10px', borderRadius: '8px',
                       border: '1px solid var(--border)', background: 'var(--surface)',
                       color: 'var(--text)', fontSize: '12px', fontFamily: 'monospace'
                     }}
                   />
                   <button
-                    type="button"
-                    onClick={handleManualPair}
+                    type="submit"
+                    onMouseDown={(e) => e.preventDefault()}
                     style={{
                       padding: '7px 12px', borderRadius: '8px', border: 'none',
                       background: 'var(--primary)', color: '#fff', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer'
@@ -984,27 +1028,28 @@ export default function DevicesPairingModal({
                   >
                     Connect
                   </button>
-                </div>
+                </form>
               </div>
 
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                   WebSocket Signaling Server URL:
                 </label>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <form onSubmit={handleSaveServerUrl} style={{ display: 'flex', gap: '6px' }}>
                   <input
+                    ref={serverUrlInputRef}
                     type="text"
                     value={serverUrlInput}
                     onChange={(e) => setServerUrlInput(e.target.value)}
                     style={{
-                      flex: 1, padding: '7px 10px', borderRadius: '8px',
+                      flex: 1, minWidth: 0, padding: '7px 10px', borderRadius: '8px',
                       border: '1px solid var(--border)', background: 'var(--surface)',
                       color: 'var(--text)', fontSize: '12px', fontFamily: 'monospace'
                     }}
                   />
                   <button
-                    type="button"
-                    onClick={handleSaveServerUrl}
+                    type="submit"
+                    onMouseDown={(e) => e.preventDefault()}
                     style={{
                       padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border)',
                       background: 'var(--surface-elevated)', color: 'var(--text)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer'
@@ -1012,12 +1057,13 @@ export default function DevicesPairingModal({
                   >
                     Save
                   </button>
-                </div>
+                </form>
               </div>
             </div>
           )}
         </div>
       </div>
+    </div>
 
       {/* Camera QR Scanner Overlay Modal */}
       {showScanner && (
@@ -1026,6 +1072,6 @@ export default function DevicesPairingModal({
           onClose={() => setShowScanner(false)}
         />
       )}
-    </div>
+    </>
   );
 }

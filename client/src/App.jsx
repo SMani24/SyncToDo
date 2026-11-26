@@ -123,8 +123,10 @@ export function HandwrittenTitle({ src, isCompleted, isDarkTheme }) {
       return;
     }
 
+    let cancelled = false;
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       try {
         const c = document.createElement('canvas');
         c.width = img.naturalWidth;
@@ -147,6 +149,7 @@ export function HandwrittenTitle({ src, isCompleted, isDarkTheme }) {
             }
           }
         }
+        if (cancelled) return;
         if (found && (maxX - minX < c.width * 0.92 || maxY - minY < c.height * 0.92)) {
           const pad = 6;
           minX = Math.max(0, minX - pad);
@@ -165,12 +168,16 @@ export function HandwrittenTitle({ src, isCompleted, isDarkTheme }) {
           setTrimmedSrc(croppedUrl);
         } else {
           handwritingCropCache.set(src, src);
+          setTrimmedSrc(src);
         }
       } catch (err) {
-        setTrimmedSrc(src);
+        if (!cancelled) setTrimmedSrc(src);
       }
     };
     img.src = src;
+    return () => {
+      cancelled = true;
+    };
   }, [src]);
 
   return (
@@ -300,15 +307,77 @@ export default function App() {
   const dragTimeoutRef = useRef(null);
   const [newHandwritingIsInline, setNewHandwritingIsInline] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const inputBlurTimerRef = useRef(null);
+  const quickAddActionPressRef = useRef(false);
+  const quickAddActionTimerRef = useRef(null);
+  const lastKeyboardHideTimeRef = useRef(0);
+  const clickLockoutTimerRef = useRef(null);
   const isIgnoreClicksRef = useRef(false);
   const [isIgnoringClicks, setIsIgnoringClicks] = useState(false);
   const mainRef = useRef(null);
 
+  const cancelBlurInput = useCallback(() => {
+    if (inputBlurTimerRef.current) {
+      clearTimeout(inputBlurTimerRef.current);
+      inputBlurTimerRef.current = null;
+    }
+  }, []);
+
+  const markQuickAddActionPress = useCallback(() => {
+    quickAddActionPressRef.current = true;
+    if (quickAddActionTimerRef.current) clearTimeout(quickAddActionTimerRef.current);
+    quickAddActionTimerRef.current = setTimeout(() => {
+      quickAddActionPressRef.current = false;
+      quickAddActionTimerRef.current = null;
+    }, 600);
+  }, []);
+
+  const scheduleBlurInput = useCallback((delayMs = 180) => {
+    cancelBlurInput();
+    const wait = quickAddActionPressRef.current ? Math.max(delayMs, 320) : delayMs;
+    inputBlurTimerRef.current = setTimeout(() => {
+      inputBlurTimerRef.current = null;
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl === quickAddInputRef.current || activeEl === searchInputRef.current)) {
+        return;
+      }
+      setIsInputFocused(false);
+    }, wait);
+  }, [cancelBlurInput]);
+
+  const dismissPhoneKeyboardNow = useCallback(() => {
+    cancelBlurInput();
+    quickAddActionPressRef.current = false;
+    if (quickAddActionTimerRef.current) {
+      clearTimeout(quickAddActionTimerRef.current);
+      quickAddActionTimerRef.current = null;
+    }
+    if (quickAddInputRef.current) {
+      quickAddInputRef.current.blur();
+    }
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+      document.activeElement.blur();
+    }
+    setIsInputFocused(false);
+    lastKeyboardHideTimeRef.current = Date.now();
+    try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
+  }, [cancelBlurInput]);
+
+  useEffect(() => {
+    return () => {
+      if (inputBlurTimerRef.current) clearTimeout(inputBlurTimerRef.current);
+      if (quickAddActionTimerRef.current) clearTimeout(quickAddActionTimerRef.current);
+      if (clickLockoutTimerRef.current) clearTimeout(clickLockoutTimerRef.current);
+      if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current);
+    };
+  }, []);
 
   const triggerClickLockout = (ms = 350) => {
     isIgnoreClicksRef.current = true;
     setIsIgnoringClicks(true);
-    setTimeout(() => {
+    if (clickLockoutTimerRef.current) clearTimeout(clickLockoutTimerRef.current);
+    clickLockoutTimerRef.current = setTimeout(() => {
+      clickLockoutTimerRef.current = null;
       isIgnoreClicksRef.current = false;
       setIsIgnoringClicks(false);
     }, ms);
@@ -500,6 +569,7 @@ export default function App() {
   // Android hardware back button & modal management
   const anyModalOpen = Boolean(
     isInputFocused ||
+    isCompactSidebarOpen ||
     showListPickerSheet ||
     selectedTodoId ||
     showCanvasModal ||
@@ -526,6 +596,8 @@ export default function App() {
   useEffect(() => {
     const handleDismissKeyboard = () => {
       if (deviceTypeRef.current !== 'phone') return;
+      cancelBlurInput();
+      lastKeyboardHideTimeRef.current = Date.now();
       if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
         document.activeElement.blur();
       }
@@ -536,14 +608,23 @@ export default function App() {
 
     if (window.visualViewport) {
       let lastVh = window.visualViewport.height;
+      let lastIw = window.innerWidth;
       const onViewportResize = () => {
         const vh = window.visualViewport.height;
         const wh = window.innerHeight;
+        const iw = window.innerWidth;
+        // Ignore orientation rotations where innerWidth changed
+        if (Math.abs(iw - lastIw) > 40) {
+          lastIw = iw;
+          lastVh = vh;
+          return;
+        }
         // When keyboard closes on phone, visualViewport expands back towards innerHeight
         if (vh >= wh - 70 && lastVh < wh - 120) {
           handleDismissKeyboard();
         }
         lastVh = vh;
+        lastIw = iw;
       };
       window.visualViewport.addEventListener('resize', onViewportResize);
       return () => {
@@ -555,17 +636,28 @@ export default function App() {
     return () => {
       window.removeEventListener('keyboardhide', handleDismissKeyboard);
     };
-  }, []);
+  }, [cancelBlurInput]);
 
   useEffect(() => {
     window.__handleAndroidBack = () => {
       if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+        cancelBlurInput();
         document.activeElement.blur();
         setIsInputFocused(false);
+        lastKeyboardHideTimeRef.current = Date.now();
+        try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
         return true;
       }
       if (isInputFocused) {
+        cancelBlurInput();
         setIsInputFocused(false);
+        lastKeyboardHideTimeRef.current = Date.now();
+        try { window.AndroidBridge?.hideKeyboard?.(); } catch (_) {}
+        return true;
+      }
+      // If Android Back just dismissed the IME a moment ago, consume this back press
+      // so it does not simultaneously dismiss the underlying modal/panel
+      if (Date.now() - lastKeyboardHideTimeRef.current < 220) {
         return true;
       }
       if (showQuickAddCalendar) {
@@ -624,8 +716,8 @@ export default function App() {
       return false;
     };
   }, [
-    isInputFocused, listsToDelete, showCanvasModal, editingList, listContextMenu, showListsModal,
-    showPlannerModal, showThemeModal, showDevicesModal, showSettingsModal,
+    cancelBlurInput, isInputFocused, isCompactSidebarOpen, listsToDelete, showCanvasModal, editingList,
+    listContextMenu, showListsModal, showPlannerModal, showThemeModal, showDevicesModal, showSettingsModal,
     showQuickAddCalendar, showListPickerSheet, selectedTodoId
   ]);
 
@@ -690,8 +782,9 @@ export default function App() {
         ...(Array.isArray(todoObj.pinnedIn) && todoObj.pinnedIn.includes('today') && typeof (todoObj.myDayOrder ?? todoObj.order) === 'number'
           ? { myDayOrder: todoObj.myDayOrder ?? todoObj.order }
           : {}),
-        recurrence: todoObj.recurrence || 'none',
-        recurrenceInterval: todoObj.recurrenceInterval || 1
+        // "Again Tomorrow" is a one-off copy so it does not duplicate recurring series
+        recurrence: 'none',
+        recurrenceInterval: 1
       }
     );
 
@@ -735,7 +828,7 @@ export default function App() {
     if (!todoObj) return;
     const snapshot = JSON.parse(JSON.stringify(todoObj));
     const wasCompleted = Boolean(todoObj.completed);
-    syncEngine.toggleTodo(todoObj.id);
+    const { spawnedTodoId } = syncEngine.toggleTodo(todoObj.id) || {};
     if (!wasCompleted) {
       const canAddTomorrow = snapshot.recurrence !== 'daily';
       triggerUndoToast({
@@ -745,6 +838,9 @@ export default function App() {
         onAddTomorrow: canAddTomorrow ? () => handleAddTodoAgainTomorrow(snapshot) : null
       }, () => {
         syncEngine.restoreTodoSnapshot(snapshot);
+        if (spawnedTodoId) {
+          syncEngine.deleteTodo(spawnedTodoId);
+        }
       });
     }
   };
@@ -920,9 +1016,11 @@ export default function App() {
       if (existing) clearTimeout(existing);
       const timer = setTimeout(() => {
         swipeResetTimersRef.current.delete(todo.id);
-        if (clearOpenStyle && surfaceEl) {
+        if (surfaceEl) {
           surfaceEl.style.transition = '';
-          surfaceEl.style.transform = '';
+          if (clearOpenStyle) {
+            surfaceEl.style.transform = '';
+          }
         }
         setActiveSwipe(prev => (prev?.id === todo.id ? null : prev));
       }, 230);
@@ -939,7 +1037,7 @@ export default function App() {
         setActiveSwipe(prev => (prev?.id === todo.id ? null : prev));
         lastSwipeActionTimeRef.current = Date.now();
       } else {
-        scheduleSwipeSpringReset('translate3d(-220px, 0, 0)', true);
+        scheduleSwipeSpringReset('translate3d(-220px, 0, 0)', false);
       }
       return;
     }
@@ -1020,6 +1118,7 @@ export default function App() {
   };
 
   const getCurrentPinContext = (todoObj = null) => {
+    if (searchQuery.trim()) return 'all';
     if (activeView === 'today') return 'today';
     if (activeView === 'list' && selectedListId) return selectedListId;
     if (activeView === 'all' || activeView === 'backlog') return 'all';
@@ -1085,9 +1184,14 @@ export default function App() {
 
   const handleConfirmDeleteLists = () => {
     if (!listsToDelete || listsToDelete.length === 0) return;
-    const listsSnapshot = JSON.parse(JSON.stringify(syncState.lists));
-    const todosSnapshot = JSON.parse(JSON.stringify(syncState.todos));
+    const deletedListsSnapshot = JSON.parse(JSON.stringify(listsToDelete));
     const deletedIds = new Set(listsToDelete.map(l => l.id));
+    const previousTodoListMap = {};
+    syncState.todos.forEach(t => {
+      if (t && !t.deletedAt && deletedIds.has(t.listId)) {
+        previousTodoListMap[t.id] = t.listId;
+      }
+    });
     const isSingle = listsToDelete.length === 1;
     const actionLabel = isSingle ? 'List deleted' : `${listsToDelete.length} lists deleted`;
     const listTitle = isSingle ? listsToDelete[0].name : '';
@@ -1096,7 +1200,7 @@ export default function App() {
       syncEngine.deleteList(l.id);
     });
 
-    if (deletedIds.has(selectedListId)) {
+    if (activeView === 'list' && deletedIds.has(selectedListId)) {
       setSelectedListId('inbox');
       setActiveView('list');
     }
@@ -1109,7 +1213,7 @@ export default function App() {
       actionLabel,
       title: listTitle
     }, () => {
-      syncEngine.restoreListsSnapshot(listsSnapshot, todosSnapshot);
+      syncEngine.restoreListsSnapshot(deletedListsSnapshot, previousTodoListMap);
     });
   };
 
@@ -1120,6 +1224,7 @@ export default function App() {
     didLongPressRef.current = false;
     listLongPressTimerRef.current = setTimeout(() => {
       didLongPressRef.current = true;
+      pendingPointerDragRef.current = null;
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         try { navigator.vibrate(50); } catch {}
       }
@@ -1181,30 +1286,51 @@ export default function App() {
     }
   });
 
+  const computeTargetTheme = useCallback((cfg) => {
+    let targetTheme = cfg?.activeThemeId || 'nordic';
+    if (cfg?.mode === 'system') {
+      const isSystemDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      targetTheme = isSystemDark ? (cfg.darkThemeId || 'nordic') : (cfg.lightThemeId || 'minimal');
+    } else if (cfg?.mode === 'scheduled') {
+      const now = new Date();
+      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const lightStart = cfg.lightStartTime || '07:00';
+      const darkStart = cfg.darkStartTime || '19:00';
+      const isDaytime = lightStart <= darkStart
+        ? (currentTime >= lightStart && currentTime < darkStart)
+        : (currentTime >= lightStart || currentTime < darkStart);
+      targetTheme = isDaytime ? (cfg.lightThemeId || 'minimal') : (cfg.darkThemeId || 'nordic');
+    }
+    return targetTheme;
+  }, []);
+
+  const [resolvedTheme, setResolvedTheme] = useState(() => computeTargetTheme(themeConfig));
+
   useEffect(() => {
     const evaluateTheme = () => {
-      let targetTheme = themeConfig.activeThemeId || 'nordic';
-
-      if (themeConfig.mode === 'system') {
-        const isSystemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        targetTheme = isSystemDark ? themeConfig.darkThemeId : themeConfig.lightThemeId;
-      } else if (themeConfig.mode === 'scheduled') {
-        const now = new Date();
-        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const lightStart = themeConfig.lightStartTime || '07:00';
-        const darkStart = themeConfig.darkStartTime || '19:00';
-
-        const isDaytime = currentTime >= lightStart && currentTime < darkStart;
-        targetTheme = isDaytime ? themeConfig.lightThemeId : themeConfig.darkThemeId;
-      }
-
+      const targetTheme = computeTargetTheme(themeConfig);
       document.body.setAttribute('data-theme', targetTheme);
+      setResolvedTheme(targetTheme);
     };
 
     evaluateTheme();
     const interval = setInterval(evaluateTheme, 30000);
-    return () => clearInterval(interval);
-  }, [themeConfig]);
+    const mq = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : null;
+    const onMqChange = () => evaluateTheme();
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener('change', onMqChange);
+      else if (mq.addListener) mq.addListener(onMqChange);
+    }
+    return () => {
+      clearInterval(interval);
+      if (mq) {
+        if (mq.removeEventListener) mq.removeEventListener('change', onMqChange);
+        else if (mq.removeListener) mq.removeListener(onMqChange);
+      }
+    };
+  }, [themeConfig, computeTargetTheme]);
 
   const updateThemeConfig = (patch) => {
     setThemeConfig(prev => {
@@ -1216,11 +1342,12 @@ export default function App() {
 
   const applyThemeDirectly = (themeId) => {
     document.body.setAttribute('data-theme', themeId);
+    setResolvedTheme(themeId);
     updateThemeConfig({ activeThemeId: themeId });
   };
 
-  const activeAppliedTheme = themeConfig?.activeThemeId || (typeof document !== 'undefined' ? document.body.getAttribute('data-theme') : 'nordic') || 'nordic';
-  const isDarkTheme = !['minimal', 'editorial', 'matcha', 'sakura'].includes(activeAppliedTheme);
+  const activeAppliedTheme = resolvedTheme || themeConfig?.activeThemeId || 'nordic';
+  const isDarkTheme = (ALL_THEMES.find(t => t.id === activeAppliedTheme)?.type || 'dark') !== 'light';
 
   useEffect(() => {
     const onResize = () => {
@@ -1315,7 +1442,6 @@ export default function App() {
       if (deviceTypeRef.current === 'phone') {
         appResumeTimeRef.current = Date.now();
         triggerClickLockout(700);
-        setSelectedTodoId(null);
       } else {
         restoreInputFocus();
         setTimeout(restoreInputFocus, 20);
@@ -1428,7 +1554,26 @@ export default function App() {
     };
   }, []);
 
-  const todayStr = getLogicalDateStr(new Date(), dayStartHour);
+  const [todayStr, setTodayStr] = useState(() => getLogicalDateStr(new Date(), dayStartHour));
+
+  useEffect(() => {
+    const refreshToday = () => {
+      const next = getLogicalDateStr(new Date(), dayStartHour);
+      setTodayStr(prev => (prev === next ? prev : next));
+    };
+    refreshToday();
+    const timer = setInterval(refreshToday, 30000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') refreshToday();
+    };
+    window.addEventListener('focus', refreshToday);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refreshToday);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [dayStartHour]);
 
   // Unfinished tasks manually placed in an earlier day's My Day (overdue due-date tasks now enter My Day automatically)
   const overdueTasks = syncState.todos.filter(t => isTodoLeftoverFromEarlier(t, todayStr));
@@ -1473,7 +1618,7 @@ export default function App() {
     if (filterPriority !== 'all' && todo.priority !== filterPriority) return false;
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.trim().toLowerCase();
       const matchTitle = (todo.title || '').toLowerCase().includes(q);
       const matchNotes = (todo.notes || '').toLowerCase().includes(q);
       if (!matchTitle && !matchNotes) return false;
@@ -1760,21 +1905,21 @@ export default function App() {
     dragTimeoutRef.current = setTimeout(() => { didDragRef.current = false; }, 450);
 
     if (d.draggedIdx >= 0 && d.dropIndex >= 0) {
-      if (sortByDate) {
-        updateCurrentViewPref('sortByDate', false);
-      }
       const currentItems = [...sortedActiveRef.current];
       const actualFromIndex = currentItems.findIndex(t => t.id === d.id);
       if (actualFromIndex !== -1) {
         const targetIndex = Math.max(0, Math.min(d.dropIndex, currentItems.length - 1));
         if (actualFromIndex !== targetIndex) {
+          if (sortByDate) {
+            updateCurrentViewPref('sortByDate', false);
+          }
           const [moved] = currentItems.splice(actualFromIndex, 1);
           currentItems.splice(targetIndex, 0, moved);
 
           // Pinned partition sync when dragging across boundaries
           const otherPinnedCount = currentItems.filter(t => t.id !== moved.id && isTodoPinnedInContext(t, currentPinContext)).length;
           const wasPinned = isTodoPinnedInContext(moved, currentPinContext);
-          if (wasPinned && targetIndex >= otherPinnedCount) {
+          if (wasPinned && targetIndex > otherPinnedCount) {
             handleTogglePinTodo(moved, currentPinContext);
           } else if (!wasPinned && targetIndex < otherPinnedCount) {
             handleTogglePinTodo(moved, currentPinContext);
@@ -1808,6 +1953,7 @@ export default function App() {
   const startListDrag = (list, index, clientY, itemEl, gap = 4, source = 'sidebar') => {
     if (!itemEl || !list) return;
     handleItemTouchCancel();
+    didDragRef.current = true;
     const rect = itemEl.getBoundingClientRect();
     const containerEl = itemEl.closest('[data-lists-container]');
     const scrollEl = findScrollParent(containerEl);
@@ -1915,16 +2061,33 @@ export default function App() {
     return 0;
   };
 
+  const dragHandlersRef = useRef({
+    startTaskDrag,
+    updateTaskDrag,
+    endTaskDrag,
+    startListDrag,
+    updateListDrag,
+    endListDrag
+  });
+  dragHandlersRef.current = {
+    startTaskDrag,
+    updateTaskDrag,
+    endTaskDrag,
+    startListDrag,
+    updateListDrag,
+    endListDrag
+  };
+
   useEffect(() => {
     const onMouseMove = (e) => {
       if (taskDragRef.current.active) {
         e.preventDefault();
-        updateTaskDrag(e.clientY);
+        dragHandlersRef.current.updateTaskDrag(e.clientY);
         return;
       }
       if (listDragRef.current.active) {
         e.preventDefault();
-        updateListDrag(e.clientY);
+        dragHandlersRef.current.updateListDrag(e.clientY);
         return;
       }
       const p = pendingPointerDragRef.current;
@@ -1934,9 +2097,9 @@ export default function App() {
         if (dy > 18 && dy > dx * 1.5 && e.buttons === 1) {
           pendingPointerDragRef.current = null;
           if (p.kind === 'task') {
-            startTaskDrag(p.todo, p.index, e.clientY, p.el);
+            dragHandlersRef.current.startTaskDrag(p.todo, p.index, e.clientY, p.el);
           } else if (p.kind === 'list') {
-            startListDrag(p.list, p.index, e.clientY, p.el, p.gap, p.source);
+            dragHandlersRef.current.startListDrag(p.list, p.index, e.clientY, p.el, p.gap, p.source);
           }
         }
       }
@@ -1944,32 +2107,32 @@ export default function App() {
 
     const onMouseUp = () => {
       pendingPointerDragRef.current = null;
-      if (taskDragRef.current.active) endTaskDrag();
-      if (listDragRef.current.active) endListDrag();
+      if (taskDragRef.current.active) dragHandlersRef.current.endTaskDrag();
+      if (listDragRef.current.active) dragHandlersRef.current.endListDrag();
     };
 
     const onTouchMove = (e) => {
       if (taskDragRef.current.active) {
         if (e.cancelable) e.preventDefault();
-        if (e.touches && e.touches[0]) updateTaskDrag(e.touches[0].clientY);
+        if (e.touches && e.touches[0]) dragHandlersRef.current.updateTaskDrag(e.touches[0].clientY);
         return;
       }
       if (listDragRef.current.active) {
         if (e.cancelable) e.preventDefault();
-        if (e.touches && e.touches[0]) updateListDrag(e.touches[0].clientY);
+        if (e.touches && e.touches[0]) dragHandlersRef.current.updateListDrag(e.touches[0].clientY);
       }
     };
 
     const onTouchEnd = () => {
       pendingPointerDragRef.current = null;
-      if (taskDragRef.current.active) endTaskDrag();
-      if (listDragRef.current.active) endListDrag();
+      if (taskDragRef.current.active) dragHandlersRef.current.endTaskDrag();
+      if (listDragRef.current.active) dragHandlersRef.current.endListDrag();
     };
 
     const onWindowBlur = () => {
       pendingPointerDragRef.current = null;
-      if (taskDragRef.current.active) endTaskDrag();
-      if (listDragRef.current.active) endListDrag();
+      if (taskDragRef.current.active) dragHandlersRef.current.endTaskDrag();
+      if (listDragRef.current.active) dragHandlersRef.current.endListDrag();
     };
 
     window.addEventListener('mousemove', onMouseMove, { passive: false });
@@ -2001,7 +2164,7 @@ export default function App() {
       }
 
       const tag = e.target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) {
         if (e.key === 'Escape') {
           e.target.blur();
           lastActiveInputRef.current = null;
@@ -2011,16 +2174,20 @@ export default function App() {
         return;
       }
 
-      if (e.key === '[' && !e.ctrlKey && !e.metaKey && !e.altKey && deviceTypeRef.current !== 'phone') {
-        e.preventDefault();
-        toggleSidebar();
-      } else if (e.key === '/') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      } else if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        quickAddInputRef.current?.focus();
-      } else if (e.key === 'Escape') {
+      const noMods = !e.ctrlKey && !e.metaKey && !e.altKey;
+      const modalBlockingShortcuts = Boolean(
+        showSettingsModal ||
+        showThemeModal ||
+        showPlannerModal ||
+        showDevicesModal ||
+        showCanvasModal ||
+        showQuickAddCalendar ||
+        showListsModal ||
+        editingList ||
+        (listsToDelete && listsToDelete.length > 0)
+      );
+
+      if (e.key === 'Escape') {
         setListContextMenu(null);
         setEditingList(null);
         setListsToDelete(null);
@@ -2030,19 +2197,33 @@ export default function App() {
         setShowSettingsModal(false);
         setShowThemeModal(false);
         setShowPlannerModal(false);
+        setShowDevicesModal(false);
         setShowListsModal(false);
         setShowCanvasModal(false);
+        setShowQuickAddCalendar(false);
+        setShowLeftoversPicker(false);
+      } else if (modalBlockingShortcuts) {
+        return;
+      } else if (e.key === '[' && noMods && deviceTypeRef.current !== 'phone') {
+        e.preventDefault();
+        toggleSidebar();
+      } else if (e.key === '/' && noMods) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if ((e.key === 'n' || e.key === 'N') && noMods) {
+        e.preventDefault();
+        quickAddInputRef.current?.focus();
       } else if (selectedTodo) {
-        if (e.key === ' ') {
+        if (e.key === ' ' && noMods && tag !== 'BUTTON' && tag !== 'A') {
           e.preventDefault();
           handleToggleTodoWithUndo(selectedTodo);
-        } else if (e.key === 't' || e.key === 'T') {
+        } else if ((e.key === 't' || e.key === 'T') && noMods) {
           e.preventDefault();
           syncEngine.toggleTodoInMyDay(selectedTodo.id, todayStr);
-        } else if (e.key === 'p' || e.key === 'P') {
+        } else if ((e.key === 'p' || e.key === 'P') && noMods) {
           e.preventDefault();
           handleTogglePinTodo(selectedTodo);
-        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        } else if ((e.key === 'Delete' || e.key === 'Backspace') && noMods) {
           e.preventDefault();
           handleDeleteTodoWithUndo(selectedTodo);
         } else if (e.altKey && e.key === 'ArrowUp') {
@@ -2059,7 +2240,7 @@ export default function App() {
   });
 
   // Live Natural-Language Parsing on Quick-Add Input
-  const parsedQuickAdd = parseNaturalTaskInput(newTitle, syncState.lists);
+  const parsedQuickAdd = parseNaturalTaskInput(newTitle, syncState.lists, todayStr);
 
   // Inline Quick-Add Handwriting Strip handlers with High-DPI & S-Pen Button Eraser
   useEffect(() => {
@@ -2113,6 +2294,8 @@ export default function App() {
     };
   };
 
+  const inlineLastPointRef = useRef(null);
+
   const handleInlinePointerDown = (e) => {
     const canvas = inlineCanvasRef.current;
     if (!canvas) return;
@@ -2120,6 +2303,7 @@ export default function App() {
     const ctx = canvas.getContext('2d');
     const { x, y } = getInlineCoords(e);
     inlineDrawingRef.current = true;
+    inlineLastPointRef.current = { x, y };
     setInlineHasInk(true);
 
     if (isStylusEraser(e)) {
@@ -2144,6 +2328,7 @@ export default function App() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const { x, y } = getInlineCoords(e);
+    const prev = inlineLastPointRef.current || { x, y };
 
     if (isStylusEraser(e)) {
       ctx.globalCompositeOperation = 'destination-out';
@@ -2154,20 +2339,35 @@ export default function App() {
       ctx.lineWidth = e.pressure ? Math.max(2.5, e.pressure * 6) : 3.5;
     }
 
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
     ctx.lineTo(x, y);
     ctx.stroke();
+    inlineLastPointRef.current = { x, y };
   };
 
-  const handleInlinePointerUp = () => {
+  const handleInlinePointerUp = (e) => {
     if (!inlineDrawingRef.current) return;
     inlineDrawingRef.current = false;
+    inlineLastPointRef.current = null;
     const canvas = inlineCanvasRef.current;
     if (canvas) {
+      if (e?.pointerId !== undefined) {
+        try { canvas.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      }
       const ctx = canvas.getContext('2d');
       ctx.globalCompositeOperation = 'source-over';
-      const cropped = cropCanvasInk(canvas) || canvas.toDataURL('image/png');
-      setNewHandwriting(cropped);
-      setNewHandwritingIsInline(true);
+      const cropped = cropCanvasInk(canvas);
+      if (cropped) {
+        setNewHandwriting(cropped);
+        setNewHandwritingIsInline(true);
+      } else {
+        setNewHandwriting(null);
+        setNewHandwritingIsInline(false);
+        setInlineHasInk(false);
+      }
     }
   };
 
@@ -2177,6 +2377,7 @@ export default function App() {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+    inlineLastPointRef.current = null;
     setInlineHasInk(false);
     setNewHandwriting(null);
     setNewHandwritingIsInline(false);
@@ -2185,19 +2386,27 @@ export default function App() {
   // Add Task (incorporating natural language detections!)
   const handleAddTodo = (e) => {
     e.preventDefault();
-    if (!newTitle.trim() && !newHandwriting) return;
+    const domInputValue = quickAddInputRef.current?.value;
+    const rawTitle = (typeof domInputValue === 'string' && domInputValue !== newTitle)
+      ? domInputValue
+      : newTitle;
+    if (!rawTitle.trim() && !newHandwriting) return;
+
+    const parsedInput = rawTitle === newTitle
+      ? parsedQuickAdd
+      : parseNaturalTaskInput(rawTitle, syncState.lists, todayStr);
 
     const inListView = (activeView === 'list' || activeView === 'projects') && selectedListId;
     const defaultList = inListView ? selectedListId : 'inbox';
-    const targetList = parsedQuickAdd.detectedList ? parsedQuickAdd.detectedList.id : defaultList;
-    const isMyDay = activeView === 'today' || parsedQuickAdd.detectedDate === todayStr;
+    const targetList = parsedInput.detectedList ? parsedInput.detectedList.id : defaultList;
+    const isMyDay = activeView === 'today' || parsedInput.detectedDate === todayStr;
 
-    const isInline = newHandwritingIsInline === true || (!newTitle.trim() && !!newHandwriting && newHandwritingIsInline !== false);
-    const finalTitle = parsedQuickAdd.cleanTitle || (isInline ? '' : (newHandwriting ? 'Handwritten sketch' : newTitle.trim()));
-    const finalPriority = parsedQuickAdd.detectedPriority || newPriority;
-    const finalDueDate = parsedQuickAdd.detectedDate || newDueDate || null;
-    const finalRecurrence = parsedQuickAdd.detectedRecurrence || newRecurrence;
-    const finalInterval = parsedQuickAdd.detectedRecurrence ? parsedQuickAdd.detectedInterval : newRecurrenceInterval;
+    const isInline = newHandwritingIsInline === true || (!rawTitle.trim() && !!newHandwriting && newHandwritingIsInline !== false);
+    const finalTitle = parsedInput.cleanTitle || (isInline ? '' : (newHandwriting ? 'Handwritten sketch' : rawTitle.trim()));
+    const finalPriority = parsedInput.detectedPriority || newPriority;
+    const finalDueDate = parsedInput.detectedDate || newDueDate || null;
+    const finalRecurrence = parsedInput.detectedRecurrence || newRecurrence;
+    const finalInterval = parsedInput.detectedRecurrence ? parsedInput.detectedInterval : newRecurrenceInterval;
 
     syncEngine.addTodo(
       finalTitle,
@@ -2208,7 +2417,7 @@ export default function App() {
       {
         inMyDay: isMyDay,
         plannedDate: isMyDay ? todayStr : null,
-        reminderTime: parsedQuickAdd.detectedTime || null,
+        reminderTime: parsedInput.detectedTime || null,
         recurrence: finalRecurrence,
         recurrenceInterval: finalInterval,
         handwriting: newHandwriting,
@@ -2225,8 +2434,11 @@ export default function App() {
     if (inlineHasInk) clearInlineCanvas();
     setShowInlinePenStrip(false);
 
-    // On laptop/desktop, keep quick add input focused after submitting a task
-    if (deviceTypeRef.current !== 'phone') {
+    if (deviceTypeRef.current === 'phone') {
+      // On phone, cleanly dismiss soft keyboard and restore bottom nav right after adding
+      dismissPhoneKeyboardNow();
+    } else {
+      // On laptop/desktop, keep quick add input focused after submitting a task
       setTimeout(() => {
         quickAddInputRef.current?.focus();
         if (quickAddInputRef.current) {
@@ -2433,6 +2645,17 @@ export default function App() {
               placeholder={isLandscapePhone ? "Search tasks..." : viewportWidth < 760 ? "Search (/)" : "Search tasks, notes ( / )..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => {
+                if (deviceTypeRef.current === 'phone') {
+                  cancelBlurInput();
+                  setIsInputFocused(true);
+                }
+              }}
+              onBlur={() => {
+                if (deviceTypeRef.current === 'phone') {
+                  scheduleBlurInput();
+                }
+              }}
               dir="auto"
               style={{
                 width: '100%',
@@ -2452,6 +2675,8 @@ export default function App() {
             </span>
             {searchQuery && (
               <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setSearchQuery('')}
                 style={{ position: 'absolute', right: '6px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
               >
@@ -2655,6 +2880,7 @@ export default function App() {
                   <button
                     onClick={() => {
                       setActiveView('analytics');
+                      setSelectedListId(null);
                       if (isNarrowDesktop) setIsCompactSidebarOpen(false);
                     }}
                     style={{
@@ -2754,20 +2980,33 @@ export default function App() {
                       <div
                         key={list.id}
                         data-list-item={list.id}
-                        onTouchStart={() => {
+                        onTouchStart={(e) => {
                           lastListTouchTimeRef.current = Date.now();
+                          if (e.touches && e.touches[0]) {
+                            touchStartCoordRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                            isTouchScrollingRef.current = false;
+                          }
                           handleItemTouchStart(list.id, isSystem);
                         }}
                         onTouchEnd={() => {
                           lastListTouchTimeRef.current = Date.now();
-                          if (didDragRef.current) return;
+                          if (didDragRef.current || listDragRef.current.active) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             setActiveView('list');
                             setSelectedListId(list.id);
                             if (isNarrowDesktop) setIsCompactSidebarOpen(false);
                           });
                         }}
-                        onTouchMove={handleItemTouchCancel}
+                        onTouchMove={(e) => {
+                          if (e.touches && e.touches[0] && touchStartCoordRef.current) {
+                            const dx = Math.abs(e.touches[0].clientX - touchStartCoordRef.current.x);
+                            const dy = Math.abs(e.touches[0].clientY - touchStartCoordRef.current.y);
+                            if (dx > 7 || dy > 7) {
+                              isTouchScrollingRef.current = true;
+                              handleItemTouchCancel();
+                            }
+                          }
+                        }}
                         onMouseDown={(e) => {
                           if (Date.now() - lastListTouchTimeRef.current < 650) return;
                           if (e.button !== 0) return;
@@ -2789,7 +3028,7 @@ export default function App() {
                           if (Date.now() - lastListTouchTimeRef.current < 650) return;
                           if (e.button !== 0) return;
                           pendingPointerDragRef.current = null;
-                          if (didDragRef.current) return;
+                          if (didDragRef.current || listDragRef.current.active) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             setActiveView('list');
                             setSelectedListId(list.id);
@@ -2987,7 +3226,7 @@ export default function App() {
           }}
         >
           {/* Sub-header / Filter Toolbar */}
-          {activeView !== 'analytics' && (
+          {(activeView !== 'analytics' || Boolean(searchQuery.trim())) && (
             <div style={{
               padding: isTightMain ? '10px 14px' : '14px 20px',
               borderBottom: '1px solid var(--border)',
@@ -3065,7 +3304,7 @@ export default function App() {
                               title={`Current Date (${calendarType})`}
                             >
                               <Icon name="cal" size={13} />
-                              <span>{formatDayDateHeader(new Date(), calendarType, dayStartHour)}</span>
+                              <span>{formatDayDateHeader(todayStr, calendarType, 0)}</span>
                             </span>
                           </span>
                         )}
@@ -3340,24 +3579,32 @@ export default function App() {
                       </label>
                     );
                   })}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
-                    <button
-                      onClick={() => handleCarryForward(Array.from(selectedLeftoverIds))}
-                      disabled={selectedLeftoverIds.size === 0}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: 'var(--primary)',
-                        color: '#fff',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: selectedLeftoverIds.size > 0 ? 'pointer' : 'default'
-                      }}
-                    >
-                      Bring Selected ({selectedLeftoverIds.size})
-                    </button>
-                  </div>
+                  {(() => {
+                    const validSelectedLeftovers = overdueTasks
+                      .filter(t => selectedLeftoverIds.has(t.id))
+                      .map(t => t.id);
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                        <button
+                          onClick={() => handleCarryForward(validSelectedLeftovers)}
+                          disabled={validSelectedLeftovers.length === 0}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: 'var(--primary)',
+                            color: '#fff',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            opacity: validSelectedLeftovers.length > 0 ? 1 : 0.5,
+                            cursor: validSelectedLeftovers.length > 0 ? 'pointer' : 'default'
+                          }}
+                        >
+                          Bring Selected ({validSelectedLeftovers.length})
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -3390,7 +3637,7 @@ export default function App() {
             }}
             style={{ flex: 1, overflowY: 'auto', padding: isTightMain ? '12px' : '16px 20px' }}
           >
-            {activeView === 'analytics' ? (
+            {activeView === 'analytics' && !searchQuery.trim() ? (
               <AnalyticsDashboard
                 todos={syncState.todos}
                 lists={syncState.lists}
@@ -3525,9 +3772,7 @@ export default function App() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const d = new Date();
-                            d.setDate(d.getDate() + 1);
-                            const tmrw = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            const tmrw = getTomorrowLogicalDateStr();
                             syncEngine.updateTodo(todo.id, { dueDate: tmrw, inMyDay: false, plannedDate: null, myDayExcludedDate: null });
                             setSwipedTodoId(null);
                           }}
@@ -4123,6 +4368,8 @@ export default function App() {
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
                         type="button"
+                        onPointerDown={markQuickAddActionPress}
+                        onMouseDown={(e) => { markQuickAddActionPress(); e.preventDefault(); }}
                         onClick={clearInlineCanvas}
                         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
                       >
@@ -4130,7 +4377,12 @@ export default function App() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleOpenCanvas(null, newHandwriting)}
+                        onPointerDown={markQuickAddActionPress}
+                        onMouseDown={(e) => { markQuickAddActionPress(); e.preventDefault(); }}
+                        onClick={() => {
+                          if (deviceTypeRef.current === 'phone') dismissPhoneKeyboardNow();
+                          handleOpenCanvas(null, newHandwriting);
+                        }}
                         style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                       >
                         Full Canvas ↗
@@ -4220,13 +4472,14 @@ export default function App() {
                       e.target.blur();
                       return;
                     }
+                    cancelBlurInput();
                     setIsInputFocused(true);
                     if (window.scrollY !== 0) window.scrollTo(0, 0);
                     if (document.body) document.body.scrollTop = 0;
                     if (mainRef.current) mainRef.current.scrollTop = 0;
                   }}
                   onBlur={() => {
-                    setIsInputFocused(false);
+                    scheduleBlurInput();
                     if (window.scrollY !== 0) window.scrollTo(0, 0);
                     if (document.body) document.body.scrollTop = 0;
                   }}
@@ -4253,6 +4506,7 @@ export default function App() {
                   <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                     <button
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setShowQuickAddCalendar(true)}
                       title={newDueDate ? `Due: ${newDueDate} (click to change)` : 'Set task due date'}
                       style={{
@@ -4281,6 +4535,7 @@ export default function App() {
                     {newDueDate && (
                       <button
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={(e) => {
                           e.stopPropagation();
                           setNewDueDate('');
@@ -4364,7 +4619,15 @@ export default function App() {
                 {/* Inline Pen Strip Toggle */}
                 <button
                   type="button"
-                  onClick={() => setShowInlinePenStrip(!showInlinePenStrip)}
+                  onPointerDown={markQuickAddActionPress}
+                  onMouseDown={(e) => { markQuickAddActionPress(); e.preventDefault(); }}
+                  onClick={() => {
+                    const nextShow = !showInlinePenStrip;
+                    setShowInlinePenStrip(nextShow);
+                    if (nextShow && deviceTypeRef.current === 'phone') {
+                      dismissPhoneKeyboardNow();
+                    }
+                  }}
                   title="Write task with S-Pen / Stylus"
                   style={{
                     padding: isTightQuickAdd ? '9px 10px' : '9px 12px',
@@ -4387,6 +4650,8 @@ export default function App() {
 
                 <button
                   type="submit"
+                  onPointerDown={markQuickAddActionPress}
+                  onMouseDown={(e) => { markQuickAddActionPress(); e.preventDefault(); }}
                   disabled={!newTitle.trim() && !newHandwriting}
                   style={{
                     padding: (isPhone || isTightQuickAdd) ? '10px 15px' : '10px 20px',
@@ -4462,8 +4727,7 @@ export default function App() {
         const hasTomorrowBtn = Boolean(undoToast.onAddTomorrow);
         const isPhoneStacked = hasTomorrowBtn && viewportWidth < 540;
 
-        const appliedThemeId = (typeof document !== 'undefined' && document.body.getAttribute('data-theme')) || activeAppliedTheme;
-        const isLightTheme = ALL_THEMES.find(t => t.id === appliedThemeId)?.type === 'light';
+        const isLightTheme = !isDarkTheme;
         const tomorrowColor = isLightTheme ? '#b45309' : '#fbbf24';
         const tomorrowBg = isLightTheme ? 'rgba(245, 158, 11, 0.14)' : 'rgba(251, 191, 36, 0.14)';
         const tomorrowHoverBg = isLightTheme ? 'rgba(245, 158, 11, 0.24)' : 'rgba(251, 191, 36, 0.24)';
@@ -4481,6 +4745,7 @@ export default function App() {
         const dismissBtn = (
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
               setUndoToast(null);
@@ -4580,6 +4845,7 @@ export default function App() {
             {undoToast.onAddTomorrow && (
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleAddTomorrowClick}
                 style={{
                   display: 'inline-flex',
@@ -4617,6 +4883,7 @@ export default function App() {
             {undoToast.onUndo && (
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleUndoClick}
                 style={{
                   display: 'inline-flex',
@@ -4886,7 +5153,7 @@ export default function App() {
                         }}
                         onTouchEnd={() => {
                           lastListTouchTimeRef.current = Date.now();
-                          if (didDragRef.current) return;
+                          if (didDragRef.current || listDragRef.current.active) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             triggerClickLockout();
                             setActiveView('list');
@@ -4914,7 +5181,8 @@ export default function App() {
                         onMouseUp={(e) => {
                           if (Date.now() - lastListTouchTimeRef.current < 650) return;
                           if (e.button !== 0) return;
-                          if (didDragRef.current) return;
+                          pendingPointerDragRef.current = null;
+                          if (didDragRef.current || listDragRef.current.active) return;
                           handleItemTouchEnd(list.id, isSystem, () => {
                             triggerClickLockout();
                             setActiveView('list');
@@ -5051,7 +5319,7 @@ export default function App() {
             zIndex: 30
           }}>
             <button
-              onClick={() => { setActiveView('today'); setShowListPickerSheet(false); }}
+              onClick={() => { setActiveView('today'); setSelectedListId(null); setShowListPickerSheet(false); }}
               style={{
                 flex: 1, height: '100%', background: 'none', border: 'none',
                 color: activeView === 'today' ? 'var(--primary)' : 'var(--text-muted)',
@@ -5107,7 +5375,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => { setActiveView('analytics'); setShowListPickerSheet(false); }}
+              onClick={() => { setActiveView('analytics'); setSelectedListId(null); setShowListPickerSheet(false); }}
               style={{
                 flex: 1, height: '100%', background: 'none', border: 'none',
                 color: activeView === 'analytics' ? 'var(--primary)' : 'var(--text-muted)',
@@ -5139,7 +5407,7 @@ export default function App() {
         <ThemeSettingsModal
           themeConfig={themeConfig}
           onUpdateThemeConfig={updateThemeConfig}
-          currentAppliedTheme={document.body.getAttribute('data-theme')}
+          currentAppliedTheme={activeAppliedTheme}
           onApplyTheme={applyThemeDirectly}
           onClose={() => setShowThemeModal(false)}
         />
@@ -5391,6 +5659,7 @@ export default function App() {
         <CalendarPickerModal
           isOpen={showQuickAddCalendar}
           value={newDueDate || todayStr}
+          todayStr={todayStr}
           calendarType={calendarType}
           deviceType={deviceType}
           onSelect={(iso) => {

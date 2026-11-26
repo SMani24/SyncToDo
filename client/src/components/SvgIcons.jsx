@@ -150,7 +150,7 @@ export function Icon({ name, size = 16, style = {}, className = '' }) {
  *  - times like 6pm, 17:00, 9:30am
  *  - daily, every day, weekly, every week, weekdays, monthly, every N days
  */
-export function parseNaturalTaskInput(rawText, lists = []) {
+export function parseNaturalTaskInput(rawText, lists = [], baseDateStr = null) {
   if (!rawText || !rawText.trim()) {
     return {
       cleanTitle: '',
@@ -207,7 +207,7 @@ export function parseNaturalTaskInput(rawText, lists = []) {
     const recSimple = working.match(/\b(every\s+day|daily|every\s+weekday|weekdays|every\s+week|weekly|every\s+month|monthly)\b/i);
     if (recSimple) {
       const r = recSimple[1].toLowerCase();
-      if (r.includes('day') && !r.includes('week')) detectedRecurrence = 'daily';
+      if (r === 'daily' || (r.includes('day') && !r.includes('week'))) detectedRecurrence = 'daily';
       else if (r.includes('weekday')) detectedRecurrence = 'weekdays';
       else if (r.includes('week')) detectedRecurrence = 'weekly';
       else if (r.includes('month')) detectedRecurrence = 'monthly';
@@ -216,7 +216,13 @@ export function parseNaturalTaskInput(rawText, lists = []) {
   }
 
   // 4. Date matching (today, tomorrow, next week, in N days, weekday names)
-  const now = new Date();
+  const now = (() => {
+    if (typeof baseDateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(baseDateStr)) {
+      const [by, bm, bd] = baseDateStr.split('-').map(Number);
+      return new Date(by, bm - 1, bd, 12, 0, 0);
+    }
+    return new Date();
+  })();
   const toIso = (d) => {
     const yr = d.getFullYear();
     const mo = String(d.getMonth() + 1).padStart(2, '0');
@@ -226,11 +232,12 @@ export function parseNaturalTaskInput(rawText, lists = []) {
 
   const inNDays = working.match(/\bin\s+(\d+)\s+days?\b/i);
   if (inNDays) {
-    const add = parseInt(inNDays[1], 10) || 1;
+    const parsedN = parseInt(inNDays[1], 10);
+    const add = Number.isNaN(parsedN) ? 1 : parsedN;
     const d = new Date(now);
     d.setDate(d.getDate() + add);
     detectedDate = toIso(d);
-    detectedDateLabel = `In ${add}d`;
+    detectedDateLabel = add === 0 ? 'Today' : `In ${add}d`;
     working = working.replace(inNDays[0], ' ');
   } else if (/\btomorrow\b|\btmrw\b/i.test(working)) {
     const d = new Date(now);
@@ -266,7 +273,7 @@ export function parseNaturalTaskInput(rawText, lists = []) {
   }
 
   // 5. Time matching ("at 6pm", "6:30pm", "17:00", "9am")
-  const time12 = working.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  const time12 = working.match(/\b(?:at\s+)?(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i);
   if (time12) {
     let hr = parseInt(time12[1], 10);
     const min = time12[2] || '00';

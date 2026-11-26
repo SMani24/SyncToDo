@@ -17,34 +17,34 @@ import {
   GREGORIAN_MONTH_NAMES_EN,
   GREGORIAN_MONTH_NAMES_FA,
   GREGORIAN_WEEKDAYS,
-  getGregorianMonthLength
+  getGregorianMonthLength,
+  getLogicalDateStr,
+  getStoredDayStartHour
 } from '../utils/calendar';
 
 export default function CalendarPickerModal({
   isOpen = true,
   value, // "YYYY-MM-DD" or null
   currentDate,
+  todayStr,
   calendarType = 'gregorian',
   onSelect, // (isoDateStr | null) => void
   onSelectDate,
   onClose,
   deviceType = 'laptop'
 }) {
-  if (isOpen === false) return null;
-
   const finalValue = value !== undefined ? value : currentDate;
   const triggerSelect = onSelect || onSelectDate || (() => {});
 
   const isPhone = deviceType === 'phone';
   const isRTL = calendarType === 'shamsi' || calendarType === 'islamic';
 
-  // Current today reference
-  const now = new Date();
-  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // Logical today reference respecting dayStartHour
+  const todayISO = todayStr || getLogicalDateStr(new Date(), getStoredDayStartHour());
 
   // Initial state based on current calendarType and selected value
   const [viewYear, setViewYear] = useState(() => {
-    const d = finalValue ? new Date(finalValue + 'T12:00:00') : now;
+    const d = new Date((finalValue || todayISO) + 'T12:00:00');
     if (calendarType === 'shamsi') {
       const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
       return j.jy;
@@ -57,7 +57,7 @@ export default function CalendarPickerModal({
   });
 
   const [viewMonth, setViewMonth] = useState(() => {
-    const d = finalValue ? new Date(finalValue + 'T12:00:00') : now;
+    const d = new Date((finalValue || todayISO) + 'T12:00:00');
     if (calendarType === 'shamsi') {
       const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
       return j.jm; // 1..12
@@ -71,7 +71,7 @@ export default function CalendarPickerModal({
 
   // Keep state in sync if value or calendarType changes externally
   useEffect(() => {
-    const d = finalValue ? new Date(finalValue + 'T12:00:00') : new Date();
+    const d = new Date((finalValue || todayISO) + 'T12:00:00');
     if (calendarType === 'shamsi') {
       const j = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
       setViewYear(j.jy);
@@ -84,7 +84,7 @@ export default function CalendarPickerModal({
       setViewYear(d.getFullYear());
       setViewMonth(d.getMonth() + 1);
     }
-  }, [finalValue, calendarType]);
+  }, [finalValue, calendarType, todayISO]);
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -195,8 +195,8 @@ export default function CalendarPickerModal({
   };
 
   const handleSelectTomorrow = () => {
-    const tmrw = new Date();
-    tmrw.setDate(tmrw.getDate() + 1);
+    const [ty, tm, td] = todayISO.split('-').map(Number);
+    const tmrw = new Date(ty, tm - 1, td + 1);
     const tmrwISO = `${tmrw.getFullYear()}-${String(tmrw.getMonth() + 1).padStart(2, '0')}-${String(tmrw.getDate()).padStart(2, '0')}`;
     triggerSelect(tmrwISO);
     onClose();
@@ -206,6 +206,8 @@ export default function CalendarPickerModal({
     triggerSelect(null);
     onClose();
   };
+
+  if (isOpen === false) return null;
 
   return (
     <div

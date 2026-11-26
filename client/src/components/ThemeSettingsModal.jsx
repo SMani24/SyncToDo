@@ -157,7 +157,7 @@ export default function ThemeSettingsModal({
 
           {/* Schedule Mode Selector */}
           <div style={{
-            padding: 'max(14px, var(--sat)) 12px max(18px, var(--sab)) 12px',
+            padding: '14px 16px',
             borderRadius: '14px',
             backgroundColor: 'var(--bg-subtle)',
             border: '1px solid var(--border)',
@@ -234,7 +234,7 @@ export default function ThemeSettingsModal({
 
             {/* Time schedule inputs */}
             {themeConfig.mode === 'scheduled' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 14px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>☀️ Light Theme Start:</span>
                   <input

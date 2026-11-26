@@ -229,6 +229,8 @@ export function buildImportBatch({
     }
   };
   workingLists.forEach(registerList);
+  // Prevent imported custom lists from sorting above default/existing lists that lack an explicit numeric order
+  maxListOrder = Math.max(maxListOrder, workingLists.length - 1);
 
   const createdLists = [];
   const ensureListByMeta = (nameOrId, icon = '📁', color = '#6366f1', explicitId = null) => {
@@ -296,13 +298,16 @@ export function buildImportBatch({
     const notes = raw.notes === undefined || raw.notes === null ? '' : String(raw.notes);
     const steps = normalizeSteps(raw.steps, now, idx);
 
-    const inMyDay = raw.inMyDay !== undefined ? Boolean(raw.inMyDay) : (isMyDayAlias || Boolean(defaultInMyDay));
-    const plannedDate = inMyDay
-      ? (typeof raw.plannedDate === 'string' && raw.plannedDate ? raw.plannedDate : effectiveToday)
+    const resolvedPlannedDate = (typeof raw.plannedDate === 'string' && raw.plannedDate.trim())
+      ? resolveDueDateValue(raw.plannedDate, effectiveToday, effectiveTomorrow, idx)
       : null;
+    const inMyDay = raw.inMyDay !== undefined
+      ? Boolean(raw.inMyDay)
+      : (isMyDayAlias || Boolean(defaultInMyDay) || Boolean(resolvedPlannedDate));
+    const plannedDate = inMyDay ? (resolvedPlannedDate || effectiveToday) : null;
 
     const explicitPinnedIn = Array.isArray(raw.pinnedIn) ? [...new Set(raw.pinnedIn.filter(Boolean))] : null;
-    const pinned = Boolean(raw.pinned) || (explicitPinnedIn && explicitPinnedIn.length > 0);
+    const pinned = Boolean(raw.pinned || (explicitPinnedIn && explicitPinnedIn.length > 0));
     const pinnedIn = explicitPinnedIn && explicitPinnedIn.length > 0
       ? explicitPinnedIn
       : (pinned ? [...new Set([...(inMyDay || (dueDate && dueDate <= effectiveToday) ? ['today'] : []), resolvedList.id])] : []);
@@ -366,6 +371,9 @@ export function buildImportBatch({
       myDayCursor += 1;
     }
 
+    const prevTodo = !Array.isArray(existingTodos) && existingTodos ? existingTodos[id] : activeTodos.find(t => t.id === id);
+    const updatedAt = Math.max(now, ((prevTodo && prevTodo.updatedAt) || 0) + 1);
+
     return {
       id,
       title: item.title,
@@ -391,9 +399,9 @@ export function buildImportBatch({
       pinnedIn: item.pinnedIn,
       pinnedAt: item.pinnedAt,
       createdAt: item.raw.createdAt || now,
-      updatedAt: now,
+      updatedAt,
       deletedAt: null,
-      version: 1
+      version: prevTodo ? (prevTodo.version || 1) + 1 : 1
     };
   });
 
